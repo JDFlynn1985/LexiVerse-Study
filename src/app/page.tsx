@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -57,7 +58,11 @@ import {
   CloudUpload,
   ScanText,
   Puzzle,
-  LayoutDashboard
+  LayoutDashboard,
+  Share2,
+  CheckCircle2,
+  HardDrive,
+  FileCode
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -73,7 +78,8 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-  DropdownMenuLabel
+  DropdownMenuLabel,
+  DropdownMenuCheckboxItem
 } from '@/components/ui/dropdown-menu';
 
 // AI Flow Imports
@@ -89,6 +95,10 @@ import { findCovertLinks, type CovertReferenceOutput } from '@/ai/flows/cross-re
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 import { getAllLocalDocuments, saveLocalDocument, deleteLocalDocument, type IDBDocument } from '@/lib/idb';
 import { findOvertReferences } from '@/lib/cross-references';
+
+// Export Utils
+import { exportToPDF, exportToWord, exportToMarkdown } from '@/lib/export-service';
+import { exportToGoogleDrive, exportToGoogleDocs } from '@/lib/google-export';
 
 type ViewMode = 'dashboard' | 'lexicon' | 'commentaries' | 'wiki' | 'theology-map' | 'timeline' | 'writing-assistant' | 'integrity' | 'ai-settings' | 'ai-assistant' | 'verse-explorer' | 'compare-translations' | 'research-library';
 
@@ -115,6 +125,7 @@ export default function Home() {
   const auth = useAuth();
   const db = useFirestore();
   const { user } = useUser();
+  const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   const [history, setHistory] = useState<{id: string, type: string, term: string, date: string}[]>([]);
@@ -143,6 +154,9 @@ export default function Home() {
   // Multimodal States
   const [isRecording, setIsRecording] = useState(false);
   const [ocrResult, setOcrResult] = useState<string | null>(null);
+
+  // Multi-Export State
+  const [selectedExports, setSelectedExports] = useState<string[]>(['markdown']);
 
   const refreshLocalDocs = useCallback(async () => {
     const docs = await getAllLocalDocuments();
@@ -184,6 +198,9 @@ export default function Home() {
     appConfig.google.scopes.forEach(scope => provider.addScope(scope));
     try {
       const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) setGoogleAccessToken(credential.accessToken);
+      
       const userRef = doc(db, 'users', result.user.uid);
       setDoc(userRef, { 
         uid: result.user.uid, 
@@ -200,6 +217,7 @@ export default function Home() {
   const handleLogout = async () => {
     await signOut(auth);
     setUserProfile(null);
+    setGoogleAccessToken(null);
     toast({ title: "Logged out" });
   };
 
@@ -235,32 +253,31 @@ export default function Home() {
     }
   };
 
-  const handleObsidianExport = (result: any) => {
-    if (!result) return;
-    const title = result.originalWord || result.concept || result.topic || "Research";
-    const content = `---
-title: ${title}
-tags: #lexiverse #bible-study #scholarship
-date: ${new Date().toISOString()}
----
-
-# ${title}
-
-${result.summary || result.aiInsights || result.definition}
-
-## Lexical Data
-${result.lexicalData || "N/A"}
-
-## Bibliography
-${result.bibliography}
-`;
-    const blob = new Blob([content], { type: 'text/markdown' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${title.toLowerCase().replace(/\s+/g, '-')}-obsidian.md`;
-    a.click();
-    toast({ title: "Obsidian Ready", description: "Markdown file exported for your knowledge graph." });
+  const handleMultiExport = async () => {
+    if (!assistantResult) return;
+    setIsLoading(true);
+    try {
+      for (const format of selectedExports) {
+        switch (format) {
+          case 'pdf': await exportToPDF(assistantResult); break;
+          case 'docx': await exportToWord(assistantResult); break;
+          case 'markdown': await exportToMarkdown(assistantResult); break;
+          case 'gdrive': 
+            if (googleAccessToken) await exportToGoogleDrive(googleAccessToken, assistantResult);
+            else toast({ title: "Auth Required", description: "Link Google to export to Drive." });
+            break;
+          case 'gdocs': 
+            if (googleAccessToken) await exportToGoogleDocs(googleAccessToken, assistantResult);
+            else toast({ title: "Auth Required", description: "Link Google to export to Docs." });
+            break;
+        }
+      }
+      toast({ title: "Export Successful", description: `Saved to ${selectedExports.length} channel(s).` });
+    } catch (e) {
+      toast({ variant: 'destructive', title: "Export Failed" });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleVoiceSearch = async () => {
@@ -268,7 +285,6 @@ ${result.bibliography}
       setIsRecording(false);
       setIsLoading(true);
       try {
-        // Mock recording and transcription
         const res = await transcribeAudio({ audioPart: "SGVsbG8gV29ybGQ=" }); 
         setSidebarSearchTerm(res.transcript);
         handleSearch(res.transcript, 'ai-assistant');
@@ -652,9 +668,54 @@ ${result.bibliography}
                           <h2 className="text-3xl font-bold font-headline text-primary">{assistantResult.originalWord}</h2>
                           <p className="text-muted-foreground">{assistantResult.transliteration} • {assistantResult.pronunciation}</p>
                         </div>
-                        <Button variant="outline" size="sm" onClick={() => handleObsidianExport(assistantResult)}>
-                          <Download className="h-4 w-4 mr-2" /> Obsidian Export
-                        </Button>
+                        <div className="flex gap-2">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                <Share2 className="h-4 w-4 mr-2" /> Multi-Export ({selectedExports.length})
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="w-56">
+                              <DropdownMenuLabel>Select Channels</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuCheckboxItem 
+                                checked={selectedExports.includes('pdf')} 
+                                onCheckedChange={checked => checked ? setSelectedExports([...selectedExports, 'pdf']) : setSelectedExports(selectedExports.filter(e => e !== 'pdf'))}
+                              >
+                                <FileText className="h-4 w-4 mr-2" /> PDF Document
+                              </DropdownMenuCheckboxItem>
+                              <DropdownMenuCheckboxItem 
+                                checked={selectedExports.includes('docx')} 
+                                onCheckedChange={checked => checked ? setSelectedExports([...selectedExports, 'docx']) : setSelectedExports(selectedExports.filter(e => e !== 'docx'))}
+                              >
+                                <Files className="h-4 w-4 mr-2" /> Word (.docx)
+                              </DropdownMenuCheckboxItem>
+                              <DropdownMenuCheckboxItem 
+                                checked={selectedExports.includes('markdown')} 
+                                onCheckedChange={checked => checked ? setSelectedExports([...selectedExports, 'markdown']) : setSelectedExports(selectedExports.filter(e => e !== 'markdown'))}
+                              >
+                                <FileCode className="h-4 w-4 mr-2" /> Markdown (Obsidian)
+                              </DropdownMenuCheckboxItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuCheckboxItem 
+                                checked={selectedExports.includes('gdrive')} 
+                                onCheckedChange={checked => checked ? setSelectedExports([...selectedExports, 'gdrive']) : setSelectedExports(selectedExports.filter(e => e !== 'gdrive'))}
+                              >
+                                <HardDrive className="h-4 w-4 mr-2" /> Google Drive
+                              </DropdownMenuCheckboxItem>
+                              <DropdownMenuCheckboxItem 
+                                checked={selectedExports.includes('gdocs')} 
+                                onCheckedChange={checked => checked ? setSelectedExports([...selectedExports, 'gdocs']) : setSelectedExports(selectedExports.filter(e => e !== 'gdocs'))}
+                              >
+                                <Edit3 className="h-4 w-4 mr-2" /> Google Docs
+                              </DropdownMenuCheckboxItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="bg-primary text-primary-foreground font-bold" onClick={handleMultiExport}>
+                                <Download className="h-4 w-4 mr-2" /> Run Export Process
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent className="pt-6 space-y-8">
@@ -727,4 +788,3 @@ ${result.bibliography}
     </SidebarProvider>
   );
 }
-
