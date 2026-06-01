@@ -1,7 +1,16 @@
+
 'use client';
 
 import { useState, useEffect, useId, useRef } from 'react';
 import { useTheme } from 'next-themes';
+import * as pdfjsLib from 'pdfjs-dist';
+import mammoth from 'mammoth';
+
+// Set up PDF.js worker
+if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+}
+
 import { 
   Sidebar, 
   SidebarContent, 
@@ -54,7 +63,8 @@ import {
   Copy,
   FileUp,
   FileSearch,
-  Check
+  Check,
+  FileCode
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -97,6 +107,7 @@ interface ResearchPaper {
   id: string;
   title: string;
   content: string;
+  format: 'txt' | 'pdf' | 'docx';
   author?: string;
   date: string;
 }
@@ -202,28 +213,83 @@ export default function Home() {
     });
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const extractTextFromPdf = async (arrayBuffer: ArrayBuffer) => {
+    try {
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let fullText = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map((item: any) => item.str).join(' ');
+        fullText += pageText + '\n';
+      }
+      return fullText;
+    } catch (error) {
+      console.error('Error extracting PDF text:', error);
+      throw new Error('Failed to parse PDF file.');
+    }
+  };
+
+  const extractTextFromDocx = async (arrayBuffer: ArrayBuffer) => {
+    try {
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      return result.value;
+    } catch (error) {
+      console.error('Error extracting DOCX text:', error);
+      throw new Error('Failed to parse Word document.');
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result as string;
+    setIsLoading(true);
+    const fileName = file.name;
+    const extension = fileName.split('.').pop()?.toLowerCase();
+
+    try {
+      let content = '';
+      let format: 'txt' | 'pdf' | 'docx' = 'txt';
+
+      if (extension === 'pdf') {
+        const arrayBuffer = await file.arrayBuffer();
+        content = await extractTextFromPdf(arrayBuffer);
+        format = 'pdf';
+      } else if (extension === 'docx') {
+        const arrayBuffer = await file.arrayBuffer();
+        content = await extractTextFromDocx(arrayBuffer);
+        format = 'docx';
+      } else {
+        content = await file.text();
+        format = 'txt';
+      }
+
       const newPaper: ResearchPaper = {
         id: Date.now().toString(),
-        title: file.name,
+        title: fileName,
         content: content,
+        format,
         date: new Date().toLocaleString()
       };
+
       const updated = [newPaper, ...researchPapers];
       setResearchPapers(updated);
       localStorage.setItem('lexiverse_papers', JSON.stringify(updated));
       toast({
         title: "Paper Uploaded",
-        description: `"${file.name}" has been added to your research library.`,
+        description: `"${fileName}" has been processed and added to your research library.`,
       });
-    };
-    reader.readAsText(file);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Upload Failed",
+        description: error.message || "Could not process the uploaded file.",
+      });
+    } finally {
+      setIsLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   const captureSelectionToNotes = () => {
@@ -458,7 +524,7 @@ export default function Home() {
           </ScrollArea>
           <SidebarFooter className="p-4 border-t">
              <div className="flex justify-between items-center group-data-[collapsible=icon]:hidden">
-                <span className="text-[10px] text-muted-foreground uppercase">LexiVerse v2.5</span>
+                <span className="text-[10px] text-muted-foreground uppercase">LexiVerse v2.6</span>
                 <Button variant="ghost" size="icon" className="rounded-full h-8 w-8" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle theme">
                   {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
                 </Button>
@@ -510,21 +576,22 @@ export default function Home() {
 
             {activeTab === 'papers' && (
               <div className="space-y-6 animate-in fade-in">
-                <header className="flex justify-between items-center">
+                <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                   <div>
                     <h1 className="text-3xl font-bold font-headline">Knowledge Base</h1>
-                    <p className="text-muted-foreground">Upload your research papers to include them in AI analysis.</p>
+                    <p className="text-muted-foreground">Import your research from PDF, Word, or Text formats.</p>
                   </div>
-                  <div>
+                  <div className="flex gap-2">
                     <Input 
                       type="file" 
                       className="hidden" 
                       ref={fileInputRef} 
                       onChange={handleFileUpload}
-                      accept=".txt,.md"
+                      accept=".txt,.md,.pdf,.docx"
                     />
-                    <Button onClick={() => fileInputRef.current?.click()}>
-                      <FileUp className="h-4 w-4 mr-2" /> Upload Paper (.txt)
+                    <Button onClick={() => fileInputRef.current?.click()} disabled={isLoading}>
+                      {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileUp className="h-4 w-4 mr-2" />} 
+                      Upload Scholar Paper
                     </Button>
                   </div>
                 </header>
@@ -532,7 +599,8 @@ export default function Home() {
                 {researchPapers.length === 0 ? (
                   <Card className="border-dashed py-20 text-center">
                     <FileSearch className="h-12 w-12 mx-auto mb-4 opacity-10" />
-                    <p className="text-muted-foreground">No papers uploaded. Add texts to enhance AI context.</p>
+                    <p className="text-muted-foreground">No papers uploaded. Add PDFs, Word docs, or Text files to enhance AI context.</p>
+                    <p className="text-xs text-muted-foreground mt-2 italic">(Google Docs: Export to PDF/Word and upload here)</p>
                   </Card>
                 ) : (
                   <div className="grid gap-4 md:grid-cols-2">
@@ -540,7 +608,12 @@ export default function Home() {
                       <Card key={paper.id} className="hover:border-primary transition-colors">
                         <CardHeader className="pb-2 flex flex-row justify-between items-start">
                           <div className="flex-1">
-                            <CardTitle className="text-lg line-clamp-1">{paper.title}</CardTitle>
+                            <CardTitle className="text-lg line-clamp-1 flex items-center gap-2">
+                              {paper.format === 'pdf' && <FileText className="h-4 w-4 text-red-500" />}
+                              {paper.format === 'docx' && <FileCode className="h-4 w-4 text-blue-500" />}
+                              {paper.format === 'txt' && <FileText className="h-4 w-4 text-muted-foreground" />}
+                              {paper.title}
+                            </CardTitle>
                             <CardDescription>{paper.date}</CardDescription>
                           </div>
                           <Button variant="ghost" size="icon" className="text-destructive" onClick={() => {
@@ -552,12 +625,13 @@ export default function Home() {
                           </Button>
                         </CardHeader>
                         <CardContent>
-                          <p className="text-xs text-muted-foreground line-clamp-3 italic">"{paper.content.substring(0, 200)}..."</p>
+                          <p className="text-xs text-muted-foreground line-clamp-3 italic">"{paper.content.substring(0, 250)}..."</p>
                         </CardContent>
                         <CardFooter className="pt-0 flex gap-2">
                            <Badge variant="secondary" className="flex gap-1 items-center">
-                            <Check className="h-3 w-3" /> Scanned by AI
+                            <Check className="h-3 w-3" /> Scanned & Indexed
                            </Badge>
+                           <Badge variant="outline" className="uppercase text-[10px]">{paper.format}</Badge>
                         </CardFooter>
                       </Card>
                     ))}
