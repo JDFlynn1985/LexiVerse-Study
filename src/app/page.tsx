@@ -45,7 +45,8 @@ import {
   Library,
   Zap,
   Quote,
-  Scale
+  Scale,
+  SpellCheck
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -67,7 +68,7 @@ import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/
 import { interactiveVerseExplorationAI } from '@/ai/flows/interactive-verse-exploration-ai';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 
-type ViewMode = 'bibles' | 'commentaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history';
+type ViewMode = 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<ViewMode>('bibles');
@@ -78,6 +79,7 @@ export default function Home() {
   
   // Accessibility IDs
   const wordSearchId = useId();
+  const dictSearchId = useId();
   const transSearchId = useId();
   const verseRefId = useId();
   const chatInputId = useId();
@@ -89,6 +91,8 @@ export default function Home() {
   // Content States
   const [searchTerm, setSearchTerm] = useState('');
   const [wordResult, setWordResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
+  const [dictTerm, setDictTerm] = useState('');
+  const [dictResult, setDictResult] = useState<{term: string, definition: string, sources: string[]} | null>(null);
   const [transWord, setTransWord] = useState('');
   const [transResult, setTransResult] = useState<CompareTranslationsOutput | null>(null);
   const [verseRef, setVerseRef] = useState('');
@@ -135,6 +139,31 @@ export default function Home() {
       setCurrentContext(`Word Study: ${data.originalWord} (${data.transliteration})`);
       addToHistory('lexicon', searchTerm);
       setActiveTab('lexicon');
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleDictionarySearch(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    if (!dictTerm.trim()) return;
+    setIsLoading(true);
+    try {
+      // Reusing scholar AI logic to perform a "Dictionary" lookup for thematic terms
+      const data = await interactiveVerseExplorationAI({
+        term: dictTerm,
+        question: `Define the biblical and theological term "${dictTerm}". Provide historical context and major dictionary references (like Easton's or Smith's).`,
+        history: []
+      });
+      setDictResult({
+        term: dictTerm,
+        definition: data.response,
+        sources: ['Scholarly AI Synthesis', "Theological Dictionary"]
+      });
+      setCurrentContext(`Dictionary: ${dictTerm}`);
+      addToHistory('dictionaries', dictTerm);
     } catch (error) {
       console.error(error);
     } finally {
@@ -227,6 +256,7 @@ export default function Home() {
                   {[
                     { id: 'bibles', label: 'Bibles', icon: Book },
                     { id: 'commentaries', label: 'Commentaries', icon: Scroll },
+                    { id: 'dictionaries', label: 'Dictionaries', icon: Library },
                     { id: 'lexicon', label: 'Lexicon', icon: BookOpen },
                   ].map((item) => (
                     <SidebarMenuItem key={item.id}>
@@ -288,7 +318,7 @@ export default function Home() {
           </ScrollArea>
           <SidebarFooter className="p-4 border-t">
              <div className="flex justify-between items-center group-data-[collapsible=icon]:hidden">
-                <span className="text-[10px] text-muted-foreground uppercase">LexiVerse v2.1</span>
+                <span className="text-[10px] text-muted-foreground uppercase">LexiVerse v2.2</span>
                 <Button variant="ghost" size="icon" className="rounded-full h-8 w-8" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle theme">
                   {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
                 </Button>
@@ -349,6 +379,56 @@ export default function Home() {
                     </Button>
                   </CardContent>
                 </Card>
+              </div>
+            )}
+
+            {activeTab === 'dictionaries' && (
+              <div className="space-y-8 animate-in fade-in">
+                <header className="text-center">
+                  <h1 className="text-3xl font-bold font-headline">Theological Dictionaries</h1>
+                  <p className="text-muted-foreground">Search for thematic definitions and historical concepts.</p>
+                </header>
+                <Card className="max-w-2xl mx-auto shadow-md border-t-4 border-t-primary">
+                  <CardContent className="pt-6">
+                    <form onSubmit={handleDictionarySearch} className="flex gap-2">
+                      <Input 
+                        id={dictSearchId}
+                        placeholder="Search thematic term (e.g. Tabernacle, Grace, Covenant)" 
+                        value={dictTerm}
+                        onChange={(e) => setDictTerm(e.target.value)}
+                        className="h-12"
+                      />
+                      <Button type="submit" size="lg" disabled={isLoading}>
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Library className="h-4 w-4" />}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+
+                {dictResult && (
+                  <div className="space-y-6 animate-in slide-in-from-bottom-4">
+                    <Card className="shadow-lg">
+                      <CardHeader className="flex flex-row items-center justify-between border-b bg-muted/30">
+                        <div>
+                          <CardTitle className="text-3xl font-headline text-primary uppercase tracking-tight">{dictResult.term}</CardTitle>
+                          <div className="flex gap-2 mt-2">
+                            {dictResult.sources.map((s, i) => (
+                              <Badge key={i} variant="secondary" className="text-[10px]">{s}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => askScholarAboutContext(dictResult.definition, `Theological definition of ${dictResult.term}`)}>
+                          Analyze Concept <Mic className="h-4 w-4 ml-2" />
+                        </Button>
+                      </CardHeader>
+                      <CardContent className="pt-8">
+                        <div className="prose dark:prose-invert max-w-none">
+                          <p className="text-lg leading-relaxed text-muted-foreground whitespace-pre-wrap">{dictResult.definition}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
               </div>
             )}
 
@@ -616,4 +696,3 @@ export default function Home() {
     </SidebarProvider>
   );
 }
-
