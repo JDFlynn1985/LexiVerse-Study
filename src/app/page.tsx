@@ -79,7 +79,8 @@ import {
   Minimize2,
   Volume2,
   ArrowRight,
-  Clock
+  Clock,
+  File
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -443,6 +444,32 @@ export default function Home() {
               </SidebarMenu>
             </SidebarGroup>
             
+            <SidebarGroup>
+              <SidebarGroupLabel>Recent Documents</SidebarGroupLabel>
+              <SidebarMenu>
+                {researchPapers.slice(0, 5).length > 0 ? (
+                  researchPapers.slice(0, 5).map((paper) => (
+                    <SidebarMenuItem key={paper.id}>
+                      <SidebarMenuButton 
+                        onClick={() => setActiveTab('papers')}
+                        tooltip={paper.title}
+                        className="group"
+                      >
+                        <File className="h-4 w-4" />
+                        <span className="truncate">{paper.title}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))
+                ) : (
+                  <SidebarMenuItem>
+                    <div className="px-2 py-1 text-xs text-muted-foreground italic group-data-[collapsible=icon]:hidden">
+                      No documents yet
+                    </div>
+                  </SidebarMenuItem>
+                )}
+              </SidebarMenu>
+            </SidebarGroup>
+
             <SidebarGroup>
               <SidebarGroupLabel>Library & Research</SidebarGroupLabel>
               <SidebarMenu>
@@ -910,8 +937,9 @@ export default function Home() {
                       <CardContent><p className="text-[10px] text-muted-foreground line-clamp-3 italic">Uploaded on {paper.date}</p></CardContent>
                       <CardFooter className="justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => {
-                          setResearchPapers(researchPapers.filter(p => p.id !== paper.id));
-                          localStorage.setItem('lexiverse_papers', JSON.stringify(researchPapers.filter(p => p.id !== paper.id)));
+                          const updated = researchPapers.filter(p => p.id !== paper.id);
+                          setResearchPapers(updated);
+                          localStorage.setItem('lexiverse_papers', JSON.stringify(updated));
                         }}><Trash2 className="h-3 w-3" /></Button>
                       </CardFooter>
                     </Card>
@@ -920,7 +948,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Other existing views like notes, bibliography, writing-assistant, integrity would go here with same structure */}
             {activeTab === 'notes' && (
               <div className="space-y-8 animate-in fade-in">
                 <header className="flex justify-between items-center border-b pb-6">
@@ -941,8 +968,9 @@ export default function Home() {
                       <CardContent><p className="text-sm font-serif line-clamp-6">{note.content}</p></CardContent>
                       <CardFooter className="justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => {
-                          setNotes(notes.filter(n => n.id !== note.id));
-                          localStorage.setItem('lexiverse_notes', JSON.stringify(notes.filter(n => n.id !== note.id)));
+                          const updated = notes.filter(n => n.id !== note.id);
+                          setNotes(updated);
+                          localStorage.setItem('lexiverse_notes', JSON.stringify(updated));
                         }}><Trash2 className="h-4 w-4" /></Button>
                       </CardFooter>
                     </Card>
