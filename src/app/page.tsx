@@ -92,7 +92,8 @@ import {
   Settings,
   Cpu,
   Key,
-  Shield
+  Shield,
+  Megaphone
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -724,6 +725,22 @@ export default function Home() {
               </SidebarMenu>
             </SidebarGroup>
 
+            {/* Support/Sponsorship Placeholder */}
+            <SidebarGroup className="mt-4 border-t pt-4">
+              <SidebarGroupLabel>Support LexiVerse</SidebarGroupLabel>
+              <div className="px-2 py-1">
+                <div className="bg-muted/30 border-2 border-dashed rounded-lg p-3 text-center">
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Scholar Support</span>
+                  <div className="w-full aspect-[3/1] bg-muted/20 rounded flex items-center justify-center border border-muted-foreground/10 hover:bg-muted/40 transition-colors cursor-pointer group">
+                    <div className="flex flex-col items-center">
+                      <Megaphone className="h-3 w-3 text-muted-foreground/50 group-hover:text-primary transition-colors mb-1" />
+                      <p className="text-[8px] text-muted-foreground italic font-medium">Highlight your resource</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </SidebarGroup>
+
             <SidebarGroup className="mt-auto">
               <SidebarGroupLabel>Legal</SidebarGroupLabel>
               <SidebarMenu>
@@ -814,6 +831,17 @@ export default function Home() {
                     <CardContent className="text-[10px] text-muted-foreground">Active processing model</CardContent>
                   </Card>
                 </div>
+
+                {/* Dashboard Ad Placeholder Banner */}
+                <Card className="bg-muted/10 border-dashed border-2 flex flex-col items-center justify-center p-6 transition-all hover:bg-muted/20 cursor-pointer group">
+                  <div className="flex items-center gap-3">
+                    <Megaphone className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <div className="text-left space-y-0.5">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Theological Resource Spotlight</span>
+                      <p className="text-sm italic text-muted-foreground font-headline">Support LexiVerse by sponsoring academic journals, archaeological databases, or commentary series.</p>
+                    </div>
+                  </div>
+                </Card>
 
                 <div className="grid gap-8 lg:grid-cols-3">
                   <Card className="lg:col-span-2 shadow-sm border-dashed">
