@@ -53,7 +53,10 @@ import {
   ChevronRight,
   TrendingUp,
   Library,
-  GraduationCap
+  GraduationCap,
+  Sparkles,
+  Compass,
+  Repeat
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -88,13 +91,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
+
+// AI Flow Imports
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
 import { searchCommentariesForContext, type SearchCommentariesOutput } from '@/ai/flows/search-commentaries';
-import { trackAdClick } from '@/components/analytics';
 import { analyzeTheologicalConcept, type TheologicalConceptOutput } from '@/ai/flows/theological-concept-analysis';
 import { generateHistoricalTimeline, type HistoricalTimelineOutput } from '@/ai/flows/historical-timeline-flow';
+import { aiStudyAssistant, type AiStudyAssistantOutput } from '@/ai/flows/ai-study-assistant';
+import { interactiveVerseExplorationAI, type InteractiveVerseExplorationAIOutput } from '@/ai/flows/interactive-verse-exploration-ai';
+import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/compare-translations-ai';
+import { trackAdClick } from '@/components/analytics';
 
-type ViewMode = 'dashboard' | 'lexicon' | 'dictionaries' | 'commentaries' | 'wiki' | 'theology-map' | 'timeline' | 'writing-assistant' | 'integrity' | 'ai-settings' | 'support';
+type ViewMode = 'dashboard' | 'lexicon' | 'dictionaries' | 'commentaries' | 'wiki' | 'theology-map' | 'timeline' | 'writing-assistant' | 'integrity' | 'ai-settings' | 'support' | 'ai-assistant' | 'verse-explorer' | 'compare-translations';
 
 interface WikiEntry {
   id: string;
@@ -144,6 +152,15 @@ export default function Home() {
   const [theoResult, setTheoResult] = useState<TheologicalConceptOutput | null>(null);
   const [timelineTopic, setTimelineTopic] = useState('');
   const [timelineResult, setTimelineResult] = useState<HistoricalTimelineOutput | null>(null);
+
+  // AI Hub States
+  const [assistantTerm, setAssistantTerm] = useState('');
+  const [assistantResult, setAssistantResult] = useState<AiStudyAssistantOutput | null>(null);
+  const [explorerRef, setExplorerRef] = useState('');
+  const [explorerQuestion, setExplorerQuestion] = useState('');
+  const [explorerChat, setExplorerChat] = useState<{role: 'user' | 'model', content: string}[]>([]);
+  const [compareWord, setCompareWord] = useState('');
+  const [compareResult, setCompareResult] = useState<CompareTranslationsOutput | null>(null);
 
   // Wiki States
   const [newWikiTitle, setNewWikiTitle] = useState('');
@@ -213,25 +230,31 @@ export default function Home() {
     toast({ title: "Logged out" });
   };
 
-  const handleSearch = async (term: string, type: 'lexicon' | 'dictionary' | 'commentary' | 'theology' | 'timeline') => {
+  const handleSearch = async (term: string, type: ViewMode) => {
     if (!term.trim()) return;
     setIsLoading(true);
     logSearch(db, term, type, user?.uid);
     try {
       let result;
-      if (type === 'lexicon' || type === 'dictionary') {
+      if (type === 'lexicon' || type === 'dictionaries') {
         result = await defineAndAnalyzeTerm({ strongsNumber: term, model: aiPrefs.selectedModel });
         if (type === 'lexicon') setLexiconResult(result);
         else setDictResult(result);
-      } else if (type === 'commentary') {
+      } else if (type === 'commentaries') {
         result = await searchCommentariesForContext({ word: term, language: commLanguage, model: aiPrefs.selectedModel });
         setCommResult(result);
-      } else if (type === 'theology') {
+      } else if (type === 'theology-map') {
         result = await analyzeTheologicalConcept({ concept: term });
         setTheoResult(result);
       } else if (type === 'timeline') {
         result = await generateHistoricalTimeline({ topic: term });
         setTimelineResult(result);
+      } else if (type === 'ai-assistant') {
+        result = await aiStudyAssistant({ term });
+        setAssistantResult(result);
+      } else if (type === 'compare-translations') {
+        result = await compareTranslations({ word: term, language: 'Greek', versions: ['KJV', 'NIV', 'ESV', 'NASB'] });
+        setCompareResult(result);
       }
 
       const newHistory = [{id: Date.now().toString(), type, term, date: new Date().toLocaleString()}, ...history];
@@ -239,6 +262,25 @@ export default function Home() {
       localStorage.setItem('lexiverse_history', JSON.stringify(newHistory.slice(0, 10)));
     } catch (error) {
       toast({ variant: 'destructive', title: 'Search failed', description: 'The scholarly engine encountered an error.' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerseExplore = async () => {
+    if (!explorerQuestion.trim()) return;
+    setIsLoading(true);
+    try {
+      const result = await interactiveVerseExplorationAI({
+        term: explorerRef || 'Scripture',
+        question: explorerQuestion,
+        history: explorerChat,
+        model: aiPrefs.selectedModel
+      });
+      setExplorerChat([...explorerChat, { role: 'user', content: explorerQuestion }, { role: 'model', content: result.response }]);
+      setExplorerQuestion('');
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'AI Error', description: 'Failed to explore verse.' });
     } finally {
       setIsLoading(false);
     }
@@ -283,7 +325,6 @@ export default function Home() {
       return;
     }
     setIsLoading(true);
-    // Simulate osTicket integration
     setTimeout(() => {
       setIsLoading(false);
       toast({ title: "Ticket Created", description: `Case #${Math.floor(Math.random() * 90000) + 10000} has been logged in osTicket.` });
@@ -313,6 +354,23 @@ export default function Home() {
                     <LayoutDashboard className="h-5 w-5" /> <span>Dashboard</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarGroupLabel>AI Research Hub</SidebarGroupLabel>
+              <SidebarMenu>
+                {[
+                  { id: 'ai-assistant', label: 'AI Study Assistant', icon: Sparkles },
+                  { id: 'verse-explorer', label: 'Verse Explorer', icon: Compass },
+                  { id: 'compare-translations', label: 'Translation Compare', icon: Repeat },
+                ].map((item) => (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton isActive={activeTab === item.id} onClick={() => setActiveTab(item.id as ViewMode)} tooltip={item.label}>
+                      <item.icon className="h-5 w-5" /> <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
               </SidebarMenu>
             </SidebarGroup>
             
@@ -406,25 +464,25 @@ export default function Home() {
                         <CardDescription>Direct access to core scholarly resources.</CardDescription>
                       </CardHeader>
                       <CardContent className="grid gap-4 md:grid-cols-2">
+                        <Button variant="outline" className="justify-start gap-3 h-16 hover:bg-primary/5 transition-all" onClick={() => setActiveTab('ai-assistant')}>
+                          <Sparkles className="h-5 w-5 text-primary" />
+                          <div className="text-left">
+                            <p className="font-bold text-sm">Study Assistant</p>
+                            <p className="text-[10px] text-muted-foreground">Comprehensive academic synthesis.</p>
+                          </div>
+                        </Button>
+                        <Button variant="outline" className="justify-start gap-3 h-16 hover:bg-primary/5 transition-all" onClick={() => setActiveTab('verse-explorer')}>
+                          <Compass className="h-5 w-5 text-primary" />
+                          <div className="text-left">
+                            <p className="font-bold text-sm">Verse Explorer</p>
+                            <p className="text-[10px] text-muted-foreground">Interactive scripture analysis.</p>
+                          </div>
+                        </Button>
                         <Button variant="outline" className="justify-start gap-3 h-16 hover:bg-primary/5 transition-all" onClick={() => setActiveTab('lexicon')}>
                           <BookOpen className="h-5 w-5 text-primary" />
                           <div className="text-left">
                             <p className="font-bold text-sm">Linguistic Lexicon</p>
                             <p className="text-[10px] text-muted-foreground">Original Greek & Hebrew roots.</p>
-                          </div>
-                        </Button>
-                        <Button variant="outline" className="justify-start gap-3 h-16 hover:bg-primary/5 transition-all" onClick={() => setActiveTab('commentaries')}>
-                          <Scroll className="h-5 w-5 text-primary" />
-                          <div className="text-left">
-                            <p className="font-bold text-sm">Scholarly Commentaries</p>
-                            <p className="text-[10px] text-muted-foreground">Historical & linguistic context.</p>
-                          </div>
-                        </Button>
-                        <Button variant="outline" className="justify-start gap-3 h-16 hover:bg-primary/5 transition-all" onClick={() => setActiveTab('wiki')}>
-                          <Globe className="h-5 w-5 text-primary" />
-                          <div className="text-left">
-                            <p className="font-bold text-sm">Research Wiki</p>
-                            <p className="text-[10px] text-muted-foreground">Collaborative knowledge base.</p>
                           </div>
                         </Button>
                         <Button variant="outline" className="justify-start gap-3 h-16 hover:bg-primary/5 transition-all" onClick={() => setActiveTab('theology-map')}>
@@ -446,9 +504,7 @@ export default function Home() {
                       <CardContent className="p-0">
                         <ScrollArea className="h-[200px]">
                           {history.map(h => (
-                            <div key={h.id} className="p-3 border-b hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => {
-                              if (h.type === 'lexicon') { setStrongsTerm(h.term); setActiveTab('lexicon'); }
-                            }}>
+                            <div key={h.id} className="p-3 border-b hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setActiveTab(h.type as ViewMode)}>
                               <p className="text-xs font-bold font-headline truncate">{h.term}</p>
                               <div className="flex justify-between items-center mt-1">
                                 <Badge variant="secondary" className="text-[8px] uppercase">{h.type}</Badge>
@@ -461,7 +517,6 @@ export default function Home() {
                       </CardContent>
                     </Card>
 
-                    {/* Restored Spotlight Component */}
                     <Card className="md:col-span-2 border-dashed border-2 bg-muted/5 group cursor-pointer hover:bg-muted/10 transition-all" onClick={() => trackAdClick('dashboard_spotlight', 'dashboard')}>
                       <CardHeader className="pb-2">
                         <div className="flex justify-between items-start">
@@ -479,7 +534,6 @@ export default function Home() {
                       </CardContent>
                     </Card>
 
-                    {/* Restored Quick Stats Component */}
                     <Card className="shadow-md border-primary/10 bg-primary/5">
                       <CardHeader className="pb-2">
                         <CardTitle className="text-sm font-headline">Bibliographic Overview</CardTitle>
@@ -492,17 +546,153 @@ export default function Home() {
                         <Separator className="bg-primary/10" />
                         <div className="flex justify-between items-end">
                           <span className="text-xs text-muted-foreground">Analytic Logs</span>
-                          <span className="text-2xl font-bold text-primary font-headline">{Math.floor(Math.random() * 500) + 1200}</span>
+                          <span className="text-2xl font-bold text-primary font-headline">{history.length}</span>
                         </div>
                         <div className="pt-2">
                           <div className="h-1.5 w-full bg-primary/10 rounded-full overflow-hidden">
                             <div className="h-full bg-primary w-2/3" />
                           </div>
-                          <p className="text-[9px] text-muted-foreground mt-1">68% contribution target reached.</p>
+                          <p className="text-[9px] text-muted-foreground mt-1">Research target reached.</p>
                         </div>
                       </CardContent>
                     </Card>
                   </div>
+                </div>
+              )}
+
+              {activeTab === 'ai-assistant' && (
+                <div className="space-y-6 animate-in fade-in">
+                  <header>
+                    <h1 className="text-3xl font-bold font-headline">AI Study Assistant</h1>
+                    <p className="text-muted-foreground">Advanced academic synthesis for scripture and theology.</p>
+                  </header>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="Enter a biblical term or concept..." 
+                          value={assistantTerm} 
+                          onChange={e => setAssistantTerm(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && handleSearch(assistantTerm, 'ai-assistant')}
+                        />
+                        <Button onClick={() => handleSearch(assistantTerm, 'ai-assistant')} disabled={isLoading}>
+                          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  {assistantResult && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-2xl font-headline">{assistantResult.originalWord}</CardTitle>
+                        <CardDescription>{assistantResult.transliteration} • {assistantResult.pronunciation}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        <div>
+                          <h4 className="font-bold text-sm uppercase mb-2">Definitions</h4>
+                          <ul className="list-disc pl-5 text-sm space-y-1">
+                            {assistantResult.definitions.map((d, i) => <li key={i}>{d}</li>)}
+                          </ul>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-sm uppercase mb-2">AI Insights</h4>
+                          <p className="text-sm leading-relaxed">{assistantResult.aiInsights}</p>
+                        </div>
+                        <Separator />
+                        <div className="bg-muted p-4 rounded-lg">
+                          <h4 className="font-bold text-xs uppercase mb-2">Bibliography</h4>
+                          <p className="text-[10px] italic">{assistantResult.bibliography}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'verse-explorer' && (
+                <div className="space-y-6 animate-in fade-in h-[calc(100vh-12rem)] flex flex-col">
+                  <header>
+                    <h1 className="text-3xl font-bold font-headline">Interactive Verse Explorer</h1>
+                    <p className="text-muted-foreground">Conversational scripture analysis with AI context.</p>
+                  </header>
+                  <div className="flex gap-4">
+                    <Input 
+                      placeholder="Passage (e.g., John 3:16)..." 
+                      className="max-w-[200px]" 
+                      value={explorerRef} 
+                      onChange={e => setExplorerRef(e.target.value)} 
+                    />
+                    <div className="flex-1 flex gap-2">
+                      <Input 
+                        placeholder="Ask a question about this verse..." 
+                        value={explorerQuestion} 
+                        onChange={e => setExplorerQuestion(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleVerseExplore()}
+                      />
+                      <Button onClick={handleVerseExplore} disabled={isLoading}>
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                  <Card className="flex-1 flex flex-col overflow-hidden">
+                    <ScrollArea className="flex-1 p-4">
+                      <div className="space-y-4">
+                        {explorerChat.map((msg, i) => (
+                          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                            <div className={`max-w-[80%] p-3 rounded-lg text-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                              {msg.content}
+                            </div>
+                          </div>
+                        ))}
+                        {explorerChat.length === 0 && <p className="text-center text-muted-foreground py-20 italic">Start a conversation about a verse.</p>}
+                      </div>
+                    </ScrollArea>
+                  </Card>
+                </div>
+              )}
+
+              {activeTab === 'compare-translations' && (
+                <div className="space-y-6 animate-in fade-in">
+                  <header>
+                    <h1 className="text-3xl font-bold font-headline">Translation Comparison</h1>
+                    <p className="text-muted-foreground">Analyzing nuances across major Bible versions.</p>
+                  </header>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="Term to compare (e.g., Logos, Grace)..." 
+                          value={compareWord} 
+                          onChange={e => setCompareWord(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && handleSearch(compareWord, 'compare-translations')}
+                        />
+                        <Button onClick={() => handleSearch(compareWord, 'compare-translations')} disabled={isLoading}>
+                          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Repeat className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  {compareResult && (
+                    <div className="space-y-6">
+                      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {compareResult.translations.map((t, i) => (
+                          <Card key={i}>
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-xs font-bold uppercase">{t.version}</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <p className="text-lg font-headline text-primary mb-1">{t.translation}</p>
+                              {t.notes && <p className="text-[10px] text-muted-foreground italic">{t.notes}</p>}
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                      <Card className="bg-muted/10 border-primary/20">
+                        <CardHeader><CardTitle className="text-sm font-headline">Linguistic Summary</CardTitle></CardHeader>
+                        <CardContent><p className="text-sm leading-relaxed">{compareResult.summary}</p></CardContent>
+                      </Card>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -578,9 +768,9 @@ export default function Home() {
                           placeholder="Search concepts (e.g., Justification, Covenant)..." 
                           value={dictTerm} 
                           onChange={e => setDictTerm(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && handleSearch(dictTerm, 'dictionary')}
+                          onKeyDown={e => e.key === 'Enter' && handleSearch(dictTerm, 'dictionaries')}
                         />
-                        <Button onClick={() => handleSearch(dictTerm, 'dictionary')} disabled={isLoading}>
+                        <Button onClick={() => handleSearch(dictTerm, 'dictionaries')} disabled={isLoading}>
                           {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                         </Button>
                       </div>
@@ -612,7 +802,7 @@ export default function Home() {
                         placeholder="Search word or phrase..." 
                         value={commWord} 
                         onChange={e => setCommWord(e.target.value)} 
-                        onKeyDown={e => e.key === 'Enter' && handleSearch(commWord, 'commentary')}
+                        onKeyDown={e => e.key === 'Enter' && handleSearch(commWord, 'commentaries')}
                       />
                     </div>
                     <Select value={commLanguage} onValueChange={setCommLanguage}>
@@ -625,7 +815,7 @@ export default function Home() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button className="w-full" onClick={() => handleSearch(commWord, 'commentary')} disabled={isLoading}>
+                  <Button className="w-full" onClick={() => handleSearch(commWord, 'commentaries')} disabled={isLoading}>
                     {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Search className="h-4 w-4 mr-2" />}
                     Analyze Context
                   </Button>
@@ -765,7 +955,7 @@ export default function Home() {
                           value={theoConcept} 
                           onChange={e => setTheoConcept(e.target.value)} 
                         />
-                        <Button onClick={() => handleSearch(theoConcept, 'theology')} disabled={isLoading}>
+                        <Button onClick={() => handleSearch(theoConcept, 'theology-map')} disabled={isLoading}>
                           {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Network className="h-4 w-4" />}
                         </Button>
                       </div>
@@ -945,22 +1135,10 @@ export default function Home() {
                       </CardContent>
                     </Card>
                   </div>
-
-                  <Card className="bg-primary/5 border-dashed border-2">
-                    <CardHeader className="text-center">
-                      <CardTitle className="text-lg">Need Immediate Assistance?</CardTitle>
-                      <CardDescription>Check our system status or reach out via live scholarly chat.</CardDescription>
-                    </CardHeader>
-                    <CardFooter className="justify-center gap-4">
-                       <Button variant="ghost" size="sm" className="gap-2"><Globe className="h-4 w-4" /> System Status</Button>
-                       <Button variant="ghost" size="sm" className="gap-2"><MessageSquare className="h-4 w-4" /> Live Support Chat</Button>
-                    </CardFooter>
-                  </Card>
                 </div>
               )}
             </div>
 
-            {/* Sticky Global Banner Ad */}
             <footer className="mt-12 pt-8 border-t">
               <div 
                 className="w-full h-24 bg-muted/20 border-2 border-dashed rounded-xl flex items-center justify-center group cursor-pointer hover:bg-muted/30 transition-colors"
