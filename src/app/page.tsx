@@ -77,7 +77,8 @@ import {
   Trash2,
   Cpu,
   Share2,
-  Smartphone
+  Smartphone,
+  Puzzle
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -385,6 +386,27 @@ export default function Home() {
       handleSearch(sidebarSearchTerm, 'ai-assistant');
     }
     setSidebarSearchTerm('');
+  };
+
+  const handleSavePreferences = async () => {
+    if (!user || !db) return;
+    setIsLoading(true);
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        preferences: {
+          selectedModel: aiPrefs.selectedModel,
+          customApiKey: aiPrefs.customApiKey,
+          preferredBibleVersion: aiPrefs.preferredBibleVersion,
+          language: aiPrefs.language
+        }
+      });
+      toast({ title: "Preferences Saved", description: "Your academic environment has been updated." });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Save Failed", description: error.message });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (!mounted) return null;
@@ -939,6 +961,188 @@ export default function Home() {
                       </CardContent>
                     </Card>
                   )}
+                </div>
+              )}
+
+              {activeTab === 'lexicon' && (
+                <div className="space-y-6 animate-in fade-in">
+                  <header>
+                    <h1 className="text-3xl font-bold font-headline">{t.nav.lexicon}</h1>
+                    <p className="text-muted-foreground">Original Greek & Hebrew word roots and analysis.</p>
+                  </header>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="Search Strong's Number (e.g., G3056, H7225)..." 
+                          value={strongsTerm} 
+                          onChange={e => setStrongsTerm(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && handleSearch(strongsTerm, 'lexicon')}
+                        />
+                        <Button onClick={() => handleSearch(strongsTerm, 'lexicon')} disabled={isLoading}>
+                          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookOpen className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {lexiconResult && (
+                    <Card className="shadow-lg border-primary/20">
+                      <CardHeader className="bg-primary/5 border-b">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="flex items-center gap-3 mb-1">
+                              <h2 className="text-4xl font-bold font-headline text-primary">{lexiconResult.originalWord}</h2>
+                              <Badge variant="outline" className="text-xs">{lexiconResult.searchStrongNumber}</Badge>
+                            </div>
+                            <p className="text-lg font-medium text-muted-foreground">{lexiconResult.transliteration} • {lexiconResult.pronunciation}</p>
+                          </div>
+                          <div className="flex flex-col gap-2 items-end">
+                            <Badge className="bg-primary text-primary-foreground">{lexiconResult.partOfSpeech}</Badge>
+                            <div className="flex gap-1">
+                              {lexiconResult.classification.map(c => (
+                                <Badge key={c} variant="secondary" className="text-[10px] uppercase">
+                                  {c === 'Person' && <User className="h-3 w-3 mr-1" />}
+                                  {c === 'Place' && <MapPin className="h-3 w-3 mr-1" />}
+                                  {c === 'Event' && <Calendar className="h-3 w-3 mr-1" />}
+                                  {c === 'Promise' && <Zap className="h-3 w-3 mr-1" />}
+                                  {c === 'Command' && <Hammer className="h-3 w-3 mr-1" />}
+                                  {c}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-8 pt-6">
+                        <div>
+                          <h3 className="text-xs font-bold uppercase tracking-widest text-primary mb-3">Dictionary Definition</h3>
+                          <p className="text-sm leading-relaxed border-l-4 border-primary/20 pl-4 py-1 italic">{lexiconResult.definition}</p>
+                        </div>
+
+                        <div className="grid gap-6 md:grid-cols-2">
+                          <Card className="bg-muted/30 border-none shadow-none">
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-sm font-bold flex items-center gap-2"><Scroll className="h-4 w-4" /> Lexical Analysis</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">{lexiconResult.lexicalData}</p>
+                            </CardContent>
+                          </Card>
+                          <Card className="bg-muted/30 border-none shadow-none">
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-sm font-bold flex items-center gap-2"><History className="h-4 w-4" /> Historical Context</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <p className="text-xs text-muted-foreground leading-relaxed">{lexiconResult.historicalConnotations}</p>
+                            </CardContent>
+                          </Card>
+                        </div>
+
+                        <div>
+                          <h3 className="text-xs font-bold uppercase tracking-widest text-primary mb-4 flex items-center gap-2">
+                            <Sparkles className="h-4 w-4" /> AI Scholarly Synthesis
+                          </h3>
+                          <div className="bg-primary/5 p-4 rounded-xl border border-primary/10">
+                            <p className="text-sm leading-relaxed">{lexiconResult.summary}</p>
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        <div>
+                          <h3 className="text-xs font-bold uppercase tracking-widest text-primary mb-4 flex items-center gap-2">
+                            <BookOpen className="h-4 w-4" /> Verse Occurrences ({lexiconResult.verseOccurrences.length})
+                          </h3>
+                          <div className="space-y-4">
+                            {lexiconResult.verseOccurrences.map((v, i) => (
+                              <Card key={i} className="group hover:border-primary/40 transition-all shadow-sm">
+                                <CardHeader className="pb-2">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm font-bold font-headline text-primary">{v.reference}</span>
+                                    <Button variant="ghost" size="sm" className="h-7 text-[10px] gap-1" onClick={() => setActiveTab('verse-explorer')}>
+                                      Jump to Passage <ExternalLink className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </CardHeader>
+                                <CardContent className="space-y-2">
+                                  <p className="text-sm font-serif leading-relaxed italic">&ldquo;{v.text}&rdquo;</p>
+                                  <div className="bg-muted p-2 rounded text-[11px] flex items-start gap-2">
+                                    <Info className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                                    <span className="text-muted-foreground"><strong className="text-foreground">Contextual Nuance:</strong> {v.contextualMeaning}</span>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="bg-muted p-4 rounded-lg">
+                          <h4 className="font-bold text-xs uppercase mb-2 flex items-center gap-2"><Library className="h-3.5 w-3.5" /> SBL Bibliography</h4>
+                          <p className="text-[10px] italic font-serif leading-relaxed">{lexiconResult.bibliography}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'verse-explorer' && (
+                <div className="space-y-6 animate-in fade-in">
+                  <header>
+                    <h1 className="text-3xl font-bold font-headline">{t.nav.verse_explorer}</h1>
+                    <p className="text-muted-foreground">Interactive exploration of scripture and contexts.</p>
+                  </header>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">Passage Explorer</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="Bible Reference (e.g., John 3:16)..." 
+                          value={explorerRef} 
+                          onChange={e => setExplorerRef(e.target.value)}
+                        />
+                        <Button variant="secondary" onClick={() => setExplorerChat([...explorerChat, { role: 'user', content: `Analyze ${explorerRef}` }])}>Load</Button>
+                      </div>
+                      <div className="min-h-[300px] border rounded-lg bg-muted/20 p-4">
+                        {explorerChat.length === 0 ? (
+                           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                             <Compass className="h-12 w-12 opacity-20 mb-2" />
+                             <p>Enter a passage to begin your interactive research session.</p>
+                           </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {explorerChat.map((msg, i) => (
+                              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`max-w-[80%] p-3 rounded-xl text-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-card border'}`}>
+                                  {msg.content}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="Ask a question about this passage..." 
+                          value={explorerQuestion} 
+                          onChange={e => setExplorerQuestion(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              setExplorerChat([...explorerChat, { role: 'user', content: explorerQuestion }]);
+                              setExplorerQuestion('');
+                            }
+                          }}
+                        />
+                        <Button onClick={() => {
+                          setExplorerChat([...explorerChat, { role: 'user', content: explorerQuestion }]);
+                          setExplorerQuestion('');
+                        }}><Send className="h-4 w-4" /></Button>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               )}
             </div>
