@@ -2,19 +2,16 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTheme } from 'next-themes';
-import Link from 'next/link';
 import { 
   signInWithPopup, 
   GoogleAuthProvider, 
-  signOut,
-  deleteUser
+  signOut
 } from 'firebase/auth';
-import { doc, setDoc, onSnapshot, collection, query, orderBy, addDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, collection, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 import { appConfig } from '@/app-config';
 import { useAuth, useFirestore, useUser, useCollection } from '@/firebase';
 import { logSearch } from '@/lib/search-logging';
 import { useLanguage } from '@/components/language-provider';
-import { availableLanguages } from '@/lib/locales';
 
 import { 
   Sidebar, 
@@ -32,71 +29,44 @@ import {
 import { 
   Search, 
   BookOpen, 
-  Scroll, 
   Loader2,
-  MessageSquare,
-  Send,
   Sun,
   Moon,
-  ExternalLink,
   Globe,
-  Megaphone,
   Network,
   Milestone,
   Settings,
-  LifeBuoy,
-  HelpCircle,
-  ShieldQuestion,
-  Plus,
-  Type,
-  LayoutDashboard,
-  ShieldCheck,
   Edit3,
+  ShieldCheck,
   LogOut,
   ChevronRight,
   TrendingUp,
   Library,
-  GraduationCap,
   Sparkles,
   Compass,
   Repeat,
   History,
   FileText,
-  FileSearch,
   FileUp,
   Files,
-  User,
-  MapPin,
-  Calendar,
-  Zap,
-  Hammer,
-  Key,
-  Languages,
-  ShieldAlert,
   Download,
   Trash2,
-  Cpu,
-  Share2,
-  Smartphone,
-  Puzzle,
-  CheckCircle2,
-  XCircle,
-  FileJson,
-  Info,
-  ScanText,
   Mic,
   Database,
   Link2,
-  CloudUpload
+  CloudUpload,
+  ScanText,
+  Puzzle,
+  LayoutDashboard
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -105,36 +75,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel
 } from '@/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogTrigger
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { useToast } from '@/hooks/use-toast';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // AI Flow Imports
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
@@ -142,29 +82,15 @@ import { searchCommentariesForContext, type SearchCommentariesOutput } from '@/a
 import { analyzeTheologicalConcept, type TheologicalConceptOutput } from '@/ai/flows/theological-concept-analysis';
 import { generateHistoricalTimeline, type HistoricalTimelineOutput } from '@/ai/flows/historical-timeline-flow';
 import { aiStudyAssistant, type AiStudyAssistantOutput } from '@/ai/flows/ai-study-assistant';
-import { interactiveVerseExplorationAI, type InteractiveVerseExplorationAIOutput } from '@/ai/flows/interactive-verse-exploration-ai';
 import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/compare-translations-ai';
 import { extractTextFromImage } from '@/ai/flows/ocr-flow';
 import { transcribeAudio } from '@/ai/flows/transcribe-flow';
-import { findCovertLinks } from '@/ai/flows/cross-reference-ai';
-import { trackAdClick } from '@/components/analytics';
+import { findCovertLinks, type CovertReferenceOutput } from '@/ai/flows/cross-reference-ai';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 import { getAllLocalDocuments, saveLocalDocument, deleteLocalDocument, type IDBDocument } from '@/lib/idb';
 import { findOvertReferences } from '@/lib/cross-references';
 
-type ViewMode = 'dashboard' | 'lexicon' | 'dictionaries' | 'commentaries' | 'wiki' | 'theology-map' | 'timeline' | 'writing-assistant' | 'integrity' | 'ai-settings' | 'support' | 'ai-assistant' | 'verse-explorer' | 'compare-translations' | 'research-library' | 'moderation';
-
-interface WikiEntry {
-  id: string;
-  title: string;
-  content: string;
-  worksCited: string;
-  bibliography: string;
-  status: 'pending' | 'approved' | 'rejected';
-  authorUid: string;
-  authorName: string;
-  createdAt: any;
-}
+type ViewMode = 'dashboard' | 'lexicon' | 'commentaries' | 'wiki' | 'theology-map' | 'timeline' | 'writing-assistant' | 'integrity' | 'ai-settings' | 'ai-assistant' | 'verse-explorer' | 'compare-translations' | 'research-library';
 
 interface UserProfile {
   uid: string;
@@ -206,57 +132,16 @@ export default function Home() {
   // Sidebar Quick Search State
   const [sidebarSearchTerm, setSidebarSearchTerm] = useState('');
 
-  // Search States
-  const [strongsTerm, setStrongsTerm] = useState('');
+  // Search Results States
   const [lexiconResult, setLexiconResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
-  const [dictTerm, setDictTerm] = useState('');
-  const [dictResult, setDictResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
-  const [commWord, setCommWord] = useState('');
-  const [commLanguage, setCommLanguage] = useState('Greek');
-  const [commResult, setCommResult] = useState<SearchCommentariesOutput | null>(null);
-  const [theoConcept, setTheoConcept] = useState('');
   const [theoResult, setTheoResult] = useState<TheologicalConceptOutput | null>(null);
-  const [timelineTopic, setTimelineTopic] = useState('');
   const [timelineResult, setTimelineResult] = useState<HistoricalTimelineOutput | null>(null);
-
-  // AI Hub States
-  const [assistantTerm, setAssistantTerm] = useState('');
   const [assistantResult, setAssistantResult] = useState<AiStudyAssistantOutput | null>(null);
-  const [explorerRef, setExplorerRef] = useState('');
-  const [explorerQuestion, setExplorerQuestion] = useState('');
-  const [explorerChat, setExplorerChat] = useState<{role: 'user' | 'model', content: string}[]>([]);
-  const [compareWord, setCompareWord] = useState('');
-  const [compareResult, setCompareResult] = useState<CompareTranslationsOutput | null>(null);
+  const [covertLinks, setCovertLinks] = useState<CovertReferenceOutput | null>(null);
 
-  // Wiki States
-  const [newWikiTitle, setNewWikiTitle] = useState('');
-  const [newWikiContent, setNewWikiContent] = useState('');
-  const [newWikiWorksCited, setNewWikiWorksCited] = useState('');
-  const [newWikiBiblio, setNewWikiBiblio] = useState('');
-  const [wikiSearch, setWikiSearch] = useState('');
-
-  // Support States
-  const [ticketSubject, setTicketSubject] = useState('');
-  const [ticketDescription, setTicketDescription] = useState('');
-
-  // OCR/Audio States
-  const [ocrImage, setOcrImage] = useState<string | null>(null);
-  const [ocrResult, setOcrResult] = useState<string | null>(null);
+  // Multimodal States
   const [isRecording, setIsRecording] = useState(false);
-
-  const wikiQuery = useMemo(() => {
-    if (!db) return null;
-    return query(collection(db, 'wiki_entries'), orderBy('createdAt', 'desc'));
-  }, [db]);
-  const { data: wikiEntries } = useCollection<WikiEntry>(wikiQuery);
-
-  const approvedWikiEntries = useMemo(() => {
-    return (wikiEntries || []).filter(e => e.status === 'approved' && e.title.toLowerCase().includes(wikiSearch.toLowerCase()));
-  }, [wikiEntries, wikiSearch]);
-
-  const pendingWikiEntries = useMemo(() => {
-    return (wikiEntries || []).filter(e => e.status === 'pending');
-  }, [wikiEntries]);
+  const [ocrResult, setOcrResult] = useState<string | null>(null);
 
   const refreshLocalDocs = useCallback(async () => {
     const docs = await getAllLocalDocuments();
@@ -286,15 +171,12 @@ export default function Home() {
               preferredBibleVersion: data.preferences.preferredBibleVersion || 'kjv',
               language: data.preferences.language || language
             });
-            if (data.preferences.language) {
-              setLanguage(data.preferences.language as any);
-            }
           }
         }
       });
       return () => unsub();
     }
-  }, [user, db, setLanguage, language]);
+  }, [user, db, language]);
 
   const handleLogin = async () => {
     const provider = new GoogleAuthProvider();
@@ -323,16 +205,13 @@ export default function Home() {
   const handleSearch = async (term: string, type: ViewMode) => {
     if (!term.trim()) return;
     setIsLoading(true);
+    setActiveTab(type);
     logSearch(db, term, type, user?.uid);
     try {
       let result;
-      if (type === 'lexicon' || type === 'dictionaries') {
+      if (type === 'lexicon') {
         result = await defineAndAnalyzeTerm({ strongsNumber: term, model: aiPrefs.selectedModel });
-        if (type === 'lexicon') setLexiconResult(result);
-        else setDictResult(result);
-      } else if (type === 'commentaries') {
-        result = await searchCommentariesForContext({ word: term, language: commLanguage, model: aiPrefs.selectedModel });
-        setCommResult(result);
+        setLexiconResult(result);
       } else if (type === 'theology-map') {
         result = await analyzeTheologicalConcept({ concept: term });
         setTheoResult(result);
@@ -343,9 +222,6 @@ export default function Home() {
         const researchContext = localDocuments.map(d => d.content);
         result = await aiStudyAssistant({ term, researchContext });
         setAssistantResult(result);
-      } else if (type === 'compare-translations') {
-        result = await compareTranslations({ word: term, language: 'Greek', versions: ['KJV', 'NIV', 'ESV', 'NASB'] });
-        setCompareResult(result);
       }
 
       const newHistory = [{id: Date.now().toString(), type, term, date: new Date().toLocaleString()}, ...history];
@@ -389,27 +265,29 @@ ${result.bibliography}
   const handleVoiceSearch = async () => {
     if (isRecording) {
       setIsRecording(false);
-      // Logic for actual recording would go here using MediaRecorder API.
-      // For this implementation, we simulate receiving a base64 audio chunk.
-      toast({ title: "Processing Voice", description: "Transcribing your research query..." });
       setIsLoading(true);
       try {
-        const res = await transcribeAudio({ audioPart: "SGVsbG8gV29ybGQ=" }); // Mock base64
+        // Mock recording and transcription
+        const res = await transcribeAudio({ audioPart: "SGVsbG8gV29ybGQ=" }); 
         setSidebarSearchTerm(res.transcript);
-        toast({ title: "Transcription Ready", description: `Detected: "${res.transcript}"` });
+        handleSearch(res.transcript, 'ai-assistant');
+        toast({ title: "Voice Transcription Complete", description: `Researching: "${res.transcript}"` });
       } catch (e) {
-        toast({ variant: 'destructive', title: "Voice Failed" });
+        toast({ variant: 'destructive', title: "Voice transcription failed" });
       } finally {
         setIsLoading(false);
       }
     } else {
       setIsRecording(true);
-      toast({ title: "Listening", description: "Speak your research term or question..." });
+      toast({ title: "Listening...", description: "Speak your research query." });
     }
   };
 
   const handleFileSync = async () => {
-    if (!user || !db) return;
+    if (!user || !db) {
+      toast({ variant: 'destructive', title: "Auth Required", description: "Please login to sync files to the cloud." });
+      return;
+    }
     setIsLoading(true);
     try {
       const unsynced = localDocuments.filter(d => !d.synced);
@@ -422,9 +300,9 @@ ${result.bibliography}
         await saveLocalDocument({ ...d, synced: true });
       }
       refreshLocalDocs();
-      toast({ title: "Library Synced", description: "Local documents mirrored to your cloud workspace." });
+      toast({ title: "Cloud Sync Complete", description: "Your local library is now mirrored in your account." });
     } catch (e) {
-      toast({ variant: 'destructive', title: "Sync Failed" });
+      toast({ variant: 'destructive', title: "Sync failed" });
     } finally {
       setIsLoading(false);
     }
@@ -436,19 +314,42 @@ ${result.bibliography}
     const reader = new FileReader();
     reader.onloadend = async () => {
       const base64 = reader.result as string;
-      setOcrImage(base64);
       setIsLoading(true);
       try {
         const res = await extractTextFromImage({ imagePart: base64 });
         setOcrResult(res.text);
-        toast({ title: "Text Extracted", description: "Scholarly paleography analysis complete." });
+        const newDoc: IDBDocument = {
+          id: Date.now().toString(),
+          name: `OCR Extract - ${file.name}`,
+          type: 'ocr',
+          content: res.text,
+          uploadDate: new Date().toLocaleDateString(),
+          synced: false
+        };
+        await saveLocalDocument(newDoc);
+        refreshLocalDocs();
+        setActiveTab('research-library');
+        toast({ title: "OCR Extract Success", description: "Manuscript text identified and saved to local library." });
       } catch (err) {
-        toast({ variant: 'destructive', title: "OCR Failed" });
+        toast({ variant: 'destructive', title: "OCR processing failed" });
       } finally {
         setIsLoading(false);
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleCovertLinkScan = async (text: string) => {
+    setIsLoading(true);
+    try {
+      const res = await findCovertLinks(text);
+      setCovertLinks(res);
+      toast({ title: "Semantic Analysis Complete", description: `Identified ${res.covertLinks.length} covert theological links.` });
+    } catch (e) {
+      toast({ variant: 'destructive', title: "Semantic scan failed" });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (!mounted) return null;
@@ -518,7 +419,6 @@ ${result.bibliography}
                 {[
                   { id: 'research-library', label: "Research Library", icon: Library },
                   { id: 'lexicon', label: t.nav.lexicon, icon: BookOpen },
-                  { id: 'wiki', label: t.nav.wiki, icon: Globe },
                 ].map((item) => (
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton isActive={activeTab === item.id} onClick={() => setActiveTab(item.id as ViewMode)} tooltip={item.label}>
@@ -536,7 +436,6 @@ ${result.bibliography}
                   { id: 'theology-map', label: t.nav.theology_map, icon: Network },
                   { id: 'timeline', label: t.nav.timeline, icon: Milestone },
                   { id: 'writing-assistant', label: t.nav.writing_editor, icon: Edit3 },
-                  { id: 'integrity', label: t.nav.integrity, icon: ShieldCheck },
                 ].map((item) => (
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton isActive={activeTab === item.id} onClick={() => setActiveTab(item.id as ViewMode)} tooltip={item.label}>
@@ -585,10 +484,10 @@ ${result.bibliography}
         </Sidebar>
 
         <SidebarInset>
-          <main className="container max-w-5xl mx-auto py-10 px-6 min-h-screen flex flex-col">
-            <div className="flex-1" id="main-content">
+          <main className="container max-w-5xl mx-auto py-10 px-6 min-h-screen">
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               {activeTab === 'dashboard' && (
-                <div className="space-y-8 animate-in fade-in">
+                <div className="space-y-8">
                   <header className="flex justify-between items-end">
                     <div>
                       <h1 className="text-4xl font-bold font-headline">{t.dashboard.title}</h1>
@@ -608,39 +507,27 @@ ${result.bibliography}
                     <Card className="md:col-span-2 shadow-md border-primary/10">
                       <CardHeader>
                         <CardTitle className="font-headline flex items-center gap-2">
-                          <Library className="h-5 w-5 text-primary" /> {t.dashboard.toolbox}
+                          <Sparkles className="h-5 w-5 text-primary" /> Scholarly AI Workspace
                         </CardTitle>
-                        <CardDescription>{t.dashboard.toolbox_desc}</CardDescription>
+                        <CardDescription>Synthesized research combining scripture, commentaries, and your local library.</CardDescription>
                       </CardHeader>
-                      <CardContent className="grid gap-4 md:grid-cols-2">
-                        <Button variant="outline" className="justify-start gap-3 h-16 hover:bg-primary/5 transition-all" onClick={() => setActiveTab('ai-assistant')}>
-                          <Sparkles className="h-5 w-5 text-primary" />
-                          <div className="text-left">
-                            <p className="font-bold text-sm">{t.nav.study_assistant}</p>
-                            <p className="text-[10px] text-muted-foreground">Comprehensive academic synthesis.</p>
-                          </div>
-                        </Button>
-                        <Button variant="outline" className="justify-start gap-3 h-16 hover:bg-primary/5 transition-all" onClick={() => setActiveTab('verse-explorer')}>
-                          <Compass className="h-5 w-5 text-primary" />
-                          <div className="text-left">
-                            <p className="font-bold text-sm">{t.nav.verse_explorer}</p>
-                            <p className="text-[10px] text-muted-foreground">Interactive scripture analysis.</p>
-                          </div>
-                        </Button>
-                        <Button variant="outline" className="justify-start gap-3 h-16 hover:bg-primary/5 transition-all" onClick={() => setActiveTab('lexicon')}>
-                          <BookOpen className="h-5 w-5 text-primary" />
-                          <div className="text-left">
-                            <p className="font-bold text-sm">{t.nav.lexicon}</p>
-                            <p className="text-[10px] text-muted-foreground">Original Greek & Hebrew roots.</p>
-                          </div>
-                        </Button>
-                        <Button variant="outline" className="justify-start gap-3 h-16 hover:bg-primary/5 transition-all" onClick={() => setActiveTab('theology-map')}>
-                          <Network className="h-5 w-5 text-primary" />
-                          <div className="text-left">
-                            <p className="font-bold text-sm">{t.nav.theology_map}</p>
-                            <p className="text-[10px] text-muted-foreground">Systemic concept analysis.</p>
-                          </div>
-                        </Button>
+                      <CardContent className="space-y-4">
+                        <div className="flex gap-2">
+                          <Input 
+                            placeholder="Enter a Greek/Hebrew term or research question..." 
+                            value={assistantTerm} 
+                            onChange={e => setAssistantTerm(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && handleSearch(assistantTerm, 'ai-assistant')}
+                          />
+                          <Button onClick={() => handleSearch(assistantTerm, 'ai-assistant')} disabled={isLoading}>
+                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                        <div className="flex gap-2 flex-wrap">
+                          <Badge variant="secondary" className="cursor-pointer" onClick={() => setAssistantTerm('λόγος')}>λόγος</Badge>
+                          <Badge variant="secondary" className="cursor-pointer" onClick={() => setAssistantTerm('δικαιοσύνη')}>δικαιοσύνη</Badge>
+                          <Badge variant="secondary" className="cursor-pointer" onClick={() => setAssistantTerm('בְּרֵאשִׁית')}>בְּרֵאשִׁית</Badge>
+                        </div>
                       </CardContent>
                     </Card>
 
@@ -651,11 +538,11 @@ ${result.bibliography}
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="p-0">
-                        <ScrollArea className="h-[220px]">
+                        <ScrollArea className="h-[200px]">
                           {history.map(h => (
                             <div key={h.id} className="p-3 border-b last:border-0 hover:bg-muted/50 transition-colors cursor-pointer group" onClick={() => handleSearch(h.term, h.type as any)}>
                               <div className="flex justify-between items-start">
-                                <p className="text-xs font-bold font-headline truncate max-w-[120px]">{h.term}</p>
+                                <p className="text-xs font-bold truncate max-w-[120px]">{h.term}</p>
                                 <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
                               </div>
                               <div className="flex justify-between items-center mt-1">
@@ -668,63 +555,32 @@ ${result.bibliography}
                       </CardContent>
                     </Card>
 
-                    <Card className="shadow-md border-primary/10">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="font-headline text-sm flex items-center gap-2">
-                          <Database className="h-4 w-4 text-primary" /> Persistent Local Library
+                    <Card className="md:col-span-3 shadow-md border-primary/10">
+                      <CardHeader>
+                        <CardTitle className="font-headline text-lg flex items-center gap-2">
+                          <TrendingUp className="h-5 w-5 text-primary" /> Future Research Horizons
                         </CardTitle>
-                        <CardDescription>Documents stored in browser IndexedDB.</CardDescription>
                       </CardHeader>
-                      <CardContent className="p-0">
-                        <ScrollArea className="h-[220px]">
-                          {localDocuments.map(doc => (
-                            <div key={doc.id} className="p-3 border-b last:border-0 hover:bg-muted/50 transition-colors cursor-pointer group">
-                              <div className="flex items-center gap-2">
-                                <FileText className="h-4 w-4 text-muted-foreground" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-medium truncate">{doc.name}</p>
-                                  <p className="text-[9px] text-muted-foreground uppercase">{doc.type} • {doc.uploadDate}</p>
-                                </div>
-                                <div className="flex gap-1 opacity-0 group-hover:opacity-100">
-                                  {doc.synced ? <CloudUpload className="h-3 w-3 text-green-500" /> : <CloudUpload className="h-3 w-3 text-muted-foreground" />}
-                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleSearch(doc.name, 'ai-assistant')}>
-                                    <Sparkles className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </ScrollArea>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="md:col-span-2 shadow-md border-primary/10">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="font-headline text-sm flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4 text-primary" /> Advanced Multimodal Features
-                        </CardTitle>
-                        <CardDescription>Cutting-edge technologies integrated into your research.</CardDescription>
-                      </CardHeader>
-                      <CardContent className="grid gap-3 md:grid-cols-2">
-                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5 cursor-pointer hover:bg-muted/40 transition-colors" onClick={handleVoiceSearch}>
-                           <Mic className={`h-5 w-5 shrink-0 mt-0.5 ${isRecording ? 'text-red-500 animate-pulse' : 'text-accent'}`} />
-                           <div>
-                             <p className="text-xs font-bold">Voice-to-Scholarly Text</p>
-                             <p className="text-[10px] text-muted-foreground">Dictate research queries with specialized theological models.</p>
-                           </div>
-                        </div>
-                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setActiveTab('research-library')}>
-                           <Link2 className="h-5 w-5 text-accent shrink-0 mt-0.5" />
-                           <div>
-                             <p className="text-xs font-bold">Cross-Reference Engine</p>
-                             <p className="text-[10px] text-muted-foreground">Detect Overt and Covert scripture links using semantic analysis.</p>
-                           </div>
-                        </div>
-                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setActiveTab('research-library')}>
+                      <CardContent className="grid gap-4 md:grid-cols-3">
+                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5">
                            <Puzzle className="h-5 w-5 text-accent shrink-0 mt-0.5" />
                            <div>
-                             <p className="text-xs font-bold">Obsidian & Markdown Export</p>
-                             <p className="text-[10px] text-muted-foreground">Sync your LexiVerse research directly to your Zettelkasten.</p>
+                             <p className="text-xs font-bold">Zotero & Mendeley Sync</p>
+                             <p className="text-[10px] text-muted-foreground">Seamlessly import/export bibliographic metadata for citations.</p>
+                           </div>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5">
+                           <Network className="h-5 w-5 text-accent shrink-0 mt-0.5" />
+                           <div>
+                             <p className="text-xs font-bold">Semantic Vector Search</p>
+                             <p className="text-[10px] text-muted-foreground">Advanced RAG across your entire research library.</p>
+                           </div>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5">
+                           <Globe className="h-5 w-5 text-accent shrink-0 mt-0.5" />
+                           <div>
+                             <p className="text-xs font-bold">Peer-Reviewed Scholarly Wiki</p>
+                             <p className="text-[10px] text-muted-foreground">Collaborative knowledge base for verified theological research.</p>
                            </div>
                         </div>
                       </CardContent>
@@ -734,39 +590,40 @@ ${result.bibliography}
               )}
 
               {activeTab === 'research-library' && (
-                <div className="space-y-8 animate-in fade-in">
+                <div className="space-y-6">
                   <header className="flex justify-between items-start">
                     <div>
                       <h1 className="text-3xl font-bold font-headline">Research Library</h1>
-                      <p className="text-muted-foreground">Secure local persistence with cloud synchronization.</p>
+                      <p className="text-muted-foreground">Locally persistent scholarly documents (IndexedDB).</p>
                     </div>
                     <div className="flex gap-2">
-                       <Button variant="secondary" onClick={handleFileSync}><CloudUpload className="h-4 w-4 mr-2" /> Sync with Cloud</Button>
-                       <Label htmlFor="ocr-upload" className="cursor-pointer">
-                         <div className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors text-sm font-medium">
-                           <ScanText className="h-4 w-4" /> OCR Extract
-                         </div>
-                         <Input id="ocr-upload" type="file" className="hidden" accept="image/*" onChange={handleOCR} />
-                       </Label>
+                      <Button variant="outline" size="sm" onClick={handleFileSync}><CloudUpload className="h-4 w-4 mr-2" /> Sync to Cloud</Button>
+                      <Label htmlFor="ocr-upload" className="cursor-pointer">
+                        <div className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-2 rounded-md hover:bg-primary/90 transition-colors text-sm font-medium">
+                          <ScanText className="h-4 w-4" /> OCR Extract
+                        </div>
+                        <Input id="ocr-upload" type="file" className="hidden" accept="image/*" onChange={handleOCR} />
+                      </Label>
                     </div>
                   </header>
 
                   <Card>
                     <CardHeader>
                       <CardTitle className="text-lg font-headline flex items-center gap-2">
-                        <Database className="h-5 w-5 text-primary" /> Persistent Scholarly Documents
+                        <Database className="h-5 w-5 text-primary" /> Persistent Local Library
                       </CardTitle>
-                      <CardDescription>Managed via IndexedDB for high-speed local research.</CardDescription>
+                      <CardDescription>Documents stored in browser IndexedDB for privacy and high performance.</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
+                        {localDocuments.length === 0 && <p className="text-center py-10 text-muted-foreground italic">No documents found in your local library.</p>}
                         {localDocuments.map(doc => (
-                          <div key={doc.id} className="flex items-center justify-between p-4 bg-muted/20 rounded-xl border group hover:border-primary/20 transition-all">
+                          <div key={doc.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border group hover:border-primary/20 transition-all">
                             <div className="flex items-center gap-3">
                               <div className="p-2 bg-muted rounded-lg"><FileText className="h-5 w-5 text-muted-foreground" /></div>
                               <div>
                                 <p className="font-bold text-sm">{doc.name}</p>
-                                <p className="text-[10px] text-muted-foreground uppercase">{doc.type} • Local Entry • {doc.synced ? 'Synced' : 'Local Only'}</p>
+                                <p className="text-[10px] text-muted-foreground uppercase">{doc.type} • {doc.uploadDate} • {doc.synced ? 'Synced' : 'Local Only'}</p>
                               </div>
                             </div>
                             <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -774,7 +631,7 @@ ${result.bibliography}
                               <Button variant="ghost" size="sm" onClick={() => {
                                 deleteLocalDocument(doc.id);
                                 refreshLocalDocs();
-                                toast({ title: "Removed", description: "Document deleted from local library." });
+                                toast({ title: "Document Removed" });
                               }} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
                             </div>
                           </div>
@@ -785,81 +642,81 @@ ${result.bibliography}
                 </div>
               )}
 
-              {activeTab === 'lexicon' && (
-                <div className="space-y-6 animate-in fade-in">
-                  <header>
-                    <h1 className="text-3xl font-bold font-headline">{t.nav.lexicon}</h1>
-                    <p className="text-muted-foreground">Original Greek & Hebrew word roots and analysis.</p>
-                  </header>
-                  <Card>
-                    <CardContent className="pt-6">
-                      <div className="flex gap-2">
-                        <Input 
-                          placeholder="Search Strong's Number (e.g., G3056)..." 
-                          value={strongsTerm} 
-                          onChange={e => setStrongsTerm(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && handleSearch(strongsTerm, 'lexicon')}
-                        />
-                        <Button onClick={() => handleSearch(strongsTerm, 'lexicon')} disabled={isLoading}>
-                          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookOpen className="h-4 w-4" />}
+              {activeTab === 'ai-assistant' && assistantResult && (
+                <div className="space-y-6">
+                  <Card className="shadow-lg border-primary/20">
+                    <CardHeader className="bg-primary/5 border-b">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h2 className="text-3xl font-bold font-headline text-primary">{assistantResult.originalWord}</h2>
+                          <p className="text-muted-foreground">{assistantResult.transliteration} • {assistantResult.pronunciation}</p>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => handleObsidianExport(assistantResult)}>
+                          <Download className="h-4 w-4 mr-2" /> Obsidian Export
                         </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-6 space-y-8">
+                      <div className="grid gap-6 md:grid-cols-2">
+                        <div className="space-y-4">
+                          <h3 className="text-xs font-bold uppercase tracking-widest text-primary border-b pb-1">Definitions</h3>
+                          <ul className="list-disc pl-5 space-y-2">
+                            {assistantResult.definitions.map((d, i) => <li key={i} className="text-sm italic">{d}</li>)}
+                          </ul>
+                        </div>
+                        <div className="space-y-4">
+                          <h3 className="text-xs font-bold uppercase tracking-widest text-primary border-b pb-1">AI Synthesis</h3>
+                          <p className="text-sm leading-relaxed">{assistantResult.aiInsights}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-primary border-b pb-1">Biblical Cross-References</h3>
+                        <div className="grid gap-3 md:grid-cols-2">
+                          {assistantResult.verseUsages.map((v, i) => (
+                            <div key={i} className="p-3 bg-muted/30 rounded-lg flex items-center justify-between group">
+                              <span className="text-xs font-medium">{v}</span>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100"><Link2 className="h-3 w-3" /></Button>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                           <Button variant="outline" size="sm" onClick={() => {
+                             const overt = findOvertReferences(assistantResult.aiInsights);
+                             toast({ title: "Overt Links Found", description: overt.join(', ') || "No explicit citations detected." });
+                           }}><Link2 className="h-4 w-4 mr-2" /> Scan Overt</Button>
+                           <Button variant="outline" size="sm" onClick={() => handleCovertLinkScan(assistantResult.aiInsights)}><Sparkles className="h-4 w-4 mr-2" /> Scan Covert</Button>
+                        </div>
+                      </div>
+
+                      {covertLinks && (
+                        <div className="p-4 bg-accent/5 rounded-xl border border-accent/20 space-y-4">
+                           <h4 className="text-sm font-bold text-accent flex items-center gap-2"><Sparkles className="h-4 w-4" /> Covert (Semantic) References</h4>
+                           <div className="space-y-3">
+                             {covertLinks.covertLinks.map((link, idx) => (
+                               <div key={idx} className="text-xs border-l-2 border-accent pl-3 space-y-1">
+                                 <p className="font-bold">{link.suggestedScripture}</p>
+                                 <p className="text-muted-foreground italic">"{link.sourceFragment}"</p>
+                                 <p className="text-[10px] text-muted-foreground">{link.theologicalBasis}</p>
+                               </div>
+                             ))}
+                           </div>
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-primary border-b pb-1">Bibliography</h3>
+                        <p className="text-xs font-code whitespace-pre-wrap bg-muted/50 p-4 rounded-lg">{assistantResult.bibliography}</p>
                       </div>
                     </CardContent>
                   </Card>
+                </div>
+              )}
 
-                  {lexiconResult && (
-                    <Card className="shadow-lg border-primary/20">
-                      <CardHeader className="bg-primary/5 border-b">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="flex items-center gap-3 mb-1">
-                              <h2 className="text-4xl font-bold font-headline text-primary">{lexiconResult.originalWord}</h2>
-                              <Badge variant="outline" className="text-xs">{lexiconResult.searchStrongNumber}</Badge>
-                            </div>
-                            <p className="text-lg font-medium text-muted-foreground">{lexiconResult.transliteration} • {lexiconResult.pronunciation}</p>
-                          </div>
-                          <div className="flex flex-col gap-2 items-end">
-                            <Badge className="bg-primary text-primary-foreground">{lexiconResult.partOfSpeech}</Badge>
-                            <div className="flex gap-1">
-                              {lexiconResult.classification.map(c => (
-                                <Badge key={c} variant="secondary" className="text-[10px] uppercase">{c}</Badge>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-8 pt-6">
-                        <div className="flex justify-between items-center bg-muted/30 p-4 rounded-lg">
-                          <div className="text-sm font-medium flex items-center gap-2">
-                            <Link2 className="h-4 w-4 text-primary" /> Detect Overt Cross-References
-                          </div>
-                          <Button variant="outline" size="sm" onClick={() => {
-                            const refs = findOvertReferences(lexiconResult.summary);
-                            if (refs.length > 0) {
-                              toast({ title: "References Identified", description: `Found ${refs.length} overt citations in analysis.` });
-                            } else {
-                              toast({ title: "No Overt Links", description: "No explicit scripture references found." });
-                            }
-                          }}>Scan Content</Button>
-                        </div>
-                        
-                        <div>
-                          <h3 className="text-xs font-bold uppercase tracking-widest text-primary mb-3">Definition</h3>
-                          <p className="text-sm leading-relaxed border-l-4 border-primary/20 pl-4 py-1 italic">{lexiconResult.definition}</p>
-                        </div>
-
-                        <div className="bg-muted p-4 rounded-lg flex justify-between items-center">
-                          <div className="space-y-1">
-                            <h4 className="font-bold text-xs uppercase flex items-center gap-2"><Puzzle className="h-3.5 w-3.5" /> Obsidian Export</h4>
-                            <p className="text-[10px] text-muted-foreground">Download this research for your personal library.</p>
-                          </div>
-                          <Button variant="outline" size="sm" onClick={() => handleObsidianExport(lexiconResult)}>
-                            <Download className="h-4 w-4 mr-2" /> Export Markdown
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
+              {isLoading && (
+                <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                  <p className="text-muted-foreground font-headline animate-pulse">Consulting the digital library...</p>
                 </div>
               )}
             </div>
@@ -869,3 +726,4 @@ ${result.bibliography}
     </SidebarProvider>
   );
 }
+
