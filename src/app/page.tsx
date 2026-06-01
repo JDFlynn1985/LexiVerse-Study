@@ -93,7 +93,9 @@ import {
   Cpu,
   Key,
   Shield,
-  Megaphone
+  Megaphone,
+  Network,
+  Milestone
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -136,10 +138,12 @@ import { refineWriting, type WritingAssistantOutput } from '@/ai/flows/writing-a
 import { formatBibliography, type FormatBibliographyOutput } from '@/ai/flows/format-bibliography-ai';
 import { checkIntegrity, type AcademicIntegrityOutput } from '@/ai/flows/academic-integrity-ai';
 import { extractTextFromImage } from '@/ai/flows/ocr-flow';
+import { analyzeTheologicalConcept, type TheologicalConceptOutput } from '@/ai/flows/theological-concept-analysis';
+import { generateHistoricalTimeline, type HistoricalTimelineOutput } from '@/ai/flows/historical-timeline-flow';
 import { getVersions, getChapterContent, parseReference, type BibleVersion, type BibleChapter } from '@/lib/bible-api';
 import { trackAdClick } from '@/components/analytics';
 
-type ViewMode = 'dashboard' | 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers' | 'gallery' | 'writing-assistant' | 'integrity' | 'ai-settings';
+type ViewMode = 'dashboard' | 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers' | 'gallery' | 'writing-assistant' | 'integrity' | 'ai-settings' | 'theology-map' | 'timeline';
 
 interface Note {
   id: string;
@@ -227,6 +231,12 @@ export default function Home() {
 
   const [integrityInput, setIntegrityInput] = useState('');
   const [integrityResult, setIntegrityResult] = useState<AcademicIntegrityOutput | null>(null);
+
+  // New Analytical Tool States
+  const [theoConcept, setTheoConcept] = useState('');
+  const [theoResult, setTheoResult] = useState<TheologicalConceptOutput | null>(null);
+  const [timelineTopic, setTimelineTopic] = useState('');
+  const [timelineResult, setTimelineResult] = useState<HistoricalTimelineOutput | null>(null);
 
   const galleryImages = useMemo(() => {
     return researchPapers.filter(p => isImage(p.format));
@@ -447,6 +457,32 @@ export default function Home() {
       localStorage.setItem('lexiverse_history', JSON.stringify(newHistory));
     } catch (error) {
       toast({ variant: 'destructive', title: 'Lexicon search failed' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleTheologyMap = async () => {
+    if (!theoConcept.trim()) return;
+    setIsLoading(true);
+    try {
+      const result = await analyzeTheologicalConcept({ concept: theoConcept });
+      setTheoResult(result);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Theology mapping failed' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleTimelineGenerate = async () => {
+    if (!timelineTopic.trim()) return;
+    setIsLoading(true);
+    try {
+      const result = await generateHistoricalTimeline({ topic: timelineTopic });
+      setTimelineResult(result);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Timeline generation failed' });
     } finally {
       setIsLoading(false);
     }
@@ -690,6 +726,22 @@ export default function Home() {
                   { id: 'translations', label: 'Parallel Versions', icon: Scale },
                   { id: 'papers', label: 'My Papers', icon: Library },
                   { id: 'gallery', label: 'Image Gallery', icon: ImagesIcon },
+                ].map((item) => (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton isActive={activeTab === item.id} onClick={() => setActiveTab(item.id as ViewMode)} tooltip={item.label}>
+                      <item.icon className="h-5 w-5" /> <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarGroupLabel>Academic Synthesis</SidebarGroupLabel>
+              <SidebarMenu>
+                {[
+                  { id: 'theology-map', label: 'Theology Index', icon: Network },
+                  { id: 'timeline', label: 'Timeline & History', icon: Milestone },
                 ].map((item) => (
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton isActive={activeTab === item.id} onClick={() => setActiveTab(item.id as ViewMode)} tooltip={item.label}>
@@ -1002,6 +1054,156 @@ export default function Home() {
                     </CardFooter>
                   </Card>
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'theology-map' && (
+              <div className="space-y-8 animate-in fade-in max-w-5xl mx-auto">
+                <header className="text-center space-y-2">
+                  <h1 className="text-3xl font-bold font-headline">Theological Concept Mapper</h1>
+                  <p className="text-muted-foreground">Systemic analysis of complex doctrinal concepts.</p>
+                </header>
+
+                <div className="flex gap-4 max-w-lg mx-auto">
+                  <Input 
+                    placeholder="Enter concept (e.g., Justification, Covenant)" 
+                    value={theoConcept} 
+                    onChange={e => setTheoConcept(e.target.value)}
+                  />
+                  <Button onClick={handleTheologyMap} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Network className="h-4 w-4 mr-2" />} Map Concept
+                  </Button>
+                </div>
+
+                {theoResult && (
+                  <div className="grid gap-6 md:grid-cols-3">
+                    <Card className="md:col-span-2 shadow-lg">
+                      <CardHeader>
+                        <CardTitle className="font-headline text-3xl text-primary">{theoResult.concept}</CardTitle>
+                        <CardDescription className="italic">{theoResult.etymology}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-8">
+                        <div>
+                          <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-2">Scholarly Definition</h3>
+                          <p className="text-lg font-serif leading-relaxed">{theoResult.definition}</p>
+                        </div>
+                        
+                        <Separator />
+                        
+                        <div>
+                          <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Historical Development</h3>
+                          <div className="space-y-4">
+                            {theoResult.historicalDevelopment.map((d, i) => (
+                              <div key={i} className="flex gap-4">
+                                <Badge variant="secondary" className="h-fit py-1">{d.period}</Badge>
+                                <div>
+                                  <p className="text-sm font-semibold">{d.keyDevelopment}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">Key Figures: {d.notableFigures.join(', ')}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        <div>
+                          <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-2">Synthesis & Bibliography</h3>
+                          <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{theoResult.academicSynthesis}</p>
+                          <div className="mt-6 p-4 bg-muted/30 rounded border text-[10px] font-mono whitespace-pre-wrap">
+                            {theoResult.bibliography}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-sm flex items-center gap-2"><Quote className="h-4 w-4" /> Scriptural Foundations</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        {theoResult.keyVerses.map((v, i) => (
+                          <div key={i} className="space-y-1">
+                            <Button variant="link" className="p-0 h-auto font-bold text-primary" onClick={() => {setPassageRef(v.reference); loadPassage(); setActiveTab('bibles');}}>
+                              {v.reference}
+                            </Button>
+                            <p className="text-xs text-muted-foreground leading-relaxed italic">{v.significance}</p>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'timeline' && (
+              <div className="space-y-8 animate-in fade-in max-w-5xl mx-auto">
+                <header className="text-center space-y-2">
+                  <h1 className="text-3xl font-bold font-headline">Historical Timeline & Context</h1>
+                  <p className="text-muted-foreground">Chronological mapping of biblical and extra-biblical events.</p>
+                </header>
+
+                <div className="flex gap-4 max-w-lg mx-auto">
+                  <Input 
+                    placeholder="Enter period or event (e.g., Exile, Paul's Journeys)" 
+                    value={timelineTopic} 
+                    onChange={e => setTimelineTopic(e.target.value)}
+                  />
+                  <Button onClick={handleTimelineGenerate} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Milestone className="h-4 w-4 mr-2" />} Generate
+                  </Button>
+                </div>
+
+                {timelineResult && (
+                  <div className="space-y-8">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-2xl font-headline">Historical Summary: {timelineResult.topic}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-muted-foreground leading-relaxed">{timelineResult.summary}</p>
+                      </CardContent>
+                    </Card>
+
+                    <div className="relative space-y-8 before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
+                      {timelineResult.timeline.map((item, i) => (
+                        <div key={i} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                          <div className="flex items-center justify-center w-10 h-10 rounded-full border bg-card shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2">
+                            <Badge variant={item.sourceType === 'Archaeological' ? 'outline' : 'default'} className="p-0 h-4 w-4 rounded-full" />
+                          </div>
+                          <Card className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 shadow-sm group-hover:shadow-md transition-shadow">
+                            <div className="flex items-center justify-between mb-1">
+                              <time className="font-bold text-primary font-headline text-lg">{item.date}</time>
+                              <Badge variant="secondary" className="text-[10px]">{item.sourceType}</Badge>
+                            </div>
+                            <h4 className="font-bold mb-2">{item.event}</h4>
+                            <p className="text-sm text-muted-foreground leading-relaxed">{item.description}</p>
+                          </Card>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="grid gap-6 md:grid-cols-2">
+                      <Card>
+                        <CardHeader className="bg-primary/5">
+                          <CardTitle className="text-sm uppercase tracking-widest font-bold">Archaeological Context</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                          <p className="text-sm text-muted-foreground leading-relaxed">{timelineResult.archaeologicalContext}</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader className="bg-accent/5">
+                          <CardTitle className="text-sm uppercase tracking-widest font-bold">Scholarly Analysis</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                          <p className="text-sm text-muted-foreground leading-relaxed">{timelineResult.scholarlyAnalysis}</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

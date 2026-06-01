@@ -13,4 +13,5 @@ import '@/ai/flows/writing-assistant-ai.ts';
 import '@/ai/flows/format-bibliography-ai.ts';
 import '@/ai/flows/academic-integrity-ai.ts';
 import '@/ai/flows/ocr-flow.ts';
-
+import '@/ai/flows/theological-concept-analysis.ts';
+import '@/ai/flows/historical-timeline-flow.ts';
