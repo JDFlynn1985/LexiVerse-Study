@@ -58,7 +58,10 @@ import {
   Compass,
   Repeat,
   History,
-  FileText
+  FileText,
+  FileSearch,
+  FileUp,
+  Files
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -126,6 +129,14 @@ interface UserProfile {
   isAdmin?: boolean;
 }
 
+interface ResearchDocument {
+  id: string;
+  name: string;
+  type: string;
+  uploadDate: string;
+  content: string;
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<ViewMode>('dashboard');
   const [isLoading, setIsLoading] = useState(false);
@@ -138,6 +149,7 @@ export default function Home() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   const [history, setHistory] = useState<{id: string, type: string, term: string, date: string}[]>([]);
+  const [recentDocuments, setRecentDocuments] = useState<ResearchDocument[]>([]);
   const [aiPrefs, setAiPrefs] = useState({
     selectedModel: 'googleai/gemini-2.5-flash',
     customApiKey: ''
@@ -197,6 +209,19 @@ export default function Home() {
     setMounted(true);
     const savedHistory = localStorage.getItem('lexiverse_history');
     if (savedHistory) setHistory(JSON.parse(savedHistory));
+
+    const savedDocs = localStorage.getItem('lexiverse_documents');
+    if (savedDocs) {
+      setRecentDocuments(JSON.parse(savedDocs));
+    } else {
+      // Seed with sample scholarly docs for first-time view
+      const samples: ResearchDocument[] = [
+        { id: '1', name: 'Analysis of Hellenistic Syncretism.pdf', type: 'PDF', uploadDate: new Date().toLocaleDateString(), content: 'The convergence of Greek and Jewish thought...' },
+        { id: '2', name: 'Pauline Eschatology Draft.docx', type: 'DOCX', uploadDate: new Date().toLocaleDateString(), content: 'Investigating the "Already/Not Yet" tension...' }
+      ];
+      setRecentDocuments(samples);
+      localStorage.setItem('lexiverse_documents', JSON.stringify(samples));
+    }
   }, []);
 
   useEffect(() => {
@@ -486,9 +511,16 @@ export default function Home() {
             <div className="flex-1" id="main-content">
               {activeTab === 'dashboard' && (
                 <div className="space-y-8 animate-in fade-in">
-                  <header>
-                    <h1 className="text-4xl font-bold font-headline">Research Workspace</h1>
-                    <p className="text-muted-foreground text-lg">Integrated AI tools for biblical scholarship.</p>
+                  <header className="flex justify-between items-end">
+                    <div>
+                      <h1 className="text-4xl font-bold font-headline">Research Workspace</h1>
+                      <p className="text-muted-foreground text-lg">Integrated AI tools for biblical scholarship.</p>
+                    </div>
+                    <div className="flex gap-2">
+                       <Button variant="outline" size="sm" className="gap-2">
+                         <FileUp className="h-4 w-4" /> Upload Paper
+                       </Button>
+                    </div>
                   </header>
 
                   <div className="grid gap-6 md:grid-cols-3">
@@ -532,28 +564,79 @@ export default function Home() {
                     </Card>
 
                     <Card className="shadow-md border-primary/10">
-                      <CardHeader>
+                      <CardHeader className="pb-3">
                         <CardTitle className="font-headline text-sm flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4 text-primary" /> Recent Research
+                          <History className="h-4 w-4 text-primary" /> Search History
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="p-0">
-                        <ScrollArea className="h-[200px]">
+                        <ScrollArea className="h-[220px]">
                           {history.map(h => (
-                            <div key={h.id} className="p-3 border-b hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => {
+                            <div key={h.id} className="p-3 border-b last:border-0 hover:bg-muted/50 transition-colors cursor-pointer group" onClick={() => {
                               setActiveTab(h.type as ViewMode);
                               if (h.type === 'lexicon') setStrongsTerm(h.term);
+                              if (h.type === 'ai-assistant') setAssistantTerm(h.term);
                             }}>
-                              <p className="text-xs font-bold font-headline truncate">{h.term}</p>
+                              <div className="flex justify-between items-start">
+                                <p className="text-xs font-bold font-headline truncate max-w-[120px]">{h.term}</p>
+                                <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                              </div>
                               <div className="flex justify-between items-center mt-1">
-                                <Badge variant="secondary" className="text-[8px] uppercase">{h.type}</Badge>
+                                <Badge variant="secondary" className="text-[8px] uppercase">{h.type.replace('-', ' ')}</Badge>
                                 <p className="text-[8px] text-muted-foreground">{h.date.split(',')[0]}</p>
                               </div>
                             </div>
                           ))}
-                          {history.length === 0 && <p className="p-4 text-center text-xs text-muted-foreground italic">No recent history.</p>}
+                          {history.length === 0 && (
+                            <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
+                              <History className="h-8 w-8 opacity-20 mb-2" />
+                              <p className="text-xs italic">No history logged.</p>
+                            </div>
+                          )}
                         </ScrollArea>
                       </CardContent>
+                    </Card>
+
+                    <Card className="shadow-md border-primary/10">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="font-headline text-sm flex items-center gap-2">
+                          <Files className="h-4 w-4 text-primary" /> Recent Documents
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <ScrollArea className="h-[220px]">
+                          {recentDocuments.map(doc => (
+                            <div key={doc.id} className="p-3 border-b last:border-0 hover:bg-muted/50 transition-colors cursor-pointer group">
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-muted-foreground" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium truncate">{doc.name}</p>
+                                  <p className="text-[9px] text-muted-foreground uppercase">{doc.type} • {doc.uploadDate}</p>
+                                </div>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveTab('ai-assistant');
+                                  setAssistantTerm(doc.name);
+                                  toast({ title: "Analyzing Document", description: `Loading ${doc.name} into AI Study Assistant...` });
+                                }}>
+                                  <FileSearch className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                          {recentDocuments.length === 0 && (
+                            <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
+                              <FileUp className="h-8 w-8 opacity-20 mb-2" />
+                              <p className="text-xs italic">No papers uploaded.</p>
+                            </div>
+                          )}
+                        </ScrollArea>
+                      </CardContent>
+                      <CardFooter className="p-3 pt-0 border-t">
+                        <Button variant="ghost" size="sm" className="w-full h-8 text-[10px] gap-2">
+                          View Library <ChevronRight className="h-3 w-3" />
+                        </Button>
+                      </CardFooter>
                     </Card>
 
                     <Card className="md:col-span-2 border-dashed border-2 bg-muted/5 group cursor-pointer hover:bg-muted/10 transition-all" onClick={() => trackAdClick('dashboard_spotlight', 'dashboard')}>
@@ -809,7 +892,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* ... other tabs like dictionaries, commentaries, wiki, theology-map, timeline, ai-settings, support remain as they were ... */}
               {activeTab === 'dictionaries' && (
                 <div className="space-y-6 animate-in fade-in">
                   <header>
