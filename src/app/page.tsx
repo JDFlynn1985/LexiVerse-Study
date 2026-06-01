@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useId, useRef, useMemo } from 'react';
@@ -137,7 +136,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/select";
+} from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
 import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/compare-translations-ai';
@@ -160,13 +159,6 @@ interface Note {
   source: string;
   date: string;
   driveFileId?: string;
-}
-
-interface BiblioItem {
-  id: string;
-  citation: string;
-  sourceType: string;
-  date: string;
 }
 
 interface ResearchPaper {
@@ -203,7 +195,6 @@ export default function Home() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const auth = useAuth();
   const db = useFirestore();
@@ -226,14 +217,9 @@ export default function Home() {
   const [commWord, setCommWord] = useState('');
   const [commLanguage, setCommLanguage] = useState('Greek');
   const [commResult, setCommResult] = useState<SearchCommentariesOutput | null>(null);
-  const [transWord, setTransWord] = useState('');
-  const [transResult, setTransResult] = useState<CompareTranslationsOutput | null>(null);
   const [passageRef, setPassageRef] = useState('John 1');
   const [readingVersion, setReadingVersion] = useState('kjv');
   const [currentPassage, setCurrentPassage] = useState<BibleChapter | null>(null);
-  const [chatInput, setChatInput] = useState('');
-  const [chatHistory, setChatHistory] = useState<{role: 'user' | 'model', content: string}[]>([]);
-  const [versions, setVersions] = useState<BibleVersion[]>([]);
   const [writingInput, setWritingInput] = useState('');
   const [writingResult, setWritingResult] = useState<WritingAssistantOutput | null>(null);
   const [integrityInput, setIntegrityInput] = useState('');
@@ -258,11 +244,11 @@ export default function Home() {
   const { data: wikiEntries } = useCollection<WikiEntry>(wikiQuery);
 
   const approvedWikiEntries = useMemo(() => {
-    return wikiEntries.filter(e => e.status === 'approved' && e.title.toLowerCase().includes(wikiSearch.toLowerCase()));
+    return (wikiEntries || []).filter(e => e.status === 'approved' && e.title.toLowerCase().includes(wikiSearch.toLowerCase()));
   }, [wikiEntries, wikiSearch]);
 
   const pendingWikiEntries = useMemo(() => {
-    return wikiEntries.filter(e => e.status === 'pending');
+    return (wikiEntries || []).filter(e => e.status === 'pending');
   }, [wikiEntries]);
 
   useEffect(() => {
@@ -289,6 +275,8 @@ export default function Home() {
       return () => unsub();
     }
   }, [user, db]);
+
+  const [versions, setVersions] = useState<BibleVersion[]>([]);
 
   const handleLogin = async () => {
     const provider = new GoogleAuthProvider();
@@ -403,7 +391,7 @@ export default function Home() {
     }
     setIsLoading(true);
     try {
-      await addDoc(collection(db, 'wiki_entries'), {
+      addDoc(collection(db, 'wiki_entries'), {
         title: newWikiTitle,
         content: newWikiContent,
         worksCited: newWikiWorksCited,
@@ -424,13 +412,13 @@ export default function Home() {
 
   const handleApproveWiki = async (id: string) => {
     if (!userProfile?.isAdmin) return;
-    await updateDoc(doc(db, 'wiki_entries', id), { status: 'approved' });
+    updateDoc(doc(db, 'wiki_entries', id), { status: 'approved' });
     toast({ title: 'Entry Approved' });
   };
 
   const handleRejectWiki = async (id: string) => {
     if (!userProfile?.isAdmin) return;
-    await updateDoc(doc(db, 'wiki_entries', id), { status: 'rejected' });
+    updateDoc(doc(db, 'wiki_entries', id), { status: 'rejected' });
     toast({ title: 'Entry Rejected' });
   };
 
@@ -468,6 +456,7 @@ export default function Home() {
                 {[
                   { id: 'bibles', label: 'Bible Reader', icon: Book },
                   { id: 'lexicon', label: 'Lexicon', icon: BookOpen },
+                  { id: 'dictionaries', label: 'Dictionaries', icon: Type },
                   { id: 'commentaries', label: 'Commentaries', icon: Scroll },
                   { id: 'wiki', label: 'Scholarly Wiki', icon: Globe },
                   { id: 'papers', label: 'My Papers', icon: Library },
@@ -487,6 +476,8 @@ export default function Home() {
               <SidebarMenu>
                 {[
                   { id: 'scholar-ai', label: 'Scholar Chat', icon: MessageSquare },
+                  { id: 'theology-map', label: 'Theology Map', icon: Network },
+                  { id: 'timeline', label: 'Timeline', icon: Milestone },
                   { id: 'writing-assistant', label: 'Writing Editor', icon: Edit3 },
                   { id: 'integrity', label: 'Academic Integrity', icon: ShieldCheck },
                   { id: 'notes', label: 'Research Notes', icon: Scroll },
@@ -501,7 +492,7 @@ export default function Home() {
             </SidebarGroup>
 
             <SidebarGroup>
-              <SidebarGroupLabel>Config & Support</SidebarGroupLabel>
+              <SidebarGroupLabel>Configuration</SidebarGroupLabel>
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton isActive={activeTab === 'ai-settings'} onClick={() => setActiveTab('ai-settings')} tooltip="AI Configuration">
@@ -611,6 +602,7 @@ export default function Home() {
                               <span className="text-sm font-medium truncate">{p.title}</span>
                             </div>
                           ))}
+                          {researchPapers.length === 0 && <p className="text-sm text-muted-foreground italic col-span-2 text-center py-8">No research papers in your library.</p>}
                         </div>
                       </CardContent>
                     </Card>
@@ -629,6 +621,7 @@ export default function Home() {
                             <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all" />
                           </div>
                         ))}
+                        {history.length === 0 && <p className="p-4 text-xs text-muted-foreground text-center">No recent searches.</p>}
                       </ScrollArea>
                     </CardContent>
                   </Card>
@@ -697,7 +690,7 @@ export default function Home() {
                             </CardDescription>
                           </CardHeader>
                           <CardContent className="pt-6 space-y-6">
-                            <div className="prose dark:prose-invert max-w-none leading-relaxed font-serif text-lg">
+                            <div className="prose dark:prose-invert max-w-none leading-relaxed font-serif text-lg whitespace-pre-wrap">
                               {entry.content}
                             </div>
                             <Separator />
@@ -743,7 +736,7 @@ export default function Home() {
                               </CardContent>
                             </Card>
                           ))}
-                          {pendingWikiEntries.length === 0 && <p className="text-xs text-muted-foreground italic">No pending submissions.</p>}
+                          {pendingWikiEntries.length === 0 && <p className="text-xs text-muted-foreground italic text-center py-8">No pending submissions.</p>}
                         </div>
                       </ScrollArea>
                     </div>
@@ -752,7 +745,55 @@ export default function Home() {
               </div>
             )}
 
-            {/* Existing Tab Contents would follow (bibles, lexicon, etc.) */}
+            {activeTab === 'support' && (
+              <div className="space-y-8 animate-in fade-in">
+                <header>
+                  <h1 className="text-3xl font-bold font-headline">Help & Support</h1>
+                  <p className="text-muted-foreground">Technical assistance and scholarship resources.</p>
+                </header>
+
+                <div className="grid gap-6 md:grid-cols-2">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5" /> osTicket Integration</CardTitle>
+                      <CardDescription>Submit a technical support ticket directly to our dean's office.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Subject</Label>
+                        <Input placeholder="e.g. Issue with Lexicon search" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Description</Label>
+                        <Textarea placeholder="Please provide details about the issue..." />
+                      </div>
+                    </CardContent>
+                    <CardFooter>
+                      <Button className="w-full">Create Ticket via osTicket</Button>
+                    </CardFooter>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><HelpCircle className="h-5 w-5" /> Documentation</CardTitle>
+                      <CardDescription>Learn how to use LexiVerse AI tools effectively.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <h4 className="font-bold text-sm">Scholar AI Best Practices</h4>
+                        <p className="text-xs text-muted-foreground">Learn how to prompt the AI for better theological synthesis and original language analysis.</p>
+                      </div>
+                      <Separator />
+                      <div className="space-y-2">
+                        <h4 className="font-bold text-sm">Wiki.js Integration</h4>
+                        <p className="text-xs text-muted-foreground">Access our external Wiki.js instance for community-maintained bibliographies and course notes.</p>
+                        <Button variant="outline" size="sm" className="w-full gap-2"><ExternalLink className="h-4 w-4" /> Open Wiki.js</Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            )}
 
             {/* Global Footer Banner Ad */}
             <div className="mt-12 pt-8 border-t">
