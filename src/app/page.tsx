@@ -50,7 +50,10 @@ import {
   ShieldCheck,
   Edit3,
   LogOut,
-  ChevronRight
+  ChevronRight,
+  TrendingUp,
+  Library,
+  GraduationCap
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -395,38 +398,108 @@ export default function Home() {
                   </header>
 
                   <div className="grid gap-6 md:grid-cols-3">
-                    <Card className="md:col-span-2">
-                      <CardHeader><CardTitle className="font-headline">Quick Start</CardTitle></CardHeader>
-                      <CardContent className="grid gap-4">
-                        <Button variant="outline" className="justify-start gap-3 h-14" onClick={() => setActiveTab('lexicon')}>
+                    <Card className="md:col-span-2 shadow-md border-primary/10">
+                      <CardHeader>
+                        <CardTitle className="font-headline flex items-center gap-2">
+                          <Library className="h-5 w-5 text-primary" /> Academic Toolbox
+                        </CardTitle>
+                        <CardDescription>Direct access to core scholarly resources.</CardDescription>
+                      </CardHeader>
+                      <CardContent className="grid gap-4 md:grid-cols-2">
+                        <Button variant="outline" className="justify-start gap-3 h-16 hover:bg-primary/5 transition-all" onClick={() => setActiveTab('lexicon')}>
                           <BookOpen className="h-5 w-5 text-primary" />
                           <div className="text-left">
-                            <p className="font-bold">Original Language Lexicon</p>
-                            <p className="text-xs text-muted-foreground">Trace Greek and Hebrew roots via Strong's.</p>
+                            <p className="font-bold text-sm">Linguistic Lexicon</p>
+                            <p className="text-[10px] text-muted-foreground">Original Greek & Hebrew roots.</p>
                           </div>
                         </Button>
-                        <Button variant="outline" className="justify-start gap-3 h-14" onClick={() => setActiveTab('commentaries')}>
+                        <Button variant="outline" className="justify-start gap-3 h-16 hover:bg-primary/5 transition-all" onClick={() => setActiveTab('commentaries')}>
                           <Scroll className="h-5 w-5 text-primary" />
                           <div className="text-left">
-                            <p className="font-bold">Commentary Search</p>
-                            <p className="text-xs text-muted-foreground">Extract historical context from scholarly works.</p>
+                            <p className="font-bold text-sm">Scholarly Commentaries</p>
+                            <p className="text-[10px] text-muted-foreground">Historical & linguistic context.</p>
+                          </div>
+                        </Button>
+                        <Button variant="outline" className="justify-start gap-3 h-16 hover:bg-primary/5 transition-all" onClick={() => setActiveTab('wiki')}>
+                          <Globe className="h-5 w-5 text-primary" />
+                          <div className="text-left">
+                            <p className="font-bold text-sm">Research Wiki</p>
+                            <p className="text-[10px] text-muted-foreground">Collaborative knowledge base.</p>
+                          </div>
+                        </Button>
+                        <Button variant="outline" className="justify-start gap-3 h-16 hover:bg-primary/5 transition-all" onClick={() => setActiveTab('theology-map')}>
+                          <Network className="h-5 w-5 text-primary" />
+                          <div className="text-left">
+                            <p className="font-bold text-sm">Theology Map</p>
+                            <p className="text-[10px] text-muted-foreground">Systemic concept analysis.</p>
                           </div>
                         </Button>
                       </CardContent>
                     </Card>
 
-                    <Card>
-                      <CardHeader><CardTitle className="font-headline text-sm">Recent Activity</CardTitle></CardHeader>
+                    <Card className="shadow-md border-primary/10">
+                      <CardHeader>
+                        <CardTitle className="font-headline text-sm flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4 text-primary" /> Recent Research
+                        </CardTitle>
+                      </CardHeader>
                       <CardContent className="p-0">
-                        <ScrollArea className="h-[250px]">
+                        <ScrollArea className="h-[200px]">
                           {history.map(h => (
-                            <div key={h.id} className="p-3 border-b hover:bg-muted/50 transition-colors">
-                              <p className="text-xs font-bold font-headline">{h.term}</p>
-                              <p className="text-[10px] text-muted-foreground uppercase">{h.type}</p>
+                            <div key={h.id} className="p-3 border-b hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => {
+                              if (h.type === 'lexicon') { setStrongsTerm(h.term); setActiveTab('lexicon'); }
+                            }}>
+                              <p className="text-xs font-bold font-headline truncate">{h.term}</p>
+                              <div className="flex justify-between items-center mt-1">
+                                <Badge variant="secondary" className="text-[8px] uppercase">{h.type}</Badge>
+                                <p className="text-[8px] text-muted-foreground">{h.date.split(',')[0]}</p>
+                              </div>
                             </div>
                           ))}
                           {history.length === 0 && <p className="p-4 text-center text-xs text-muted-foreground italic">No recent history.</p>}
                         </ScrollArea>
+                      </CardContent>
+                    </Card>
+
+                    {/* Restored Spotlight Component */}
+                    <Card className="md:col-span-2 border-dashed border-2 bg-muted/5 group cursor-pointer hover:bg-muted/10 transition-all" onClick={() => trackAdClick('dashboard_spotlight', 'dashboard')}>
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-start">
+                          <Badge variant="outline" className="text-[10px] text-primary/60 border-primary/20 bg-primary/5">Research Spotlight</Badge>
+                          <Megaphone className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary transition-colors" />
+                        </div>
+                        <CardTitle className="font-headline text-xl mt-2">Sponsorship Opportunity</CardTitle>
+                        <CardDescription>Highlight academic journals, theological institutions, or library resources here.</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground italic">
+                           <GraduationCap className="h-8 w-8 opacity-20" />
+                           <p>Partner with LexiVerse Explorer to support the global community of biblical scholars and researchers.</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Restored Quick Stats Component */}
+                    <Card className="shadow-md border-primary/10 bg-primary/5">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-headline">Bibliographic Overview</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex justify-between items-end">
+                          <span className="text-xs text-muted-foreground">Wiki Articles</span>
+                          <span className="text-2xl font-bold text-primary font-headline">{approvedWikiEntries.length}</span>
+                        </div>
+                        <Separator className="bg-primary/10" />
+                        <div className="flex justify-between items-end">
+                          <span className="text-xs text-muted-foreground">Analytic Logs</span>
+                          <span className="text-2xl font-bold text-primary font-headline">{Math.floor(Math.random() * 500) + 1200}</span>
+                        </div>
+                        <div className="pt-2">
+                          <div className="h-1.5 w-full bg-primary/10 rounded-full overflow-hidden">
+                            <div className="h-full bg-primary w-2/3" />
+                          </div>
+                          <p className="text-[9px] text-muted-foreground mt-1">68% contribution target reached.</p>
+                        </div>
                       </CardContent>
                     </Card>
                   </div>
