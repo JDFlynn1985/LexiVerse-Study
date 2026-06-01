@@ -11,15 +11,19 @@
         "email": { "type": "string" },
         "photoURL": { "type": "string" },
         "isAdmin": { "type": "boolean", "description": "Whether the user has administrative/moderator privileges." },
-        "aiPreferences": {
+        "preferences": {
           "type": "object",
           "properties": {
             "selectedModel": { 
               "type": "string", 
               "enum": ["googleai/gemini-2.5-flash", "googleai/gemini-2.5-pro-001"],
-              "description": "The selected AI engine. Default is the optimized Flash model."
+              "description": "The selected AI engine."
             },
-            "customApiKey": { "type": "string" }
+            "customApiKey": { "type": "string" },
+            "preferredBibleVersion": {
+              "type": "string",
+              "description": "The user's preferred Bible translation (e.g., kjv, net)."
+            }
           }
         }
       },

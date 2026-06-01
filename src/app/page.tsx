@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -66,7 +67,8 @@ import {
   MapPin,
   Calendar,
   Zap,
-  Hammer
+  Hammer,
+  Key
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -112,6 +114,7 @@ import { aiStudyAssistant, type AiStudyAssistantOutput } from '@/ai/flows/ai-stu
 import { interactiveVerseExplorationAI, type InteractiveVerseExplorationAIOutput } from '@/ai/flows/interactive-verse-exploration-ai';
 import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/compare-translations-ai';
 import { trackAdClick } from '@/components/analytics';
+import { getVersions, type BibleVersion } from '@/lib/bible-api';
 
 type ViewMode = 'dashboard' | 'lexicon' | 'dictionaries' | 'commentaries' | 'wiki' | 'theology-map' | 'timeline' | 'writing-assistant' | 'integrity' | 'ai-settings' | 'support' | 'ai-assistant' | 'verse-explorer' | 'compare-translations';
 
@@ -132,6 +135,11 @@ interface UserProfile {
   displayName: string;
   email: string;
   isAdmin?: boolean;
+  preferences?: {
+    selectedModel: string;
+    customApiKey: string;
+    preferredBibleVersion: string;
+  };
 }
 
 interface ResearchDocument {
@@ -155,9 +163,13 @@ export default function Home() {
 
   const [history, setHistory] = useState<{id: string, type: string, term: string, date: string}[]>([]);
   const [recentDocuments, setRecentDocuments] = useState<ResearchDocument[]>([]);
+  const [availableVersions, setAvailableVersions] = useState<BibleVersion[]>([]);
+
+  // User Preferences State
   const [aiPrefs, setAiPrefs] = useState({
     selectedModel: 'googleai/gemini-2.5-flash',
-    customApiKey: ''
+    customApiKey: '',
+    preferredBibleVersion: 'kjv'
   });
 
   // Sidebar Quick Search State
@@ -226,6 +238,9 @@ export default function Home() {
       setRecentDocuments(samples);
       localStorage.setItem('lexiverse_documents', JSON.stringify(samples));
     }
+
+    // Fetch Bible versions for settings
+    getVersions().then(setAvailableVersions);
   }, []);
 
   useEffect(() => {
@@ -233,9 +248,15 @@ export default function Home() {
       const userRef = doc(db, 'users', user.uid);
       const unsub = onSnapshot(userRef, (snapshot) => {
         if (snapshot.exists()) {
-          const data = snapshot.data();
-          setUserProfile(data as UserProfile);
-          if (data.aiPreferences) setAiPrefs(data.aiPreferences);
+          const data = snapshot.data() as UserProfile;
+          setUserProfile(data);
+          if (data.preferences) {
+            setAiPrefs({
+              selectedModel: data.preferences.selectedModel || 'googleai/gemini-2.5-flash',
+              customApiKey: data.preferences.customApiKey || '',
+              preferredBibleVersion: data.preferences.preferredBibleVersion || 'kjv'
+            });
+          }
         }
       });
       return () => unsub();
@@ -386,6 +407,21 @@ export default function Home() {
     }, 1500);
   };
 
+  const handleSavePreferences = () => {
+    if (user && db) {
+      setIsLoading(true);
+      updateDoc(doc(db, 'users', user.uid), { 
+        preferences: aiPrefs 
+      }).then(() => {
+        toast({ title: 'Preferences saved' });
+      }).finally(() => {
+        setIsLoading(false);
+      });
+    } else {
+      toast({ variant: 'destructive', title: 'Login required to save settings.' });
+    }
+  };
+
   const getClassificationIcon = (type: string) => {
     switch (type) {
       case 'Person': return <User className="h-3 w-3" />;
@@ -506,7 +542,7 @@ export default function Home() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>{user.displayName}</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => setActiveTab('ai-settings')}><Settings className="h-4 w-4 mr-2" /> AI Configuration</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveTab('ai-settings')}><Settings className="h-4 w-4 mr-2" /> Settings</DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setActiveTab('support')}><LifeBuoy className="h-4 w-4 mr-2" /> Help Center</DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="text-destructive"><LogOut className="h-4 w-4 mr-2" /> Logout</DropdownMenuItem>
@@ -1187,56 +1223,105 @@ export default function Home() {
               )}
 
               {activeTab === 'ai-settings' && (
-                <div className="space-y-8 animate-in fade-in">
+                <div className="space-y-8 animate-in fade-in pb-10">
                   <header>
-                    <h1 className="text-3xl font-bold font-headline">AI Engine Configuration</h1>
-                    <p className="text-muted-foreground">Select your research engine and manage credentials.</p>
+                    <h1 className="text-3xl font-bold font-headline">Scholar Preferences & Settings</h1>
+                    <p className="text-muted-foreground">Configure your academic environment and AI tools.</p>
                   </header>
-                  <Card>
-                    <CardHeader><CardTitle>Model Selection</CardTitle></CardHeader>
-                    <CardContent className="space-y-6">
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div 
-                          className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${aiPrefs.selectedModel === 'googleai/gemini-2.5-flash' ? 'border-primary bg-primary/5' : 'hover:bg-muted'}`}
-                          onClick={() => setAiPrefs({...aiPrefs, selectedModel: 'googleai/gemini-2.5-flash'})}
-                        >
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="font-bold">Gemini 2.5 Flash</span>
-                            <Badge variant="outline" className="bg-green-500/10 text-green-600">Free/Optimized</Badge>
+                  
+                  <div className="grid gap-8">
+                    {/* AI Configuration Section */}
+                    <Card className="shadow-md border-primary/10">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <Sparkles className="h-5 w-5 text-primary" /> AI Engine Configuration
+                        </CardTitle>
+                        <CardDescription>Select your preferred reasoning engine and manage API access.</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div 
+                            className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${aiPrefs.selectedModel === 'googleai/gemini-2.5-flash' ? 'border-primary bg-primary/5' : 'hover:bg-muted'}`}
+                            onClick={() => setAiPrefs({...aiPrefs, selectedModel: 'googleai/gemini-2.5-flash'})}
+                          >
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="font-bold">Gemini 2.5 Flash</span>
+                              <Badge variant="outline" className="bg-green-500/10 text-green-600">Free/Optimized</Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">Optimized for speed. Best for quick linguistic checks and OCR.</p>
                           </div>
-                          <p className="text-xs text-muted-foreground">Standard engine. Best for rapid linguistic checks and OCR.</p>
-                        </div>
-                        <div 
-                          className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${aiPrefs.selectedModel === 'googleai/gemini-2.5-pro-001' ? 'border-primary bg-primary/5' : 'hover:bg-muted'}`}
-                          onClick={() => setAiPrefs({...aiPrefs, selectedModel: 'googleai/gemini-2.5-pro-001'})}
-                        >
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="font-bold">Gemini 2.5 Pro</span>
-                            <Badge variant="outline" className="bg-amber-500/10 text-amber-600">Advanced Tier</Badge>
+                          <div 
+                            className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${aiPrefs.selectedModel === 'googleai/gemini-2.5-pro-001' ? 'border-primary bg-primary/5' : 'hover:bg-muted'}`}
+                            onClick={() => setAiPrefs({...aiPrefs, selectedModel: 'googleai/gemini-2.5-pro-001'})}
+                          >
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="font-bold">Gemini 2.5 Pro</span>
+                              <Badge variant="outline" className="bg-amber-500/10 text-amber-600">Advanced tier</Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">Maximum reasoning depth. Ideal for complex theological synthesis.</p>
                           </div>
-                          <p className="text-xs text-muted-foreground">Advanced reasoning. Ideal for deep theological synthesis.</p>
                         </div>
-                      </div>
-                      <Separator />
-                      <div className="space-y-2">
-                        <Label>Google AI API Key</Label>
-                        <Input 
-                          type="password" 
-                          placeholder="Optional: Provide your own key for higher rate limits..." 
-                          value={aiPrefs.customApiKey} 
-                          onChange={e => setAiPrefs({...aiPrefs, customApiKey: e.target.value})}
-                        />
-                      </div>
-                    </CardContent>
-                    <CardFooter>
-                      <Button onClick={() => {
-                        if (user) {
-                          updateDoc(doc(db, 'users', user.uid), { aiPreferences: aiPrefs });
-                          toast({ title: 'Preferences saved' });
-                        }
-                      }}>Save Configuration</Button>
-                    </CardFooter>
-                  </Card>
+                        
+                        <Separator />
+                        
+                        <div className="space-y-3">
+                          <Label className="flex items-center gap-2"><Key className="h-4 w-4" /> Google AI API Key</Label>
+                          <Input 
+                            type="password" 
+                            placeholder="Paste your personal GEMINI_API_KEY here..." 
+                            value={aiPrefs.customApiKey} 
+                            onChange={e => setAiPrefs({...aiPrefs, customApiKey: e.target.value})}
+                            className="max-w-md"
+                          />
+                          <p className="text-[10px] text-muted-foreground">Your key is stored securely in your profile and used only for your requests.</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Biblical Studies Section */}
+                    <Card className="shadow-md border-primary/10">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <BookOpen className="h-5 w-5 text-primary" /> Scripture Preferences
+                        </CardTitle>
+                        <CardDescription>Default translations and academic settings for primary sources.</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        <div className="space-y-3">
+                          <Label>Preferred Bible Version</Label>
+                          <Select 
+                            value={aiPrefs.preferredBibleVersion} 
+                            onValueChange={(val) => setAiPrefs({...aiPrefs, preferredBibleVersion: val})}
+                          >
+                            <SelectTrigger className="max-w-md">
+                              <SelectValue placeholder="Select translation..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableVersions.length > 0 ? (
+                                availableVersions.map((v) => (
+                                  <SelectItem key={v.id} value={v.id}>{v.name} ({v.abbreviation})</SelectItem>
+                                ))
+                              ) : (
+                                <>
+                                  <SelectItem value="kjv">King James Version (KJV)</SelectItem>
+                                  <SelectItem value="net">New English Translation (NET)</SelectItem>
+                                  <SelectItem value="web">World English Bible (WEB)</SelectItem>
+                                </>
+                              )}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-[10px] text-muted-foreground">Used as the primary text source in Verse Explorer and Lexicon tools.</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <div className="flex justify-end pt-4">
+                      <Button size="lg" className="gap-2" onClick={handleSavePreferences} disabled={isLoading}>
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                        Save All Preferences
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               )}
 
