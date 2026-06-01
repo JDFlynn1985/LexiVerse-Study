@@ -1,22 +1,17 @@
 'use client';
 
-import { useState, useEffect, useId, useRef, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTheme } from 'next-themes';
-import * as pdfjsLib from 'pdfjs-dist';
 import Link from 'next/link';
 import { 
   signInWithPopup, 
   GoogleAuthProvider, 
   signOut
 } from 'firebase/auth';
-import { doc, setDoc, onSnapshot, collection, query, where, orderBy, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, collection, query, orderBy, addDoc, updateDoc } from 'firebase/firestore';
 import { appConfig } from '@/app-config';
-import { useAuth, useFirestore, useUser, errorEmitter, FirestorePermissionError, useCollection } from '@/firebase';
+import { useAuth, useFirestore, useUser, useCollection } from '@/firebase';
 import { logSearch } from '@/lib/search-logging';
-
-if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-}
 
 import { 
   Sidebar, 
@@ -35,73 +30,27 @@ import {
   Search, 
   BookOpen, 
   Scroll, 
-  FileText, 
-  Mic, 
   Loader2,
-  Languages,
   MessageSquare,
-  History,
   Send,
-  Download,
-  Trash2,
   Sun,
   Moon,
-  Share2,
   ExternalLink,
-  Book,
   Globe,
-  Library,
-  Zap,
-  Quote,
-  Scale,
-  ClipboardList,
-  Edit3,
-  Highlighter,
-  Plus,
-  Copy,
-  FileSearch,
-  Check,
-  FileCode,
-  LogOut,
-  Table as TableIcon,
-  CloudDownload,
-  FileWarning,
-  SpellCheck,
-  AlertCircle,
-  Sparkles,
-  LayoutDashboard,
-  FileCheck,
-  ChevronRight,
-  ShieldCheck,
-  ShieldAlert,
-  Info,
-  Type,
-  Maximize2,
-  Minimize2,
-  Volume2,
-  ArrowRight,
-  Clock,
-  File,
-  StickyNote,
-  ImageIcon,
-  Eye,
-  Cloud,
-  FolderOpen,
-  Images as ImagesIcon,
-  ScanText,
-  Settings,
-  Cpu,
-  Key,
-  Shield,
   Megaphone,
   Network,
   Milestone,
-  Map as MapIcon,
-  BookMarked,
+  Settings,
   LifeBuoy,
   HelpCircle,
   ShieldQuestion,
-  UserCheck
+  Plus,
+  Type,
+  LayoutDashboard,
+  ShieldCheck,
+  Edit3,
+  LogOut,
+  ChevronRight
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -138,12 +87,11 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
 import { searchCommentariesForContext, type SearchCommentariesOutput } from '@/ai/flows/search-commentaries';
-import { getVersions, getChapterContent, parseReference, type BibleVersion, type BibleChapter } from '@/lib/bible-api';
 import { trackAdClick } from '@/components/analytics';
 import { analyzeTheologicalConcept, type TheologicalConceptOutput } from '@/ai/flows/theological-concept-analysis';
 import { generateHistoricalTimeline, type HistoricalTimelineOutput } from '@/ai/flows/historical-timeline-flow';
 
-type ViewMode = 'dashboard' | 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'wiki' | 'papers' | 'gallery' | 'scholar-ai' | 'theology-map' | 'timeline' | 'writing-assistant' | 'integrity' | 'notes' | 'ai-settings' | 'support';
+type ViewMode = 'dashboard' | 'lexicon' | 'dictionaries' | 'commentaries' | 'wiki' | 'theology-map' | 'timeline' | 'writing-assistant' | 'integrity' | 'ai-settings' | 'support';
 
 interface WikiEntry {
   id: string;
@@ -200,6 +148,10 @@ export default function Home() {
   const [newWikiWorksCited, setNewWikiWorksCited] = useState('');
   const [newWikiBiblio, setNewWikiBiblio] = useState('');
   const [wikiSearch, setWikiSearch] = useState('');
+
+  // Support States
+  const [ticketSubject, setTicketSubject] = useState('');
+  const [ticketDescription, setTicketDescription] = useState('');
 
   const wikiQuery = useMemo(() => {
     if (!db) return null;
@@ -292,7 +244,7 @@ export default function Home() {
   const handleCreateWikiEntry = async () => {
     if (!user) { toast({ variant: 'destructive', title: 'Login Required' }); return; }
     if (!newWikiTitle.trim() || !newWikiContent.trim() || !newWikiWorksCited.trim() || !newWikiBiblio.trim()) {
-      toast({ variant: 'destructive', title: 'Incomplete Fields' });
+      toast({ variant: 'destructive', title: 'Incomplete Fields', description: 'Academic contributions require full citations and bibliographies.' });
       return;
     }
     setIsLoading(true);
@@ -320,6 +272,21 @@ export default function Home() {
     if (!userProfile?.isAdmin) return;
     updateDoc(doc(db, 'wiki_entries', id), { status });
     toast({ title: `Entry ${status}` });
+  };
+
+  const handleCreateTicket = () => {
+    if (!ticketSubject || !ticketDescription) {
+      toast({ variant: "destructive", title: "Missing fields" });
+      return;
+    }
+    setIsLoading(true);
+    // Simulate osTicket integration
+    setTimeout(() => {
+      setIsLoading(false);
+      toast({ title: "Ticket Created", description: `Case #${Math.floor(Math.random() * 90000) + 10000} has been logged in osTicket.` });
+      setTicketSubject('');
+      setTicketDescription('');
+    }, 1500);
   };
 
   if (!mounted) return null;
@@ -354,7 +321,6 @@ export default function Home() {
                   { id: 'dictionaries', label: 'Dictionaries', icon: Type },
                   { id: 'commentaries', label: 'Commentaries', icon: Scroll },
                   { id: 'wiki', label: 'Scholarly Wiki', icon: Globe },
-                  { id: 'gallery', label: 'Gallery & Maps', icon: ImagesIcon },
                 ].map((item) => (
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton isActive={activeTab === item.id} onClick={() => setActiveTab(item.id as ViewMode)} tooltip={item.label}>
@@ -420,7 +386,7 @@ export default function Home() {
 
         <SidebarInset>
           <main className="container max-w-5xl mx-auto py-10 px-6 min-h-screen flex flex-col">
-            <div className="flex-1">
+            <div className="flex-1" id="main-content">
               {activeTab === 'dashboard' && (
                 <div className="space-y-8 animate-in fade-in">
                   <header>
@@ -492,12 +458,10 @@ export default function Home() {
                   {lexiconResult && (
                     <Card className="border-primary/20 bg-primary/5">
                       <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <Badge variant="outline" className="mb-2">{lexiconResult.searchStrongNumber}</Badge>
-                            <CardTitle className="text-3xl font-headline text-primary">{lexiconResult.originalWord}</CardTitle>
-                            <CardDescription>{lexiconResult.transliteration} • {lexiconResult.pronunciation}</CardDescription>
-                          </div>
+                        <div>
+                          <Badge variant="outline" className="mb-2">{lexiconResult.searchStrongNumber}</Badge>
+                          <CardTitle className="text-3xl font-headline text-primary">{lexiconResult.originalWord}</CardTitle>
+                          <CardDescription>{lexiconResult.transliteration} • {lexiconResult.pronunciation}</CardDescription>
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-6">
@@ -615,96 +579,6 @@ export default function Home() {
                 </div>
               )}
 
-              {activeTab === 'theology-map' && (
-                <div className="space-y-6 animate-in fade-in">
-                  <header>
-                    <h1 className="text-3xl font-bold font-headline">Theology Concept Mapper</h1>
-                    <p className="text-muted-foreground">Analyze the systemic development of theological concepts.</p>
-                  </header>
-                  <Card>
-                    <CardContent className="pt-6">
-                      <div className="flex gap-2">
-                        <Input 
-                          placeholder="e.g. Justification, Atonement..." 
-                          value={theoConcept} 
-                          onChange={e => setTheoConcept(e.target.value)} 
-                        />
-                        <Button onClick={() => handleSearch(theoConcept, 'theology')} disabled={isLoading}>
-                          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Network className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  {theoResult && (
-                    <div className="space-y-6">
-                      <Card className="border-l-4 border-l-primary">
-                        <CardHeader>
-                          <CardTitle className="font-headline text-2xl">{theoResult.concept}</CardTitle>
-                          <CardDescription>{theoResult.etymology}</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                          <div>
-                            <h4 className="font-bold text-sm uppercase mb-2">Academic Definition</h4>
-                            <p className="text-sm italic leading-relaxed">{theoResult.definition}</p>
-                          </div>
-                          <Separator />
-                          <div>
-                            <h4 className="font-bold text-sm uppercase mb-4">Historical Development</h4>
-                            <div className="space-y-4">
-                              {theoResult.historicalDevelopment.map((h, i) => (
-                                <div key={i} className="flex gap-4">
-                                  <div className="w-24 text-xs font-bold text-primary">{h.period}</div>
-                                  <div className="flex-1 text-xs">
-                                    <p className="font-medium">{h.keyDevelopment}</p>
-                                    <p className="text-muted-foreground mt-1">Figures: {h.notableFigures.join(', ')}</p>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeTab === 'timeline' && (
-                <div className="space-y-6 animate-in fade-in">
-                  <header>
-                    <h1 className="text-3xl font-bold font-headline">Historical Timeline</h1>
-                    <p className="text-muted-foreground">Mapping biblical events alongside archaeology and extra-biblical data.</p>
-                  </header>
-                  <Card>
-                    <CardContent className="pt-6">
-                      <div className="flex gap-2">
-                        <Input placeholder="e.g. Life of Paul, Babylonian Exile..." value={timelineTopic} onChange={e => setTimelineTopic(e.target.value)} />
-                        <Button onClick={() => handleSearch(timelineTopic, 'timeline')} disabled={isLoading}>
-                          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Milestone className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  {timelineResult && (
-                    <div className="space-y-6">
-                      <div className="relative border-l-2 border-primary/20 ml-4 pl-8 space-y-8">
-                        {timelineResult.timeline.map((item, i) => (
-                          <div key={i} className="relative">
-                            <div className="absolute -left-[41px] top-1 h-4 w-4 rounded-full bg-primary border-4 border-background" />
-                            <div className="space-y-1">
-                              <Badge className="mb-1">{item.date}</Badge>
-                              <h3 className="font-headline font-bold text-lg">{item.event}</h3>
-                              <p className="text-sm text-muted-foreground">{item.description}</p>
-                              <Badge variant="outline" className="text-[10px]">{item.sourceType}</Badge>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
               {activeTab === 'wiki' && (
                 <div className="space-y-8 animate-in fade-in">
                   <header className="flex flex-col md:flex-row justify-between items-center gap-4 border-b pb-6">
@@ -721,7 +595,7 @@ export default function Home() {
                         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                           <DialogHeader>
                             <DialogTitle>New Scholarly Wiki Entry</DialogTitle>
-                            <DialogDescription>Full citations and bibliographies are required.</DialogDescription>
+                            <DialogDescription>Full citations and bibliographies are mandatory for all contributions.</DialogDescription>
                           </DialogHeader>
                           <div className="space-y-4 py-4">
                             <div className="space-y-2">
@@ -735,18 +609,18 @@ export default function Home() {
                             <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-2">
                                 <Label>Works Cited</Label>
-                                <Textarea placeholder="List sources..." value={newWikiWorksCited} onChange={e => setNewWikiWorksCited(e.target.value)} />
+                                <Textarea placeholder="List sources used in text..." value={newWikiWorksCited} onChange={e => setNewWikiWorksCited(e.target.value)} />
                               </div>
                               <div className="space-y-2">
                                 <Label>Bibliography</Label>
-                                <Textarea placeholder="Full bibliography..." value={newWikiBiblio} onChange={e => setNewWikiBiblio(e.target.value)} />
+                                <Textarea placeholder="Full academic bibliography (SBL/Turabian)..." value={newWikiBiblio} onChange={e => setNewWikiBiblio(e.target.value)} />
                               </div>
                             </div>
                           </div>
                           <DialogFooter>
                             <Button onClick={handleCreateWikiEntry} disabled={isLoading}>
                               {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-                              Submit
+                              Submit for Review
                             </Button>
                           </DialogFooter>
                         </DialogContent>
@@ -780,25 +654,113 @@ export default function Home() {
                         </div>
                       )}
                     </div>
+                    
                     {userProfile?.isAdmin && (
                       <div className="space-y-4">
-                        <h3 className="text-sm font-bold flex items-center gap-2 text-amber-600"><ShieldQuestion className="h-4 w-4" /> Pending</h3>
-                        <ScrollArea className="h-[400px]">
+                        <h3 className="text-sm font-bold flex items-center gap-2 text-amber-600 border-b pb-2"><ShieldQuestion className="h-4 w-4" /> Moderation Queue</h3>
+                        <ScrollArea className="h-[500px] pr-4">
                           {pendingWikiEntries.map(pending => (
-                            <Card key={pending.id} className="mb-4">
+                            <Card key={pending.id} className="mb-4 border-amber-200 bg-amber-50/10">
                               <CardHeader className="p-4"><CardTitle className="text-xs">{pending.title}</CardTitle></CardHeader>
                               <CardContent className="p-4 pt-0">
-                                <div className="flex gap-2">
-                                  <Button size="sm" className="flex-1 h-7 text-[10px]" onClick={() => handleUpdateWikiStatus(pending.id, 'approved')}>Approve</Button>
-                                  <Button size="sm" variant="destructive" className="flex-1 h-7 text-[10px]" onClick={() => handleUpdateWikiStatus(pending.id, 'rejected')}>Reject</Button>
+                                <div className="flex flex-col gap-2">
+                                  <Button size="sm" className="w-full h-8 text-xs" onClick={() => handleUpdateWikiStatus(pending.id, 'approved')}>Approve Entry</Button>
+                                  <Button size="sm" variant="destructive" className="w-full h-8 text-xs" onClick={() => handleUpdateWikiStatus(pending.id, 'rejected')}>Reject</Button>
                                 </div>
                               </CardContent>
                             </Card>
                           ))}
+                          {pendingWikiEntries.length === 0 && <p className="text-[10px] italic text-muted-foreground text-center">No pending items.</p>}
                         </ScrollArea>
                       </div>
                     )}
                   </div>
+                </div>
+              )}
+
+              {activeTab === 'theology-map' && (
+                <div className="space-y-6 animate-in fade-in">
+                  <header>
+                    <h1 className="text-3xl font-bold font-headline">Theology Concept Mapper</h1>
+                    <p className="text-muted-foreground">Analyze the systemic development of theological concepts.</p>
+                  </header>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="e.g. Justification, Atonement..." 
+                          value={theoConcept} 
+                          onChange={e => setTheoConcept(e.target.value)} 
+                        />
+                        <Button onClick={() => handleSearch(theoConcept, 'theology')} disabled={isLoading}>
+                          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Network className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  {theoResult && (
+                    <Card className="border-l-4 border-l-primary">
+                      <CardHeader>
+                        <CardTitle className="font-headline text-2xl">{theoResult.concept}</CardTitle>
+                        <CardDescription>{theoResult.etymology}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        <div>
+                          <h4 className="font-bold text-sm uppercase mb-2">Academic Definition</h4>
+                          <p className="text-sm italic leading-relaxed">{theoResult.definition}</p>
+                        </div>
+                        <Separator />
+                        <div>
+                          <h4 className="font-bold text-sm uppercase mb-4">Historical Development</h4>
+                          <div className="space-y-4">
+                            {theoResult.historicalDevelopment.map((h, i) => (
+                              <div key={i} className="flex gap-4">
+                                <div className="w-24 text-xs font-bold text-primary">{h.period}</div>
+                                <div className="flex-1 text-xs">
+                                  <p className="font-medium">{h.keyDevelopment}</p>
+                                  <p className="text-muted-foreground mt-1">Figures: {h.notableFigures.join(', ')}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'timeline' && (
+                <div className="space-y-6 animate-in fade-in">
+                  <header>
+                    <h1 className="text-3xl font-bold font-headline">Historical Timeline</h1>
+                    <p className="text-muted-foreground">Mapping biblical events alongside archaeology and extra-biblical data.</p>
+                  </header>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex gap-2">
+                        <Input placeholder="e.g. Life of Paul, Babylonian Exile..." value={timelineTopic} onChange={e => setTimelineTopic(e.target.value)} />
+                        <Button onClick={() => handleSearch(timelineTopic, 'timeline')} disabled={isLoading}>
+                          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Milestone className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  {timelineResult && (
+                    <div className="relative border-l-2 border-primary/20 ml-4 pl-8 space-y-8">
+                      {timelineResult.timeline.map((item, i) => (
+                        <div key={i} className="relative">
+                          <div className="absolute -left-[41px] top-1 h-4 w-4 rounded-full bg-primary border-4 border-background" />
+                          <div className="space-y-1">
+                            <Badge className="mb-1">{item.date}</Badge>
+                            <h3 className="font-headline font-bold text-lg">{item.event}</h3>
+                            <p className="text-sm text-muted-foreground">{item.description}</p>
+                            <Badge variant="outline" className="text-[10px]">{item.sourceType}</Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -859,26 +821,68 @@ export default function Home() {
               {activeTab === 'support' && (
                 <div className="space-y-8 animate-in fade-in">
                   <header>
-                    <h1 className="text-3xl font-bold font-headline">Help & Support</h1>
-                    <p className="text-muted-foreground">Technical assistance and scholarship resources.</p>
+                    <h1 className="text-3xl font-bold font-headline">Help & Scholarly Support</h1>
+                    <p className="text-muted-foreground">Integrated assistance for your research journey.</p>
                   </header>
                   <div className="grid gap-6 md:grid-cols-2">
-                    <Card>
-                      <CardHeader><CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5" /> osTicket Support</CardTitle></CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="space-y-2"><Label>Subject</Label><Input placeholder="Issue summary..." /></div>
-                        <div className="space-y-2"><Label>Description</Label><Textarea placeholder="Details..." /></div>
-                        <Button className="w-full">Create Ticket</Button>
+                    <Card className="shadow-lg border-primary/10">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5 text-primary" /> Technical Support (osTicket)</CardTitle>
+                        <CardDescription>Log technical bugs or access issues directly with our support team.</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4 pt-0">
+                        <div className="space-y-2">
+                          <Label>Subject</Label>
+                          <Input placeholder="Issue summary..." value={ticketSubject} onChange={e => setTicketSubject(e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Problem Description</Label>
+                          <Textarea placeholder="Explain the issue in detail..." value={ticketDescription} onChange={e => setTicketDescription(e.target.value)} />
+                        </div>
+                        <Button className="w-full" onClick={handleCreateTicket} disabled={isLoading}>
+                          {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+                          Create osTicket Entry
+                        </Button>
                       </CardContent>
                     </Card>
-                    <Card>
-                      <CardHeader><CardTitle className="flex items-center gap-2"><HelpCircle className="h-5 w-5" /> Wiki.js Knowledge Base</CardTitle></CardHeader>
-                      <CardContent className="space-y-4">
-                        <p className="text-xs text-muted-foreground">Access community-maintained documentation and course notes on our external Wiki.js instance.</p>
-                        <Button variant="outline" className="w-full gap-2"><ExternalLink className="h-4 w-4" /> Open Wiki.js</Button>
+
+                    <Card className="shadow-lg border-primary/10">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><HelpCircle className="h-5 w-5 text-primary" /> Wiki.js Knowledge Base</CardTitle>
+                        <CardDescription>Comprehensive guides on using LexiVerse for academic research.</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4 pt-0">
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          Our external Wiki.js instance contains tutorials on mastering the original language lexicon, 
+                          configuring advanced AI models, and managing bibliographies in SBL style.
+                        </p>
+                        <div className="bg-muted/50 p-4 rounded-lg flex flex-col gap-3">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold uppercase tracking-wider">Linguistic Guide</span>
+                            <Badge variant="secondary">Article</Badge>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold uppercase tracking-wider">AI Accuracy Disclosures</span>
+                            <Badge variant="secondary">Documentation</Badge>
+                          </div>
+                        </div>
+                        <Button variant="outline" className="w-full gap-2 mt-2">
+                          <ExternalLink className="h-4 w-4" /> Open Wiki.js Dashboard
+                        </Button>
                       </CardContent>
                     </Card>
                   </div>
+
+                  <Card className="bg-primary/5 border-dashed border-2">
+                    <CardHeader className="text-center">
+                      <CardTitle className="text-lg">Need Immediate Assistance?</CardTitle>
+                      <CardDescription>Check our system status or reach out via live scholarly chat.</CardDescription>
+                    </CardHeader>
+                    <CardFooter className="justify-center gap-4">
+                       <Button variant="ghost" size="sm" className="gap-2"><Globe className="h-4 w-4" /> System Status</Button>
+                       <Button variant="ghost" size="sm" className="gap-2"><MessageSquare className="h-4 w-4" /> Live Support Chat</Button>
+                    </CardFooter>
+                  </Card>
                 </div>
               )}
             </div>
