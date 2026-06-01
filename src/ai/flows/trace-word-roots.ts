@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A flow for tracing word roots and their etymological data.
@@ -34,18 +33,10 @@ export async function traceWordRoots(input: TraceWordRootsInput): Promise<TraceW
   return traceWordRootsFlow(input);
 }
 
-export async function traceWordRootsFlow(input: TraceWordRootsInput): Promise<TraceWordRootsOutput> {
-  const {output} = await traceWordRootsPrompt(input);
-  return output!;
-}
-
 const traceWordRootsPrompt = ai.definePrompt({
   name: 'traceWordRootsPrompt',
   input: {
-    schema: z.object({
-      word: TraceWordRootsInputSchema.shape.word,
-      language: TraceWordRootsInputSchema.shape.language,
-    }),
+    schema: TraceWordRootsInputSchema,
   },
   output: {
     schema: TraceWordRootsOutputSchema,
@@ -54,11 +45,25 @@ const traceWordRootsPrompt = ai.definePrompt({
 
 Provide the original word, its language, and an array of its root words. For each root word, include its definition and lexical data.
 
-If the word is {{word}} in {{language}}, find its etymological roots and provide the following information for each root:
+Input Word: {{{word}}}
+Language: {{language}}
 
-Root Word: {{language.word}}
-Definition: {{language.definition}}
-Lexical Data: {{language.lexicalData}}
+Analyze the etymological roots and provide the following information for each root identified:
+- Root Word
+- Definition
+- Lexical Data
 
 Ensure the output is a JSON object matching the TraceWordRootsOutputSchema.`,
 });
+
+const traceWordRootsFlow = ai.defineFlow(
+  {
+    name: 'traceWordRootsFlow',
+    inputSchema: TraceWordRootsInputSchema,
+    outputSchema: TraceWordRootsOutputSchema,
+  },
+  async input => {
+    const {output} = await traceWordRootsPrompt(input);
+    return output!;
+  }
+);

@@ -3,7 +3,6 @@
 import { useState, useEffect, useId, useRef, useMemo } from 'react';
 import { useTheme } from 'next-themes';
 import * as pdfjsLib from 'pdfjs-dist';
-import mammoth from 'mammoth';
 import Link from 'next/link';
 import { 
   signInWithPopup, 
@@ -111,7 +110,6 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { 
   DropdownMenu, 
@@ -139,38 +137,13 @@ import {
 } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
-import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/compare-translations-ai';
-import { interactiveVerseExplorationAI } from '@/ai/flows/interactive-verse-exploration-ai';
-import { refineWriting, type WritingAssistantOutput } from '@/ai/flows/writing-assistant-ai';
-import { formatBibliography, type FormatBibliographyOutput } from '@/ai/flows/format-bibliography-ai';
-import { checkIntegrity, type AcademicIntegrityOutput } from '@/ai/flows/academic-integrity-ai';
-import { extractTextFromImage } from '@/ai/flows/ocr-flow';
-import { analyzeTheologicalConcept, type TheologicalConceptOutput } from '@/ai/flows/theological-concept-analysis';
-import { generateHistoricalTimeline, type HistoricalTimelineOutput } from '@/ai/flows/historical-timeline-flow';
 import { searchCommentariesForContext, type SearchCommentariesOutput } from '@/ai/flows/search-commentaries';
 import { getVersions, getChapterContent, parseReference, type BibleVersion, type BibleChapter } from '@/lib/bible-api';
 import { trackAdClick } from '@/components/analytics';
+import { analyzeTheologicalConcept, type TheologicalConceptOutput } from '@/ai/flows/theological-concept-analysis';
+import { generateHistoricalTimeline, type HistoricalTimelineOutput } from '@/ai/flows/historical-timeline-flow';
 
-type ViewMode = 'dashboard' | 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers' | 'gallery' | 'writing-assistant' | 'integrity' | 'ai-settings' | 'theology-map' | 'timeline' | 'maps' | 'wiki' | 'support';
-
-interface Note {
-  id: string;
-  content: string;
-  source: string;
-  date: string;
-  driveFileId?: string;
-}
-
-interface ResearchPaper {
-  id: string;
-  title: string;
-  content: string;
-  format: 'txt' | 'pdf' | 'docx' | 'gdoc' | 'gsheet' | 'png' | 'jpg' | 'jpeg' | 'webp';
-  author?: string;
-  date: string;
-  driveFileId?: string;
-  extractedText?: string;
-}
+type ViewMode = 'dashboard' | 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'wiki' | 'papers' | 'gallery' | 'scholar-ai' | 'theology-map' | 'timeline' | 'writing-assistant' | 'integrity' | 'notes' | 'ai-settings' | 'support';
 
 interface WikiEntry {
   id: string;
@@ -181,11 +154,13 @@ interface WikiEntry {
   status: 'pending' | 'approved' | 'rejected';
   authorUid: string;
   authorName: string;
-  createdAt: any;
+  createdAt: string;
 }
 
 interface UserProfile {
   uid: string;
+  displayName: string;
+  email: string;
   isAdmin?: boolean;
 }
 
@@ -194,7 +169,6 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const auth = useAuth();
   const db = useFirestore();
@@ -202,14 +176,12 @@ export default function Home() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   const [history, setHistory] = useState<{id: string, type: string, term: string, date: string}[]>([]);
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [researchPapers, setResearchPapers] = useState<ResearchPaper[]>([]);
-  
   const [aiPrefs, setAiPrefs] = useState({
     selectedModel: 'googleai/gemini-2.5-flash',
     customApiKey: ''
   });
 
+  // Search States
   const [strongsTerm, setStrongsTerm] = useState('');
   const [lexiconResult, setLexiconResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
   const [dictTerm, setDictTerm] = useState('');
@@ -217,13 +189,6 @@ export default function Home() {
   const [commWord, setCommWord] = useState('');
   const [commLanguage, setCommLanguage] = useState('Greek');
   const [commResult, setCommResult] = useState<SearchCommentariesOutput | null>(null);
-  const [passageRef, setPassageRef] = useState('John 1');
-  const [readingVersion, setReadingVersion] = useState('kjv');
-  const [currentPassage, setCurrentPassage] = useState<BibleChapter | null>(null);
-  const [writingInput, setWritingInput] = useState('');
-  const [writingResult, setWritingResult] = useState<WritingAssistantOutput | null>(null);
-  const [integrityInput, setIntegrityInput] = useState('');
-  const [integrityResult, setIntegrityResult] = useState<AcademicIntegrityOutput | null>(null);
   const [theoConcept, setTheoConcept] = useState('');
   const [theoResult, setTheoResult] = useState<TheologicalConceptOutput | null>(null);
   const [timelineTopic, setTimelineTopic] = useState('');
@@ -236,7 +201,6 @@ export default function Home() {
   const [newWikiBiblio, setNewWikiBiblio] = useState('');
   const [wikiSearch, setWikiSearch] = useState('');
 
-  // Firestore Collections for Wiki
   const wikiQuery = useMemo(() => {
     if (!db) return null;
     return query(collection(db, 'wiki_entries'), orderBy('createdAt', 'desc'));
@@ -255,11 +219,6 @@ export default function Home() {
     setMounted(true);
     const savedHistory = localStorage.getItem('lexiverse_history');
     if (savedHistory) setHistory(JSON.parse(savedHistory));
-    const savedNotes = localStorage.getItem('lexiverse_notes');
-    if (savedNotes) setNotes(JSON.parse(savedNotes));
-    const savedPapers = localStorage.getItem('lexiverse_papers');
-    if (savedPapers) setResearchPapers(JSON.parse(savedPapers));
-    getVersions().then(setVersions);
   }, []);
 
   useEffect(() => {
@@ -276,15 +235,17 @@ export default function Home() {
     }
   }, [user, db]);
 
-  const [versions, setVersions] = useState<BibleVersion[]>([]);
-
   const handleLogin = async () => {
     const provider = new GoogleAuthProvider();
     appConfig.google.scopes.forEach(scope => provider.addScope(scope));
     try {
       const result = await signInWithPopup(auth, provider);
       const userRef = doc(db, 'users', result.user.uid);
-      setDoc(userRef, { uid: result.user.uid, displayName: result.user.displayName, email: result.user.email }, { merge: true });
+      setDoc(userRef, { 
+        uid: result.user.uid, 
+        displayName: result.user.displayName, 
+        email: result.user.email 
+      }, { merge: true });
       toast({ title: "Logged in", description: `Welcome, ${result.user.displayName}` });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Login Failed", description: error.message });
@@ -297,96 +258,41 @@ export default function Home() {
     toast({ title: "Logged out" });
   };
 
-  const handleLexiconSearch = async () => {
-    if (!strongsTerm.trim()) return;
+  const handleSearch = async (term: string, type: 'lexicon' | 'dictionary' | 'commentary' | 'theology' | 'timeline') => {
+    if (!term.trim()) return;
     setIsLoading(true);
-    logSearch(db, strongsTerm, 'lexicon', user?.uid);
+    logSearch(db, term, type, user?.uid);
     try {
-      const result = await defineAndAnalyzeTerm({ strongsNumber: strongsTerm, model: aiPrefs.selectedModel });
-      setLexiconResult(result);
-      const newHistory = [{id: Date.now().toString(), type: 'Lexicon', term: strongsTerm, date: new Date().toLocaleString()}, ...history];
+      let result;
+      if (type === 'lexicon' || type === 'dictionary') {
+        result = await defineAndAnalyzeTerm({ strongsNumber: term, model: aiPrefs.selectedModel });
+        if (type === 'lexicon') setLexiconResult(result);
+        else setDictResult(result);
+      } else if (type === 'commentary') {
+        result = await searchCommentariesForContext({ word: term, language: commLanguage, model: aiPrefs.selectedModel });
+        setCommResult(result);
+      } else if (type === 'theology') {
+        result = await analyzeTheologicalConcept({ concept: term });
+        setTheoResult(result);
+      } else if (type === 'timeline') {
+        result = await generateHistoricalTimeline({ topic: term });
+        setTimelineResult(result);
+      }
+
+      const newHistory = [{id: Date.now().toString(), type, term, date: new Date().toLocaleString()}, ...history];
       setHistory(newHistory.slice(0, 10));
-      localStorage.setItem('lexiverse_history', JSON.stringify(newHistory));
+      localStorage.setItem('lexiverse_history', JSON.stringify(newHistory.slice(0, 10)));
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Lexicon search failed' });
+      toast({ variant: 'destructive', title: 'Search failed', description: 'The scholarly engine encountered an error.' });
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleDictionarySearch = async () => {
-    if (!dictTerm.trim()) return;
-    setIsLoading(true);
-    logSearch(db, dictTerm, 'dictionary', user?.uid);
-    try {
-      const result = await defineAndAnalyzeTerm({ strongsNumber: dictTerm, model: aiPrefs.selectedModel });
-      setDictResult(result);
-      const newHistory = [{id: Date.now().toString(), type: 'Dictionary', term: dictTerm, date: new Date().toLocaleString()}, ...history];
-      setHistory(newHistory.slice(0, 10));
-      localStorage.setItem('lexiverse_history', JSON.stringify(newHistory));
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Dictionary search failed' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCommentarySearch = async () => {
-    if (!commWord.trim()) return;
-    setIsLoading(true);
-    logSearch(db, commWord, 'commentary', user?.uid);
-    try {
-      const result = await searchCommentariesForContext({ word: commWord, language: commLanguage, model: aiPrefs.selectedModel });
-      setCommResult(result);
-      const newHistory = [{id: Date.now().toString(), type: 'Commentary', term: commWord, date: new Date().toLocaleString()}, ...history];
-      setHistory(newHistory.slice(0, 10));
-      localStorage.setItem('lexiverse_history', JSON.stringify(newHistory));
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Commentary search failed' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleTheologyMap = async () => {
-    if (!theoConcept.trim()) return;
-    setIsLoading(true);
-    logSearch(db, theoConcept, 'theology', user?.uid);
-    try {
-      const result = await analyzeTheologicalConcept({ concept: theoConcept });
-      setTheoResult(result);
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Theology mapping failed' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const loadPassage = async () => {
-    setIsLoading(true);
-    logSearch(db, passageRef, 'scripture', user?.uid);
-    const parsed = parseReference(passageRef);
-    if (!parsed) {
-      toast({ variant: 'destructive', title: 'Invalid Reference' });
-      setIsLoading(false);
-      return;
-    }
-    const content = await getChapterContent(readingVersion, parsed.bookName, parsed.chapter);
-    if (content) {
-      setCurrentPassage(content);
-      const newHistory = [{id: Date.now().toString(), type: 'Scripture', term: passageRef, date: new Date().toLocaleString()}, ...history];
-      setHistory(newHistory.slice(0, 10));
-      localStorage.setItem('lexiverse_history', JSON.stringify(newHistory));
-    } else {
-      toast({ variant: 'destructive', title: 'Passage not found' });
-    }
-    setIsLoading(false);
   };
 
   const handleCreateWikiEntry = async () => {
     if (!user) { toast({ variant: 'destructive', title: 'Login Required' }); return; }
     if (!newWikiTitle.trim() || !newWikiContent.trim() || !newWikiWorksCited.trim() || !newWikiBiblio.trim()) {
-      toast({ variant: 'destructive', title: 'Incomplete Fields', description: 'Scholarly wiki entries require full citations and bibliographies.' });
+      toast({ variant: 'destructive', title: 'Incomplete Fields' });
       return;
     }
     setIsLoading(true);
@@ -401,29 +307,19 @@ export default function Home() {
         authorName: user.displayName || 'Anonymous',
         createdAt: new Date().toISOString()
       });
-      toast({ title: 'Submitted for Review', description: 'A moderator will review your entry before it goes live.' });
+      toast({ title: 'Submitted', description: 'Your entry is pending moderator review.' });
       setNewWikiTitle(''); setNewWikiContent(''); setNewWikiWorksCited(''); setNewWikiBiblio('');
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Submission Failed' });
+      toast({ variant: 'destructive', title: 'Submission failed' });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleApproveWiki = async (id: string) => {
+  const handleUpdateWikiStatus = async (id: string, status: 'approved' | 'rejected') => {
     if (!userProfile?.isAdmin) return;
-    updateDoc(doc(db, 'wiki_entries', id), { status: 'approved' });
-    toast({ title: 'Entry Approved' });
-  };
-
-  const handleRejectWiki = async (id: string) => {
-    if (!userProfile?.isAdmin) return;
-    updateDoc(doc(db, 'wiki_entries', id), { status: 'rejected' });
-    toast({ title: 'Entry Rejected' });
-  };
-
-  const handleAdClick = (id: string, position: string) => {
-    trackAdClick(id, position);
+    updateDoc(doc(db, 'wiki_entries', id), { status });
+    toast({ title: `Entry ${status}` });
   };
 
   if (!mounted) return null;
@@ -440,7 +336,7 @@ export default function Home() {
           </SidebarHeader>
           <SidebarContent>
             <SidebarGroup>
-              <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+              <SidebarGroupLabel>Workspace</SidebarGroupLabel>
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} tooltip="Dashboard">
@@ -454,13 +350,11 @@ export default function Home() {
               <SidebarGroupLabel>Library & Research</SidebarGroupLabel>
               <SidebarMenu>
                 {[
-                  { id: 'bibles', label: 'Bible Reader', icon: Book },
                   { id: 'lexicon', label: 'Lexicon', icon: BookOpen },
                   { id: 'dictionaries', label: 'Dictionaries', icon: Type },
                   { id: 'commentaries', label: 'Commentaries', icon: Scroll },
                   { id: 'wiki', label: 'Scholarly Wiki', icon: Globe },
-                  { id: 'papers', label: 'My Papers', icon: Library },
-                  { id: 'gallery', label: 'Gallery', icon: ImagesIcon },
+                  { id: 'gallery', label: 'Gallery & Maps', icon: ImagesIcon },
                 ].map((item) => (
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton isActive={activeTab === item.id} onClick={() => setActiveTab(item.id as ViewMode)} tooltip={item.label}>
@@ -472,15 +366,13 @@ export default function Home() {
             </SidebarGroup>
 
             <SidebarGroup>
-              <SidebarGroupLabel>Scholar AI Tools</SidebarGroupLabel>
+              <SidebarGroupLabel>Academic Synthesis</SidebarGroupLabel>
               <SidebarMenu>
                 {[
-                  { id: 'scholar-ai', label: 'Scholar Chat', icon: MessageSquare },
                   { id: 'theology-map', label: 'Theology Map', icon: Network },
-                  { id: 'timeline', label: 'Timeline', icon: Milestone },
+                  { id: 'timeline', label: 'Historical Timeline', icon: Milestone },
                   { id: 'writing-assistant', label: 'Writing Editor', icon: Edit3 },
                   { id: 'integrity', label: 'Academic Integrity', icon: ShieldCheck },
-                  { id: 'notes', label: 'Research Notes', icon: Scroll },
                 ].map((item) => (
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton isActive={activeTab === item.id} onClick={() => setActiveTab(item.id as ViewMode)} tooltip={item.label}>
@@ -488,31 +380,15 @@ export default function Home() {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
-              </SidebarMenu>
-            </SidebarGroup>
-
-            <SidebarGroup>
-              <SidebarGroupLabel>Configuration</SidebarGroupLabel>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'ai-settings'} onClick={() => setActiveTab('ai-settings')} tooltip="AI Configuration">
-                    <Cpu className="h-5 w-5" /> <span>AI Engine</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'support'} onClick={() => setActiveTab('support')} tooltip="Support Center">
-                    <LifeBuoy className="h-5 w-5" /> <span>Help & Support</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
 
             <SidebarGroup className="mt-4 border-t pt-4">
               <SidebarGroupLabel>Scholar Support</SidebarGroupLabel>
               <div className="px-2 py-1">
-                <div className="bg-muted/30 border-2 border-dashed rounded-lg p-3 text-center cursor-pointer group" onClick={() => handleAdClick('scholar_support', 'sidebar')}>
+                <div className="bg-muted/30 border-2 border-dashed rounded-lg p-3 text-center cursor-pointer group" onClick={() => trackAdClick('scholar_support_side', 'sidebar')}>
                    <Megaphone className="h-4 w-4 mx-auto mb-1 opacity-40 group-hover:text-primary" />
-                   <p className="text-[10px] text-muted-foreground italic">Highlight your scholarly resource</p>
+                   <p className="text-[10px] text-muted-foreground italic">Support academic research</p>
                 </div>
               </div>
             </SidebarGroup>
@@ -522,12 +398,13 @@ export default function Home() {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="p-0 h-8 w-8 rounded-full overflow-hidden border">
-                    <img src={user.photoURL || ''} alt="" />
+                    <img src={user.photoURL || `https://picsum.photos/seed/${user.uid}/40/40`} alt="" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel>{user.displayName}</DropdownMenuLabel>
-                  {userProfile?.isAdmin && <DropdownMenuItem disabled><ShieldCheck className="h-4 w-4 mr-2" /> Administrator</DropdownMenuItem>}
+                  <DropdownMenuItem onClick={() => setActiveTab('ai-settings')}><Settings className="h-4 w-4 mr-2" /> AI Configuration</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveTab('support')}><LifeBuoy className="h-4 w-4 mr-2" /> Help Center</DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="text-destructive"><LogOut className="h-4 w-4 mr-2" /> Logout</DropdownMenuItem>
                 </DropdownMenuContent>
@@ -542,264 +419,475 @@ export default function Home() {
         </Sidebar>
 
         <SidebarInset>
-          <main className="container max-w-6xl mx-auto py-8 px-6">
-            {activeTab === 'dashboard' && (
-              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <header className="flex flex-col gap-2">
-                  <h1 className="text-4xl font-bold font-headline">Scholarly Workspace</h1>
-                  <p className="text-muted-foreground text-lg">LexiVerse AI and Biblical Research Suite.</p>
-                </header>
+          <main className="container max-w-5xl mx-auto py-10 px-6 min-h-screen flex flex-col">
+            <div className="flex-1">
+              {activeTab === 'dashboard' && (
+                <div className="space-y-8 animate-in fade-in">
+                  <header>
+                    <h1 className="text-4xl font-bold font-headline">Research Workspace</h1>
+                    <p className="text-muted-foreground text-lg">Integrated AI tools for biblical scholarship.</p>
+                  </header>
 
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                  <Card className="bg-primary/5 border-primary/20">
-                    <CardHeader className="pb-2">
-                      <CardDescription>Recent Searches</CardDescription>
-                      <CardTitle className="text-3xl">{history.length}</CardTitle>
-                    </CardHeader>
-                  </Card>
-                  <Card className="bg-accent/5 border-accent/20">
-                    <CardHeader className="pb-2">
-                      <CardDescription>Library Papers</CardDescription>
-                      <CardTitle className="text-3xl">{researchPapers.length}</CardTitle>
-                    </CardHeader>
-                  </Card>
-                  <Card className="bg-primary/5 border-primary/20">
-                    <CardHeader className="pb-2">
-                      <CardDescription>Wiki Articles</CardDescription>
-                      <CardTitle className="text-3xl">{approvedWikiEntries.length}</CardTitle>
-                    </CardHeader>
-                  </Card>
-                  <Card className="bg-accent/5 border-accent/20">
-                    <CardHeader className="pb-2">
-                      <CardDescription>Research Notes</CardDescription>
-                      <CardTitle className="text-3xl">{notes.length}</CardTitle>
-                    </CardHeader>
-                  </Card>
-                </div>
-
-                <div className="grid gap-8 lg:grid-cols-3">
-                  <div className="lg:col-span-2 space-y-6">
-                    <Card 
-                      className="bg-muted/10 border-dashed border-2 flex flex-col items-center justify-center p-6 transition-all hover:bg-muted/20 cursor-pointer group"
-                      onClick={() => handleAdClick('dashboard_spotlight', 'dashboard')}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Megaphone className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                        <div className="text-left space-y-0.5">
-                          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Scholarly Spotlight</span>
-                          <p className="text-sm italic text-muted-foreground font-headline">Support academic research by sponsoring LexiVerse.</p>
-                        </div>
-                      </div>
+                  <div className="grid gap-6 md:grid-cols-3">
+                    <Card className="md:col-span-2">
+                      <CardHeader><CardTitle className="font-headline">Quick Start</CardTitle></CardHeader>
+                      <CardContent className="grid gap-4">
+                        <Button variant="outline" className="justify-start gap-3 h-14" onClick={() => setActiveTab('lexicon')}>
+                          <BookOpen className="h-5 w-5 text-primary" />
+                          <div className="text-left">
+                            <p className="font-bold">Original Language Lexicon</p>
+                            <p className="text-xs text-muted-foreground">Trace Greek and Hebrew roots via Strong's.</p>
+                          </div>
+                        </Button>
+                        <Button variant="outline" className="justify-start gap-3 h-14" onClick={() => setActiveTab('commentaries')}>
+                          <Scroll className="h-5 w-5 text-primary" />
+                          <div className="text-left">
+                            <p className="font-bold">Commentary Search</p>
+                            <p className="text-xs text-muted-foreground">Extract historical context from scholarly works.</p>
+                          </div>
+                        </Button>
+                      </CardContent>
                     </Card>
 
                     <Card>
-                      <CardHeader><CardTitle className="text-xl font-headline">Quick Library Access</CardTitle></CardHeader>
-                      <CardContent>
-                        <div className="grid gap-4 md:grid-cols-2">
-                          {researchPapers.slice(0, 4).map(p => (
-                            <div key={p.id} className="flex items-center p-3 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setActiveTab('papers')}>
-                              <FileText className="h-4 w-4 mr-3 text-primary" />
-                              <span className="text-sm font-medium truncate">{p.title}</span>
+                      <CardHeader><CardTitle className="font-headline text-sm">Recent Activity</CardTitle></CardHeader>
+                      <CardContent className="p-0">
+                        <ScrollArea className="h-[250px]">
+                          {history.map(h => (
+                            <div key={h.id} className="p-3 border-b hover:bg-muted/50 transition-colors">
+                              <p className="text-xs font-bold font-headline">{h.term}</p>
+                              <p className="text-[10px] text-muted-foreground uppercase">{h.type}</p>
                             </div>
                           ))}
-                          {researchPapers.length === 0 && <p className="text-sm text-muted-foreground italic col-span-2 text-center py-8">No research papers in your library.</p>}
-                        </div>
+                          {history.length === 0 && <p className="p-4 text-center text-xs text-muted-foreground italic">No recent history.</p>}
+                        </ScrollArea>
                       </CardContent>
                     </Card>
                   </div>
+                </div>
+              )}
 
+              {activeTab === 'lexicon' && (
+                <div className="space-y-6 animate-in fade-in">
+                  <header>
+                    <h1 className="text-3xl font-bold font-headline">Original Language Lexicon</h1>
+                    <p className="text-muted-foreground">Deep analysis of Greek and Hebrew terms via Strong's numbers.</p>
+                  </header>
                   <Card>
-                    <CardHeader><CardTitle className="text-xl font-headline">Search History</CardTitle></CardHeader>
-                    <CardContent className="p-0">
-                      <ScrollArea className="h-[300px]">
-                        {history.map(h => (
-                          <div key={h.id} className="p-4 border-b hover:bg-muted/50 cursor-pointer flex justify-between items-center group">
-                            <div>
-                              <p className="text-sm font-bold font-headline">{h.term}</p>
-                              <p className="text-[10px] text-muted-foreground">{h.type} • {h.date}</p>
-                            </div>
-                            <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all" />
-                          </div>
-                        ))}
-                        {history.length === 0 && <p className="p-4 text-xs text-muted-foreground text-center">No recent searches.</p>}
-                      </ScrollArea>
+                    <CardContent className="pt-6">
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="Enter Strong's Number (e.g., G3056, H7225)..." 
+                          value={strongsTerm} 
+                          onChange={e => setStrongsTerm(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && handleSearch(strongsTerm, 'lexicon')}
+                        />
+                        <Button onClick={() => handleSearch(strongsTerm, 'lexicon')} disabled={isLoading}>
+                          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
-                </div>
-              </div>
-            )}
 
-            {activeTab === 'wiki' && (
-              <div className="space-y-8 animate-in fade-in">
-                <header className="flex flex-col md:flex-row justify-between items-center gap-4 border-b pb-6">
-                  <div>
-                    <h1 className="text-3xl font-bold font-headline">Scholarly Wiki</h1>
-                    <p className="text-muted-foreground">Collaborative knowledge base for biblical and theological research.</p>
-                  </div>
-                  <div className="flex gap-2 w-full md:w-auto">
-                    <Input placeholder="Search wiki..." className="max-w-xs" value={wikiSearch} onChange={e => setWikiSearch(e.target.value)} />
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button className="gap-2"><Plus className="h-4 w-4" /> Contribute</Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle>New Scholarly Wiki Entry</DialogTitle>
-                          <DialogDescription>Submit a research-backed entry. All submissions require Works Cited and Full Bibliography.</DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                          <div className="space-y-2">
-                            <Label>Article Title</Label>
-                            <Input placeholder="e.g. The Eschatology of the Johannine Community" value={newWikiTitle} onChange={e => setNewWikiTitle(e.target.value)} />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Content</Label>
-                            <Textarea placeholder="Main article body..." className="min-h-[200px]" value={newWikiContent} onChange={e => setNewWikiContent(e.target.value)} />
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label>Works Cited (Inline references)</Label>
-                              <Textarea placeholder="List sources cited in text..." className="min-h-[100px]" value={newWikiWorksCited} onChange={e => setNewWikiWorksCited(e.target.value)} />
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Full Bibliography (SBL/Chicago)</Label>
-                              <Textarea placeholder="Complete academic bibliography..." className="min-h-[100px]" value={newWikiBiblio} onChange={e => setNewWikiBiblio(e.target.value)} />
-                            </div>
+                  {lexiconResult && (
+                    <Card className="border-primary/20 bg-primary/5">
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <Badge variant="outline" className="mb-2">{lexiconResult.searchStrongNumber}</Badge>
+                            <CardTitle className="text-3xl font-headline text-primary">{lexiconResult.originalWord}</CardTitle>
+                            <CardDescription>{lexiconResult.transliteration} • {lexiconResult.pronunciation}</CardDescription>
                           </div>
                         </div>
-                        <DialogFooter>
-                          <Button onClick={handleCreateWikiEntry} disabled={isLoading}>
-                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-                            Submit for Peer Review
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                </header>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        <div className="grid md:grid-cols-2 gap-6">
+                          <div>
+                            <h4 className="font-bold text-sm uppercase tracking-wider mb-2">Definitions</h4>
+                            <ul className="list-disc pl-5 space-y-1 text-sm">
+                              {lexiconResult.definitions.map((d, i) => <li key={i}>{d}</li>)}
+                            </ul>
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-sm uppercase tracking-wider mb-2">Lexical Data</h4>
+                            <p className="text-sm leading-relaxed">{lexiconResult.lexicalData}</p>
+                          </div>
+                        </div>
+                        <Separator />
+                        <div>
+                          <h4 className="font-bold text-sm uppercase tracking-wider mb-2">Academic Summary</h4>
+                          <p className="text-sm leading-relaxed whitespace-pre-wrap">{lexiconResult.summary}</p>
+                        </div>
+                        <div className="bg-muted p-4 rounded-lg">
+                          <h4 className="font-bold text-xs uppercase tracking-wider mb-2">Bibliography (SBL Style)</h4>
+                          <p className="text-[10px] italic">{lexiconResult.bibliography}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
 
-                <div className="grid gap-8 lg:grid-cols-4">
-                  <div className="lg:col-span-3 space-y-6">
-                    {approvedWikiEntries.length > 0 ? (
-                      approvedWikiEntries.map(entry => (
-                        <Card key={entry.id} className="overflow-hidden">
-                          <CardHeader className="bg-primary/5">
-                            <CardTitle className="font-headline text-2xl text-primary">{entry.title}</CardTitle>
-                            <CardDescription className="flex items-center gap-2">
-                              <UserCheck className="h-3 w-3" /> Contributed by {entry.authorName} • {new Date(entry.createdAt).toLocaleDateString()}
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent className="pt-6 space-y-6">
-                            <div className="prose dark:prose-invert max-w-none leading-relaxed font-serif text-lg whitespace-pre-wrap">
-                              {entry.content}
-                            </div>
-                            <Separator />
-                            <div className="grid md:grid-cols-2 gap-6">
-                              <div>
-                                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Works Cited</h4>
-                                <p className="text-xs leading-relaxed whitespace-pre-wrap">{entry.worksCited}</p>
-                              </div>
-                              <div>
-                                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Bibliography</h4>
-                                <p className="text-xs leading-relaxed whitespace-pre-wrap">{entry.bibliography}</p>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))
-                    ) : (
-                      <div className="py-20 text-center text-muted-foreground opacity-30 border-2 border-dashed rounded-xl">
-                        <Globe className="h-16 w-16 mx-auto mb-4" />
-                        <p className="text-lg font-headline">No wiki entries found.</p>
-                        <p className="text-sm">Be the first to contribute scholarly knowledge.</p>
+              {activeTab === 'dictionaries' && (
+                <div className="space-y-6 animate-in fade-in">
+                  <header>
+                    <h1 className="text-3xl font-bold font-headline">Biblical Dictionaries</h1>
+                    <p className="text-muted-foreground">Theological and encyclopedia definitions for biblical concepts.</p>
+                  </header>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="Search concepts (e.g., Justification, Covenant)..." 
+                          value={dictTerm} 
+                          onChange={e => setDictTerm(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && handleSearch(dictTerm, 'dictionary')}
+                        />
+                        <Button onClick={() => handleSearch(dictTerm, 'dictionary')} disabled={isLoading}>
+                          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                        </Button>
                       </div>
-                    )}
-                  </div>
+                    </CardContent>
+                  </Card>
+                  {dictResult && (
+                    <Card>
+                      <CardHeader><CardTitle className="font-headline text-2xl">{dictResult.originalWord}</CardTitle></CardHeader>
+                      <CardContent className="space-y-4">
+                        <p className="text-sm leading-relaxed">{dictResult.summary}</p>
+                        <Separator />
+                        <h4 className="text-xs font-bold uppercase text-muted-foreground">Academic Source</h4>
+                        <p className="text-[10px] italic">{dictResult.bibliography}</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
 
-                  {userProfile?.isAdmin && (
-                    <div className="space-y-4">
-                      <h3 className="text-sm font-bold flex items-center gap-2 text-amber-600"><ShieldQuestion className="h-4 w-4" /> Pending Moderation</h3>
-                      <ScrollArea className="h-[600px] pr-4">
-                        <div className="space-y-4">
+              {activeTab === 'commentaries' && (
+                <div className="space-y-6 animate-in fade-in">
+                  <header>
+                    <h1 className="text-3xl font-bold font-headline">Scholarly Commentaries</h1>
+                    <p className="text-muted-foreground">Historical and linguistic context from academic commentaries.</p>
+                  </header>
+                  <div className="grid md:grid-cols-4 gap-4">
+                    <div className="md:col-span-3">
+                      <Input 
+                        placeholder="Search word or phrase..." 
+                        value={commWord} 
+                        onChange={e => setCommWord(e.target.value)} 
+                        onKeyDown={e => e.key === 'Enter' && handleSearch(commWord, 'commentary')}
+                      />
+                    </div>
+                    <Select value={commLanguage} onValueChange={setCommLanguage}>
+                      <SelectTrigger><SelectValue placeholder="Language" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Greek">Greek</SelectItem>
+                        <SelectItem value="Hebrew">Hebrew</SelectItem>
+                        <SelectItem value="Latin">Latin</SelectItem>
+                        <SelectItem value="English">English</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button className="w-full" onClick={() => handleSearch(commWord, 'commentary')} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Search className="h-4 w-4 mr-2" />}
+                    Analyze Context
+                  </Button>
+
+                  {commResult && (
+                    <div className="space-y-6">
+                      <Card className="bg-muted/10">
+                        <CardHeader><CardTitle className="font-headline text-xl">Historical Synthesis</CardTitle></CardHeader>
+                        <CardContent><p className="text-sm leading-relaxed">{commResult.commentarySummary}</p></CardContent>
+                      </Card>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        {commResult.specificInsights.map((insight, i) => (
+                          <Card key={i}>
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-sm font-bold">{insight.commentator}</CardTitle>
+                              {insight.relevantVerse && <CardDescription className="text-[10px]">{insight.relevantVerse}</CardDescription>}
+                            </CardHeader>
+                            <CardContent><p className="text-xs italic leading-relaxed">"{insight.insight}"</p></CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'theology-map' && (
+                <div className="space-y-6 animate-in fade-in">
+                  <header>
+                    <h1 className="text-3xl font-bold font-headline">Theology Concept Mapper</h1>
+                    <p className="text-muted-foreground">Analyze the systemic development of theological concepts.</p>
+                  </header>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="e.g. Justification, Atonement..." 
+                          value={theoConcept} 
+                          onChange={e => setTheoConcept(e.target.value)} 
+                        />
+                        <Button onClick={() => handleSearch(theoConcept, 'theology')} disabled={isLoading}>
+                          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Network className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  {theoResult && (
+                    <div className="space-y-6">
+                      <Card className="border-l-4 border-l-primary">
+                        <CardHeader>
+                          <CardTitle className="font-headline text-2xl">{theoResult.concept}</CardTitle>
+                          <CardDescription>{theoResult.etymology}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                          <div>
+                            <h4 className="font-bold text-sm uppercase mb-2">Academic Definition</h4>
+                            <p className="text-sm italic leading-relaxed">{theoResult.definition}</p>
+                          </div>
+                          <Separator />
+                          <div>
+                            <h4 className="font-bold text-sm uppercase mb-4">Historical Development</h4>
+                            <div className="space-y-4">
+                              {theoResult.historicalDevelopment.map((h, i) => (
+                                <div key={i} className="flex gap-4">
+                                  <div className="w-24 text-xs font-bold text-primary">{h.period}</div>
+                                  <div className="flex-1 text-xs">
+                                    <p className="font-medium">{h.keyDevelopment}</p>
+                                    <p className="text-muted-foreground mt-1">Figures: {h.notableFigures.join(', ')}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'timeline' && (
+                <div className="space-y-6 animate-in fade-in">
+                  <header>
+                    <h1 className="text-3xl font-bold font-headline">Historical Timeline</h1>
+                    <p className="text-muted-foreground">Mapping biblical events alongside archaeology and extra-biblical data.</p>
+                  </header>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex gap-2">
+                        <Input placeholder="e.g. Life of Paul, Babylonian Exile..." value={timelineTopic} onChange={e => setTimelineTopic(e.target.value)} />
+                        <Button onClick={() => handleSearch(timelineTopic, 'timeline')} disabled={isLoading}>
+                          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Milestone className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  {timelineResult && (
+                    <div className="space-y-6">
+                      <div className="relative border-l-2 border-primary/20 ml-4 pl-8 space-y-8">
+                        {timelineResult.timeline.map((item, i) => (
+                          <div key={i} className="relative">
+                            <div className="absolute -left-[41px] top-1 h-4 w-4 rounded-full bg-primary border-4 border-background" />
+                            <div className="space-y-1">
+                              <Badge className="mb-1">{item.date}</Badge>
+                              <h3 className="font-headline font-bold text-lg">{item.event}</h3>
+                              <p className="text-sm text-muted-foreground">{item.description}</p>
+                              <Badge variant="outline" className="text-[10px]">{item.sourceType}</Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'wiki' && (
+                <div className="space-y-8 animate-in fade-in">
+                  <header className="flex flex-col md:flex-row justify-between items-center gap-4 border-b pb-6">
+                    <div>
+                      <h1 className="text-3xl font-bold font-headline">Scholarly Wiki</h1>
+                      <p className="text-muted-foreground">Collaborative knowledge base for biblical research.</p>
+                    </div>
+                    <div className="flex gap-2 w-full md:w-auto">
+                      <Input placeholder="Search wiki..." className="max-w-xs" value={wikiSearch} onChange={e => setWikiSearch(e.target.value)} />
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button className="gap-2"><Plus className="h-4 w-4" /> Contribute</Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle>New Scholarly Wiki Entry</DialogTitle>
+                            <DialogDescription>Full citations and bibliographies are required.</DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                              <Label>Title</Label>
+                              <Input placeholder="Article title..." value={newWikiTitle} onChange={e => setNewWikiTitle(e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Content</Label>
+                              <Textarea placeholder="Main article body..." className="min-h-[200px]" value={newWikiContent} onChange={e => setNewWikiContent(e.target.value)} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label>Works Cited</Label>
+                                <Textarea placeholder="List sources..." value={newWikiWorksCited} onChange={e => setNewWikiWorksCited(e.target.value)} />
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Bibliography</Label>
+                                <Textarea placeholder="Full bibliography..." value={newWikiBiblio} onChange={e => setNewWikiBiblio(e.target.value)} />
+                              </div>
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button onClick={handleCreateWikiEntry} disabled={isLoading}>
+                              {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+                              Submit
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </header>
+
+                  <div className="grid gap-8 lg:grid-cols-4">
+                    <div className="lg:col-span-3 space-y-6">
+                      {approvedWikiEntries.length > 0 ? (
+                        approvedWikiEntries.map(entry => (
+                          <Card key={entry.id}>
+                            <CardHeader className="bg-primary/5">
+                              <CardTitle className="font-headline text-2xl text-primary">{entry.title}</CardTitle>
+                              <CardDescription>Contributed by {entry.authorName} • {new Date(entry.createdAt).toLocaleDateString()}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="pt-6 space-y-6">
+                              <div className="prose dark:prose-invert max-w-none leading-relaxed font-serif whitespace-pre-wrap">{entry.content}</div>
+                              <Separator />
+                              <div className="grid md:grid-cols-2 gap-6 text-[10px]">
+                                <div><h4 className="font-bold uppercase text-muted-foreground mb-1">Works Cited</h4>{entry.worksCited}</div>
+                                <div><h4 className="font-bold uppercase text-muted-foreground mb-1">Bibliography</h4>{entry.bibliography}</div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))
+                      ) : (
+                        <div className="py-20 text-center text-muted-foreground opacity-30 border-2 border-dashed rounded-xl">
+                          <Globe className="h-16 w-16 mx-auto mb-4" />
+                          <p className="text-lg font-headline">No wiki entries found.</p>
+                        </div>
+                      )}
+                    </div>
+                    {userProfile?.isAdmin && (
+                      <div className="space-y-4">
+                        <h3 className="text-sm font-bold flex items-center gap-2 text-amber-600"><ShieldQuestion className="h-4 w-4" /> Pending</h3>
+                        <ScrollArea className="h-[400px]">
                           {pendingWikiEntries.map(pending => (
-                            <Card key={pending.id} className="border-amber-200 bg-amber-50/10">
-                              <CardHeader className="p-4">
-                                <CardTitle className="text-sm font-bold">{pending.title}</CardTitle>
-                                <CardDescription className="text-[10px]">By {pending.authorName}</CardDescription>
-                              </CardHeader>
+                            <Card key={pending.id} className="mb-4">
+                              <CardHeader className="p-4"><CardTitle className="text-xs">{pending.title}</CardTitle></CardHeader>
                               <CardContent className="p-4 pt-0">
-                                <p className="text-[10px] line-clamp-3 mb-4">{pending.content}</p>
                                 <div className="flex gap-2">
-                                  <Button size="sm" variant="default" className="flex-1 text-[10px] h-7" onClick={() => handleApproveWiki(pending.id)}>Approve</Button>
-                                  <Button size="sm" variant="destructive" className="flex-1 text-[10px] h-7" onClick={() => handleRejectWiki(pending.id)}>Reject</Button>
+                                  <Button size="sm" className="flex-1 h-7 text-[10px]" onClick={() => handleUpdateWikiStatus(pending.id, 'approved')}>Approve</Button>
+                                  <Button size="sm" variant="destructive" className="flex-1 h-7 text-[10px]" onClick={() => handleUpdateWikiStatus(pending.id, 'rejected')}>Reject</Button>
                                 </div>
                               </CardContent>
                             </Card>
                           ))}
-                          {pendingWikiEntries.length === 0 && <p className="text-xs text-muted-foreground italic text-center py-8">No pending submissions.</p>}
-                        </div>
-                      </ScrollArea>
-                    </div>
-                  )}
+                        </ScrollArea>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {activeTab === 'support' && (
-              <div className="space-y-8 animate-in fade-in">
-                <header>
-                  <h1 className="text-3xl font-bold font-headline">Help & Support</h1>
-                  <p className="text-muted-foreground">Technical assistance and scholarship resources.</p>
-                </header>
-
-                <div className="grid gap-6 md:grid-cols-2">
+              {activeTab === 'ai-settings' && (
+                <div className="space-y-8 animate-in fade-in">
+                  <header>
+                    <h1 className="text-3xl font-bold font-headline">AI Engine Configuration</h1>
+                    <p className="text-muted-foreground">Select your research engine and manage credentials.</p>
+                  </header>
                   <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5" /> osTicket Integration</CardTitle>
-                      <CardDescription>Submit a technical support ticket directly to our dean's office.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <Label>Subject</Label>
-                        <Input placeholder="e.g. Issue with Lexicon search" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Description</Label>
-                        <Textarea placeholder="Please provide details about the issue..." />
-                      </div>
-                    </CardContent>
-                    <CardFooter>
-                      <Button className="w-full">Create Ticket via osTicket</Button>
-                    </CardFooter>
-                  </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2"><HelpCircle className="h-5 w-5" /> Documentation</CardTitle>
-                      <CardDescription>Learn how to use LexiVerse AI tools effectively.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-2">
-                        <h4 className="font-bold text-sm">Scholar AI Best Practices</h4>
-                        <p className="text-xs text-muted-foreground">Learn how to prompt the AI for better theological synthesis and original language analysis.</p>
+                    <CardHeader><CardTitle>Model Selection</CardTitle></CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div 
+                          className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${aiPrefs.selectedModel === 'googleai/gemini-2.5-flash' ? 'border-primary bg-primary/5' : 'hover:bg-muted'}`}
+                          onClick={() => setAiPrefs({...aiPrefs, selectedModel: 'googleai/gemini-2.5-flash'})}
+                        >
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="font-bold">Gemini 2.5 Flash</span>
+                            <Badge variant="outline" className="bg-green-500/10 text-green-600">Free/Optimized</Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">Standard engine. Best for rapid linguistic checks and OCR.</p>
+                        </div>
+                        <div 
+                          className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${aiPrefs.selectedModel === 'googleai/gemini-2.5-pro-001' ? 'border-primary bg-primary/5' : 'hover:bg-muted'}`}
+                          onClick={() => setAiPrefs({...aiPrefs, selectedModel: 'googleai/gemini-2.5-pro-001'})}
+                        >
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="font-bold">Gemini 2.5 Pro</span>
+                            <Badge variant="outline" className="bg-amber-500/10 text-amber-600">Advanced Tier</Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">Advanced reasoning. Ideal for deep theological synthesis.</p>
+                        </div>
                       </div>
                       <Separator />
                       <div className="space-y-2">
-                        <h4 className="font-bold text-sm">Wiki.js Integration</h4>
-                        <p className="text-xs text-muted-foreground">Access our external Wiki.js instance for community-maintained bibliographies and course notes.</p>
-                        <Button variant="outline" size="sm" className="w-full gap-2"><ExternalLink className="h-4 w-4" /> Open Wiki.js</Button>
+                        <Label>Google AI API Key</Label>
+                        <Input 
+                          type="password" 
+                          placeholder="Optional: Provide your own key for higher rate limits..." 
+                          value={aiPrefs.customApiKey} 
+                          onChange={e => setAiPrefs({...aiPrefs, customApiKey: e.target.value})}
+                        />
                       </div>
                     </CardContent>
+                    <CardFooter>
+                      <Button onClick={() => {
+                        if (user) {
+                          updateDoc(doc(db, 'users', user.uid), { aiPreferences: aiPrefs });
+                          toast({ title: 'Preferences saved' });
+                        }
+                      }}>Save Configuration</Button>
+                    </CardFooter>
                   </Card>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Global Footer Banner Ad */}
-            <div className="mt-12 pt-8 border-t">
+              {activeTab === 'support' && (
+                <div className="space-y-8 animate-in fade-in">
+                  <header>
+                    <h1 className="text-3xl font-bold font-headline">Help & Support</h1>
+                    <p className="text-muted-foreground">Technical assistance and scholarship resources.</p>
+                  </header>
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <Card>
+                      <CardHeader><CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5" /> osTicket Support</CardTitle></CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="space-y-2"><Label>Subject</Label><Input placeholder="Issue summary..." /></div>
+                        <div className="space-y-2"><Label>Description</Label><Textarea placeholder="Details..." /></div>
+                        <Button className="w-full">Create Ticket</Button>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader><CardTitle className="flex items-center gap-2"><HelpCircle className="h-5 w-5" /> Wiki.js Knowledge Base</CardTitle></CardHeader>
+                      <CardContent className="space-y-4">
+                        <p className="text-xs text-muted-foreground">Access community-maintained documentation and course notes on our external Wiki.js instance.</p>
+                        <Button variant="outline" className="w-full gap-2"><ExternalLink className="h-4 w-4" /> Open Wiki.js</Button>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Sticky Global Banner Ad */}
+            <footer className="mt-12 pt-8 border-t">
               <div 
                 className="w-full h-24 bg-muted/20 border-2 border-dashed rounded-xl flex items-center justify-center group cursor-pointer hover:bg-muted/30 transition-colors"
-                onClick={() => handleAdClick('footer_banner_scholarly', 'footer')}
+                onClick={() => trackAdClick('footer_banner_scholarly', 'footer')}
               >
                 <div className="flex flex-col items-center">
                   <Megaphone className="h-5 w-5 text-muted-foreground/50 group-hover:text-primary transition-colors mb-1" />
@@ -807,7 +895,12 @@ export default function Home() {
                   <p className="text-xs text-muted-foreground italic">Partner with LexiVerse Explorer</p>
                 </div>
               </div>
-            </div>
+              <div className="flex justify-center gap-6 mt-6 text-xs text-muted-foreground">
+                <Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
+                <Link href="/terms" className="hover:text-primary transition-colors">Terms of Use</Link>
+                <span>© 2024 LexiVerse Explorer</span>
+              </div>
+            </footer>
           </main>
         </SidebarInset>
       </div>
