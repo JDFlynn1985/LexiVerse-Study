@@ -85,7 +85,8 @@ import {
   Image as ImageIcon,
   Eye,
   Cloud,
-  FolderOpen
+  FolderOpen,
+  Images as ImagesIcon
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -129,7 +130,7 @@ import { formatBibliography, type FormatBibliographyOutput } from '@/ai/flows/fo
 import { checkIntegrity, type AcademicIntegrityOutput } from '@/ai/flows/academic-integrity-ai';
 import { getVersions, getChapterContent, parseReference, type BibleVersion, type BibleChapter } from '@/lib/bible-api';
 
-type ViewMode = 'dashboard' | 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers' | 'writing-assistant' | 'integrity';
+type ViewMode = 'dashboard' | 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers' | 'gallery' | 'writing-assistant' | 'integrity';
 
 interface Note {
   id: string;
@@ -214,6 +215,10 @@ export default function Home() {
   const [integrityInput, setIntegrityInput] = useState('');
   const [integrityResult, setIntegrityResult] = useState<AcademicIntegrityOutput | null>(null);
 
+  const galleryImages = useMemo(() => {
+    return researchPapers.filter(p => ['png', 'jpg', 'jpeg', 'webp'].includes(p.format));
+  }, [researchPapers]);
+
   useEffect(() => {
     setMounted(true);
     const savedHistory = localStorage.getItem('lexiverse_history');
@@ -262,7 +267,6 @@ export default function Home() {
 
   const initializeDriveFolder = async (token: string) => {
     try {
-      // Search for LexiVerse folder
       const searchRes = await fetch(
         `https://www.googleapis.com/drive/v3/files?q=name='LexiVerse Research' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -272,7 +276,6 @@ export default function Home() {
       if (searchData.files && searchData.files.length > 0) {
         setDriveFolderId(searchData.files[0].id);
       } else {
-        // Create new folder
         const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
           method: 'POST',
           headers: { 
@@ -327,7 +330,7 @@ export default function Home() {
     try {
       let name = "";
       let content = "";
-      let mimeType = "application/vnd.google-apps.document"; // Default to Google Doc
+      let mimeType = "application/vnd.google-apps.document"; 
 
       if (type === 'note') {
         const note = notes.find(n => n.id === id);
@@ -341,7 +344,6 @@ export default function Home() {
         content = paper.content;
         if (['png', 'jpg', 'jpeg', 'webp'].includes(paper.format)) {
           mimeType = `image/${paper.format === 'jpg' ? 'jpeg' : paper.format}`;
-          // For images, we just upload the base64 as binary
           const blob = await (await fetch(paper.content)).blob();
           const metadata = { name, parents: [driveFolderId] };
           const form = new FormData();
@@ -360,7 +362,6 @@ export default function Home() {
         }
       }
 
-      // Upload text as Google Doc
       const res = await fetch('https://www.googleapis.com/drive/v3/files', {
         method: 'POST',
         headers: { 
@@ -376,7 +377,6 @@ export default function Home() {
       const data = await res.json();
       
       if (data.id) {
-        // Update the document content
         await fetch(`https://www.googleapis.com/upload/drive/v3/files/${data.id}?uploadType=media`, {
           method: 'PATCH',
           headers: { 
@@ -394,15 +394,6 @@ export default function Home() {
     }
   };
 
-  const handleSaveToBiblio = (citation: string, type: string = "Research Source") => {
-    if (!citation.trim()) return;
-    const newItem = { id: Date.now().toString(), citation: citation.trim(), sourceType: type, date: new Date().toLocaleString() };
-    const updated = [newItem, ...biblioItems];
-    setBiblioItems(updated);
-    localStorage.setItem('lexiverse_biblio', JSON.stringify(updated));
-    toast({ title: "Citation Added" });
-  };
-
   const handleLexiconSearch = async () => {
     if (!strongsTerm.trim()) return;
     setIsLoading(true);
@@ -414,23 +405,6 @@ export default function Home() {
       localStorage.setItem('lexiverse_history', JSON.stringify(newHistory));
     } catch (error) {
       toast({ variant: 'destructive', title: 'Lexicon search failed' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleTranslationComparison = async () => {
-    if (!transWord.trim()) return;
-    setIsLoading(true);
-    try {
-      const result = await compareTranslations({ 
-        word: transWord, 
-        language: 'Greek/Hebrew', 
-        versions: selectedVersions 
-      });
-      setTransResult(result);
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Comparison failed' });
     } finally {
       setIsLoading(false);
     }
@@ -479,45 +453,6 @@ export default function Home() {
       setIsLoading(false);
     }
   };
-
-  async function handleBiblioFormatting() {
-    if (biblioItems.length === 0) return;
-    setIsLoading(true);
-    try {
-      const data = await formatBibliography({ items: biblioItems.map(item => item.citation), style: biblioStyle, formatType: 'bibliography' });
-      setFormattedBiblioResult(data);
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Formatting Failed' });
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handleWritingRefinement() {
-    if (!writingInput.trim()) return;
-    setIsLoading(true);
-    try {
-      const data = await refineWriting({ text: writingInput, mode: 'academic' });
-      setWritingResult(data);
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Refinement Failed' });
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handleIntegrityScan() {
-    if (!integrityInput.trim()) return;
-    setIsLoading(true);
-    try {
-      const data = await checkIntegrity({ text: integrityInput, style: biblioStyle, researchContext: researchPapers.map(p => p.content) });
-      setIntegrityResult(data);
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Scan Failed' });
-    } finally {
-      setIsLoading(false);
-    }
-  }
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -634,7 +569,8 @@ export default function Home() {
                   { id: 'bibles', label: 'Bible Reader', icon: Book },
                   { id: 'lexicon', label: 'Advanced Lexicon', icon: BookOpen },
                   { id: 'translations', label: 'Parallel Versions', icon: Scale },
-                  { id: 'papers', label: 'My Library', icon: Library },
+                  { id: 'papers', label: 'My Papers', icon: Library },
+                  { id: 'gallery', label: 'Image Gallery', icon: ImagesIcon },
                 ].map((item) => (
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton isActive={activeTab === item.id} onClick={() => setActiveTab(item.id as ViewMode)} tooltip={item.label}>
@@ -705,17 +641,17 @@ export default function Home() {
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                   <Card className="bg-primary/5 border-primary/20">
                     <CardHeader className="pb-2">
-                      <CardDescription className="flex items-center gap-2"><Clock className="h-4 w-4" /> Recent Work</CardDescription>
+                      <CardDescription className="flex items-center gap-2"><Clock className="h-4 w-4" /> Recent Activity</CardDescription>
                       <CardTitle className="text-3xl">{history.length}</CardTitle>
                     </CardHeader>
-                    <CardContent className="text-xs text-muted-foreground">Activities tracked this session</CardContent>
+                    <CardContent className="text-xs text-muted-foreground">Session steps tracked</CardContent>
                   </Card>
-                  <Card className="bg-accent/5 border-accent/20">
+                  <Card className="bg-accent/5 border-accent/20 cursor-pointer hover:bg-accent/10 transition-colors" onClick={() => setActiveTab('gallery')}>
                     <CardHeader className="pb-2">
-                      <CardDescription className="flex items-center gap-2"><FileText className="h-4 w-4" /> My Library</CardDescription>
-                      <CardTitle className="text-3xl">{researchPapers.length}</CardTitle>
+                      <CardDescription className="flex items-center gap-2"><ImagesIcon className="h-4 w-4" /> Visual Gallery</CardDescription>
+                      <CardTitle className="text-3xl">{galleryImages.length}</CardTitle>
                     </CardHeader>
-                    <CardContent className="text-xs text-muted-foreground">Scholarly papers indexed</CardContent>
+                    <CardContent className="text-xs text-muted-foreground">Images & Charts cataloged</CardContent>
                   </Card>
                   <Card className="bg-primary/5 border-primary/20">
                     <CardHeader className="pb-2">
@@ -737,8 +673,8 @@ export default function Home() {
                   <Card className="lg:col-span-2 shadow-sm border-dashed">
                     <CardHeader className="flex flex-row items-center justify-between">
                       <div className="space-y-1">
-                        <CardTitle className="text-xl font-headline">Quick Access Documents</CardTitle>
-                        <CardDescription>Recently uploaded or accessed research papers.</CardDescription>
+                        <CardTitle className="text-xl font-headline">Quick Access Library</CardTitle>
+                        <CardDescription>Recently accessed or uploaded research papers.</CardDescription>
                       </div>
                       <Button variant="ghost" size="sm" onClick={() => setActiveTab('papers')}>View Library <ArrowRight className="ml-2 h-4 w-4" /></Button>
                     </CardHeader>
@@ -746,7 +682,7 @@ export default function Home() {
                       {researchPapers.length > 0 ? (
                         <div className="grid gap-4 md:grid-cols-2">
                           {researchPapers.slice(0, 4).map(paper => (
-                            <div key={paper.id} className="flex items-center p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer group" onClick={() => { setActiveTab('papers'); }}>
+                            <div key={paper.id} className="flex items-center p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer group" onClick={() => { setActiveTab(isImage(paper.format) ? 'gallery' : 'papers'); }}>
                               <div className={`p-2 rounded bg-muted group-hover:bg-background transition-colors mr-3`}>
                                 {['png', 'jpg', 'jpeg', 'webp'].includes(paper.format) ? <ImageIcon className="h-4 w-4" /> : <FileCode className="h-4 w-4" />}
                               </div>
@@ -768,8 +704,8 @@ export default function Home() {
 
                   <Card className="shadow-sm">
                     <CardHeader>
-                      <CardTitle className="text-xl font-headline">Recent Research Logs</CardTitle>
-                      <CardDescription>Lexicon and Scripture history.</CardDescription>
+                      <CardTitle className="text-xl font-headline">Session Research Log</CardTitle>
+                      <CardDescription>Recent lexicon and scripture queries.</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0">
                       <ScrollArea className="h-[300px]">
@@ -803,14 +739,25 @@ export default function Home() {
                 </div>
 
                 <div className="grid gap-6 md:grid-cols-3">
+                  <Card className="hover:border-primary/50 transition-colors cursor-pointer group" onClick={() => setActiveTab('gallery')}>
+                    <CardHeader className="flex flex-row items-center gap-4">
+                      <div className="bg-primary/10 p-3 rounded-full group-hover:bg-primary/20 transition-colors">
+                        <ImagesIcon className="h-6 w-6 text-primary" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <CardTitle className="text-lg">Visual Gallery</CardTitle>
+                        <CardDescription className="text-xs">View archaeological media and charts.</CardDescription>
+                      </div>
+                    </CardHeader>
+                  </Card>
                   <Card className="hover:border-primary/50 transition-colors cursor-pointer group" onClick={() => setActiveTab('scholar-ai')}>
                     <CardHeader className="flex flex-row items-center gap-4">
                       <div className="bg-primary/10 p-3 rounded-full group-hover:bg-primary/20 transition-colors">
                         <MessageSquare className="h-6 w-6 text-primary" />
                       </div>
                       <div className="space-y-0.5">
-                        <CardTitle className="text-lg">Continue Dialogue</CardTitle>
-                        <CardDescription className="text-xs">Scholar AI is ready to synthesize.</CardDescription>
+                        <CardTitle className="text-lg">Scholar AI</CardTitle>
+                        <CardDescription className="text-xs">Analyze your entire dataset.</CardDescription>
                       </div>
                     </CardHeader>
                   </Card>
@@ -820,23 +767,69 @@ export default function Home() {
                         <Edit3 className="h-6 w-6 text-primary" />
                       </div>
                       <div className="space-y-0.5">
-                        <CardTitle className="text-lg">Writing Assistant</CardTitle>
-                        <CardDescription className="text-xs">Refine your latest draft.</CardDescription>
-                      </div>
-                    </CardHeader>
-                  </Card>
-                  <Card className="hover:border-primary/50 transition-colors cursor-pointer group" onClick={() => setActiveTab('integrity')}>
-                    <CardHeader className="flex flex-row items-center gap-4">
-                      <div className="bg-primary/10 p-3 rounded-full group-hover:bg-primary/20 transition-colors">
-                        <ShieldCheck className="h-6 w-6 text-primary" />
-                      </div>
-                      <div className="space-y-0.5">
-                        <CardTitle className="text-lg">Integrity Scan</CardTitle>
-                        <CardDescription className="text-xs">Check citations and attribution.</CardDescription>
+                        <CardTitle className="text-lg">Writing Desk</CardTitle>
+                        <CardDescription className="text-xs">Refine your latest academic draft.</CardDescription>
                       </div>
                     </CardHeader>
                   </Card>
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'gallery' && (
+              <div className="space-y-8 animate-in fade-in">
+                <header className="flex justify-between items-center border-b pb-6">
+                  <div>
+                    <h1 className="text-3xl font-bold font-headline">Visual Resource Gallery</h1>
+                    <p className="text-muted-foreground">Dedicated view for archaeological photos, charts, and maps.</p>
+                  </div>
+                  <Button onClick={() => fileInputRef.current?.click()} variant="outline">
+                    <Plus className="h-4 w-4 mr-2" /> Add Visual
+                  </Button>
+                </header>
+                {galleryImages.length > 0 ? (
+                  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    {galleryImages.map(img => (
+                      <Card key={img.id} className="group overflow-hidden bg-muted/20">
+                        <div className="aspect-[4/3] w-full overflow-hidden relative">
+                          <img src={img.content} alt={img.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                             <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button size="icon" variant="secondary" className="rounded-full"><Maximize2 className="h-4 w-4" /></Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none">
+                                  <img src={img.content} alt={img.title} className="w-full h-auto max-h-[85vh] object-contain shadow-2xl rounded-lg" />
+                                  <div className="p-4 bg-background/80 backdrop-blur-md text-center">
+                                    <h3 className="font-headline font-bold text-lg">{img.title}</h3>
+                                    <p className="text-xs text-muted-foreground italic">Reference Item • {img.date}</p>
+                                  </div>
+                                </DialogContent>
+                             </Dialog>
+                             {driveFolderId && (
+                               <Button size="icon" variant="secondary" className="rounded-full" onClick={() => syncToDrive('paper', img.id)}><CloudDownload className="h-4 w-4" /></Button>
+                             )}
+                          </div>
+                        </div>
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-start gap-2">
+                            <p className="text-sm font-semibold truncate flex-1">{img.title}</p>
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{img.format.toUpperCase()}</Badge>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-1">Captured: {img.date}</p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-24 flex flex-col items-center justify-center text-muted-foreground opacity-30 text-center space-y-4 border-2 border-dashed rounded-xl">
+                    <ImagesIcon className="h-16 w-16" />
+                    <div>
+                      <p className="text-lg font-headline font-bold">No visual resources yet.</p>
+                      <p className="text-sm">Upload manuscript photos or charts to build your visual library.</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -845,7 +838,7 @@ export default function Home() {
                 <header className="flex flex-col md:flex-row gap-4 items-center justify-between border-b pb-6">
                   <div>
                     <h1 className="text-3xl font-bold font-headline">Scripture Reader</h1>
-                    <p className="text-muted-foreground">High-performance digital library access.</p>
+                    <p className="text-muted-foreground">Digital library access for academic reading.</p>
                   </div>
                   <div className="flex gap-2 w-full md:w-auto">
                     <Select value={readingVersion} onValueChange={setReadingVersion}>
@@ -870,7 +863,10 @@ export default function Home() {
                   <CardContent className="p-10">
                     {currentPassage ? (
                       <div className="space-y-8 max-w-2xl mx-auto">
-                        <h2 className="text-4xl font-bold font-headline text-center mb-10">{currentPassage.bookName} {currentPassage.chapterNumber}</h2>
+                        <div className="flex justify-between items-center mb-10">
+                           <h2 className="text-4xl font-bold font-headline">{currentPassage.bookName} {currentPassage.chapterNumber}</h2>
+                           <Button variant="ghost" size="sm" onClick={captureSelectionToNotes}><Highlighter className="h-4 w-4 mr-2" /> Capture Highlight</Button>
+                        </div>
                         <div className="prose dark:prose-invert max-w-none font-serif text-xl leading-relaxed">
                           {currentPassage.content.map((node, i) => (
                             <span key={i} className="group relative inline cursor-text hover:bg-primary/5 rounded transition-colors px-0.5">
@@ -981,7 +977,7 @@ export default function Home() {
             {activeTab === 'translations' && (
               <div className="space-y-8 animate-in fade-in">
                 <header className="border-b pb-6">
-                  <h1 className="text-3xl font-bold font-headline">Parallel Comparison</h1>
+                  <h1 className="text-3xl font-bold font-headline">Parallel Version Engine</h1>
                   <p className="text-muted-foreground">Compare translation philosophies side-by-side.</p>
                 </header>
 
@@ -1023,8 +1019,8 @@ export default function Home() {
               <div className="h-[calc(100vh-160px)] flex flex-col animate-in fade-in">
                 <header className="border-b pb-4 mb-4 flex justify-between items-center">
                   <div>
-                    <h1 className="text-3xl font-bold font-headline">Scholar AI Chat</h1>
-                    <p className="text-muted-foreground text-sm">Synthetic analysis across scripture and your library.</p>
+                    <h1 className="text-3xl font-bold font-headline">Scholar AI Synthetic Chat</h1>
+                    <p className="text-muted-foreground text-sm">Context-aware analysis across scripture and your library.</p>
                   </div>
                 </header>
 
@@ -1078,56 +1074,34 @@ export default function Home() {
               <div className="space-y-8 animate-in fade-in">
                 <header className="flex justify-between items-center border-b pb-6">
                   <div>
-                    <h1 className="text-3xl font-bold font-headline">Research Library</h1>
-                    <p className="text-muted-foreground">Your custom knowledge base for the Scholar AI.</p>
+                    <h1 className="text-3xl font-bold font-headline">Document Library</h1>
+                    <p className="text-muted-foreground">Your custom research papers and text knowledge base.</p>
                   </div>
                   <div className="flex gap-2">
-                    <input type="file" className="hidden" ref={fileInputRef} onChange={handleFileUpload} accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp" />
-                    <Button onClick={() => fileInputRef.current?.click()} disabled={isLoading}><Plus className="h-4 w-4 mr-2" /> Add Paper or Image</Button>
+                    <input type="file" className="hidden" ref={fileInputRef} onChange={handleFileUpload} accept=".pdf,.docx,.txt" />
+                    <Button onClick={() => fileInputRef.current?.click()} disabled={isLoading}><Plus className="h-4 w-4 mr-2" /> Add Document</Button>
                   </div>
                 </header>
                 <div className="grid gap-4 md:grid-cols-3">
-                  {researchPapers.map(paper => (
+                  {researchPapers.filter(p => !['png', 'jpg', 'jpeg', 'webp'].includes(p.format)).map(paper => (
                     <Card key={paper.id} className="group overflow-hidden">
                       <div className={`h-1 w-full ${
                         paper.format === 'pdf' ? 'bg-red-500' : 
                         paper.format === 'docx' ? 'bg-blue-500' : 
-                        ['png', 'jpg', 'jpeg', 'webp'].includes(paper.format) ? 'bg-emerald-500' : 
                         'bg-gray-500'
                       }`} />
-                      {['png', 'jpg', 'jpeg', 'webp'].includes(paper.format) && (
-                        <div className="aspect-video w-full bg-muted overflow-hidden">
-                          <img src={paper.content} alt={paper.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                        </div>
-                      )}
                       <CardHeader className="pb-2">
                         <div className="flex justify-between items-start">
                           <CardTitle className="text-sm font-bold line-clamp-1">{paper.title}</CardTitle>
                           <Badge variant="secondary" className="text-[8px] uppercase">{paper.format}</Badge>
                         </div>
                       </CardHeader>
-                      <CardContent><p className="text-[10px] text-muted-foreground line-clamp-3 italic">Uploaded on {paper.date}</p></CardContent>
+                      <CardContent><p className="text-[10px] text-muted-foreground line-clamp-3 italic">Index ID: {paper.id} • {paper.date}</p></CardContent>
                       <CardFooter className="justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         {driveFolderId && (
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => syncToDrive('paper', paper.id)}>
                             <CloudDownload className="h-3 w-3" />
                           </Button>
-                        )}
-                        {['png', 'jpg', 'jpeg', 'webp'].includes(paper.format) && (
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7"><Eye className="h-3 w-3" /></Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-4xl">
-                              <DialogHeader>
-                                <DialogTitle>{paper.title}</DialogTitle>
-                                <DialogDescription>Academic Reference Image</DialogDescription>
-                              </DialogHeader>
-                              <div className="mt-4 flex justify-center">
-                                <img src={paper.content} alt={paper.title} className="max-h-[70vh] rounded-lg shadow-xl" />
-                              </div>
-                            </DialogContent>
-                          </Dialog>
                         )}
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => {
                           const updated = researchPapers.filter(p => p.id !== paper.id);
@@ -1146,7 +1120,7 @@ export default function Home() {
                 <header className="flex justify-between items-center border-b pb-6">
                   <div>
                     <h1 className="text-3xl font-bold font-headline">Research Notes</h1>
-                    <p className="text-muted-foreground">Captured fragments and study reflections.</p>
+                    <p className="text-muted-foreground">Captured fragments and theological reflections.</p>
                   </div>
                 </header>
                 <div className="grid gap-4 md:grid-cols-2">
@@ -1180,8 +1154,8 @@ export default function Home() {
             {activeTab === 'writing-assistant' && (
               <div className="space-y-8 animate-in fade-in">
                 <header className="text-center">
-                  <h1 className="text-3xl font-bold font-headline">Scholar Writing AI</h1>
-                  <p className="text-muted-foreground">Refine your theological drafts and incorporate citations.</p>
+                  <h1 className="text-3xl font-bold font-headline">Scholar Writing Assistant</h1>
+                  <p className="text-muted-foreground">Refine your academic drafts for seminary review.</p>
                 </header>
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-4">
@@ -1193,31 +1167,12 @@ export default function Home() {
                         value={writingInput} 
                         onChange={(e) => setWritingInput(e.target.value)} 
                       />
-                      {googleAccessToken && (
-                        <div className="absolute top-2 right-2">
-                          <Button variant="ghost" size="sm" onClick={() => handleSaveNote(writingInput, "AI Draft Refinement")}>
-                            <Scroll className="h-4 w-4 mr-2" /> Save to Notes
-                          </Button>
-                        </div>
-                      )}
                     </div>
                     <Button className="w-full h-12" onClick={handleWritingRefinement} disabled={isLoading}><Sparkles className="h-5 w-5 mr-2" /> Refine Draft</Button>
                   </div>
                   <div className="space-y-4">
                     <div className="flex justify-between items-center">
-                      <Label>Scholar AI Refinement</Label>
-                      {writingResult && driveFolderId && (
-                        <Button variant="outline" size="sm" onClick={() => {
-                          const name = `Refined Draft (${new Date().toLocaleDateString()})`;
-                          // Manually calling sync logic for refined draft
-                          const tempId = Date.now().toString();
-                          const tempNote = { id: tempId, content: writingResult.improvedText, source: 'AI Refinement', date: new Date().toLocaleString() };
-                          setNotes(prev => [tempNote, ...prev]);
-                          syncToDrive('note', tempId);
-                        }}>
-                          <CloudDownload className="h-4 w-4 mr-2" /> Export to Google Docs
-                        </Button>
-                      )}
+                      <Label>Scholarly Refinement</Label>
                     </div>
                     <Card className="min-h-[450px] bg-muted/5 p-6">
                       <ScrollArea className="h-full">
@@ -1225,11 +1180,11 @@ export default function Home() {
                           <div className="space-y-6">
                             <p className="text-lg leading-relaxed">{writingResult.improvedText}</p>
                             <div className="border-t pt-4 space-y-3">
-                              <h4 className="text-sm font-bold flex items-center gap-2"><Info className="h-4 w-4" /> Academic Notes</h4>
+                              <h4 className="text-sm font-bold flex items-center gap-2"><Info className="h-4 w-4" /> Editorial Feedback</h4>
                               {writingResult.suggestions.map((s, i) => <p key={i} className="text-xs text-muted-foreground leading-normal">• {s}</p>)}
                             </div>
                           </div>
-                        ) : <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-30"><Type className="h-12 w-12 mb-2" /><p>AI output will appear here.</p></div>}
+                        ) : <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-30"><Type className="h-12 w-12 mb-2" /><p>AI refinement will appear here.</p></div>}
                       </ScrollArea>
                     </Card>
                   </div>
@@ -1252,46 +1207,9 @@ export default function Home() {
                         <SelectItem value="MLA">MLA</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Button onClick={handleBiblioFormatting} disabled={isLoading || biblioItems.length === 0}><FileCheck className="h-4 w-4 mr-2" /> Generate Bib</Button>
                   </div>
                 </header>
-                {formattedBiblioResult ? (
-                  <Card className="shadow-lg border-primary/20">
-                    <CardHeader className="bg-primary/5 border-b flex justify-between items-center flex-row">
-                      <CardTitle className="text-lg">Formatted Bibliography</CardTitle>
-                      <div className="flex gap-2">
-                        {driveFolderId && (
-                          <Button variant="outline" size="sm" onClick={async () => {
-                            const res = await fetch('https://www.googleapis.com/drive/v3/files', {
-                              method: 'POST',
-                              headers: { 
-                                Authorization: `Bearer ${googleAccessToken}`,
-                                'Content-Type': 'application/json'
-                              },
-                              body: JSON.stringify({
-                                name: `Bibliography - ${biblioStyle} (${new Date().toLocaleDateString()})`,
-                                mimeType: 'application/vnd.google-apps.document',
-                                parents: [driveFolderId]
-                              })
-                            });
-                            const data = await res.json();
-                            if (data.id) {
-                              await fetch(`https://www.googleapis.com/upload/drive/v3/files/${data.id}?uploadType=media`, {
-                                method: 'PATCH',
-                                headers: { Authorization: `Bearer ${googleAccessToken}`, 'Content-Type': 'text/plain' },
-                                body: formattedBiblioResult.formattedOutput
-                              });
-                              toast({ title: "Exported to Docs" });
-                            }
-                          }}><CloudDownload className="h-4 w-4 mr-2" /> Google Docs</Button>
-                        )}
-                        <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(formattedBiblioResult.formattedOutput); toast({ title: "Copied" }); }}><Copy className="h-4 w-4 mr-2" /> Copy</Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-8"><p className="whitespace-pre-wrap font-serif text-lg leading-loose">{formattedBiblioResult.formattedOutput}</p></CardContent>
-                  </Card>
-                ) : (
-                  <div className="grid gap-4">
+                <div className="grid gap-4">
                     {biblioItems.map(item => (
                       <Card key={item.id} className="p-4 flex justify-between items-center">
                         <div className="space-y-1">
@@ -1302,13 +1220,12 @@ export default function Home() {
                       </Card>
                     ))}
                   </div>
-                )}
               </div>
             )}
             
             {activeTab === 'integrity' && (
               <div className="space-y-8 animate-in fade-in">
-                <header className="text-center"><h1 className="text-3xl font-bold font-headline">Integrity & Citation Scanner</h1><p className="text-muted-foreground">Ensure scholarly attribution.</p></header>
+                <header className="text-center"><h1 className="text-3xl font-bold font-headline">Integrity & Citation Scanner</h1><p className="text-muted-foreground">Ensure scholarly attribution for your theological works.</p></header>
                 <div className="grid gap-6 md:grid-cols-1 max-w-3xl mx-auto">
                   <div className="space-y-4">
                     <Textarea placeholder="Paste text to scan for attribution errors..." className="min-h-[350px]" value={integrityInput} onChange={(e) => setIntegrityInput(e.target.value)} />
@@ -1321,7 +1238,7 @@ export default function Home() {
                         <p className="text-sm">{integrityResult.analysisSummary}</p>
                         {integrityResult.findings.map((f, i) => (
                           <div key={i} className="p-3 bg-muted rounded border text-xs space-y-1">
-                            <p className="font-bold text-destructive">Potential Plagiarism: "{f.problematicText}"</p>
+                            <p className="font-bold text-destructive">Potential Attribution Issue: "{f.problematicText}"</p>
                             <p className="italic">Suggestion: {f.citationSuggestion}</p>
                           </div>
                         ))}
@@ -1372,3 +1289,4 @@ export default function Home() {
   );
 }
 
+const isImage = (format: string) => ['png', 'jpg', 'jpeg', 'webp'].includes(format);
