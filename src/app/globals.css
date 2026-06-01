@@ -14,7 +14,7 @@ body {
 @layer base {
   :root {
     --background: 30 29% 94%; /* Desaturated Parchment */
-    --foreground: 220 7% 12%; /* Darker text for readability */
+    --foreground: 220 7% 12%; /* Darker text for readability - WCAG 2.1 AAA Contrast */
     --card: 30 29% 98%; /* Lighter parchment for cards */
     --card-foreground: 220 7% 12%;
     --popover: 30 29% 98%;
@@ -25,11 +25,11 @@ body {
     --secondary-foreground: 220 7% 12%;
     --muted: 30 29% 96%; /* Slightly off-white/parchment-like */
     --muted-foreground: 220 7% 30%; /* Muted text color */
-    --accent: 40 68% 62%; /* Muted Gold */
+    --accent: 40 68% 45%; /* Slightly darker Muted Gold for better contrast on parchment */
     --accent-foreground: 30 100% 10%; /* Dark text on accent */
     --destructive: 10 80% 50%;
     --destructive-foreground: 0 0% 98%;
-    --border: 30 29% 85%; /* Subtle border color */
+    --border: 30 29% 80%; /* Slightly darker border for better visibility */
     --input: 30 29% 85%;
     --ring: 244 47% 20%; /* Deep Indigo for rings */
     --chart-1: 12 76% 61%;
@@ -96,6 +96,11 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Ensure focus states are clearly visible for keyboard navigation */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
 }
 
 /* Apply Literata font to headlines */
@@ -117,4 +122,9 @@ body {
 }
 .animate-accordion-up {
   animation: accordion-up 0.2s ease-out;
+}
+
+/* Skip to content link for accessibility - hidden by default */
+.skip-link {
+  @apply sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:rounded-md;
 }

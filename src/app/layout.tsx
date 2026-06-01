@@ -1,5 +1,4 @@
 
-
 import type {Metadata} from 'next';
 import './globals.css';
 
@@ -23,8 +22,14 @@ export default function RootLayout({
         {/* Font for body: Inter */}
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap" rel="stylesheet" />
       </head>
-      <body className="font-body antialiased">{children}</body>
+      <body className="font-body antialiased">
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
+        <div id="main-content">
+          {children}
+        </div>
+      </body>
     </html>
   );
 }
-
