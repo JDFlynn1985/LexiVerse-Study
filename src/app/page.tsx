@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useEffect, useId } from 'react';
+import { useState, useEffect, useId, useRef } from 'react';
 import { useTheme } from 'next-themes';
 import { 
   Sidebar, 
@@ -42,7 +41,11 @@ import {
   Share2,
   ExternalLink,
   Book,
-  Globe
+  Globe,
+  Library,
+  Zap,
+  Quote,
+  Scale
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -62,74 +65,51 @@ import {
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
 import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/compare-translations-ai';
 import { interactiveVerseExplorationAI } from '@/ai/flows/interactive-verse-exploration-ai';
-import { aiStudyAssistant, type AiStudyAssistantOutput } from '@/ai/flows/ai-study-assistant';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 
-type ViewMode = 'word-study' | 'verse-explorer' | 'translations' | 'ai-assistant' | 'sword-modules' | 'history';
-
-interface Module extends BibleVersion {
-  type: 'bible' | 'commentary' | 'lexicon';
-  installed: boolean;
-  size: string;
-}
+type ViewMode = 'bibles' | 'commentaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<ViewMode>('word-study');
+  const [activeTab, setActiveTab] = useState<ViewMode>('bibles');
   const [isLoading, setIsLoading] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
   
   // Accessibility IDs
   const wordSearchId = useId();
   const transSearchId = useId();
   const verseRefId = useId();
-  const verseQuestionId = useId();
   const chatInputId = useId();
 
-  // History and Bookmarks
+  // History and Session
   const [history, setHistory] = useState<{id: string, type: string, term: string, date: string}[]>([]);
-  const [bookmarks, setBookmarks] = useState<any[]>([]);
+  const [currentContext, setCurrentContext] = useState<string | null>(null);
 
-  // Word Study State
+  // Content States
   const [searchTerm, setSearchTerm] = useState('');
   const [wordResult, setWordResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
-
-  // Translation State
   const [transWord, setTransWord] = useState('');
-  const [transLanguage, setTransLanguage] = useState('Greek');
   const [transResult, setTransResult] = useState<CompareTranslationsOutput | null>(null);
-
-  // Verse Explorer State
   const [verseRef, setVerseRef] = useState('');
-  const [verseQuestion, setVerseQuestion] = useState('');
   const [verseExploration, setVerseExploration] = useState<string | null>(null);
-
-  // AI Assistant State
   const [chatInput, setChatInput] = useState('');
   const [chatHistory, setChatHistory] = useState<{role: 'user' | 'model', content: string}[]>([]);
-  const [deepResearchResult, setDeepResearchResult] = useState<AiStudyAssistantOutput | null>(null);
-
-  // Modules State
-  const [modules, setModules] = useState<Module[]>([]);
+  const [versions, setVersions] = useState<BibleVersion[]>([]);
 
   useEffect(() => {
     setMounted(true);
     const savedHistory = localStorage.getItem('lexiverse_history');
     if (savedHistory) setHistory(JSON.parse(savedHistory));
-    
-    const savedBookmarks = localStorage.getItem('lexiverse_bookmarks');
-    if (savedBookmarks) setBookmarks(JSON.parse(savedBookmarks));
 
-    // Fetch real versions for modules
-    getVersions().then(vers => {
-      setModules(vers.map(v => ({
-        ...v,
-        type: 'bible',
-        installed: v.id === 'kjv',
-        size: 'N/A'
-      })));
-    });
+    getVersions().then(setVersions);
   }, []);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [chatHistory]);
 
   const addToHistory = (type: string, term: string) => {
     if (!term.trim()) return;
@@ -139,16 +119,10 @@ export default function Home() {
     localStorage.setItem('lexiverse_history', JSON.stringify(updatedHistory));
   };
 
-  const toggleBookmark = (item: any) => {
-    const exists = bookmarks.find(b => b.term === item.term && b.type === item.type);
-    let updated;
-    if (exists) {
-      updated = bookmarks.filter(b => b.id !== exists.id);
-    } else {
-      updated = [...bookmarks, { ...item, id: Date.now().toString() }];
-    }
-    setBookmarks(updated);
-    localStorage.setItem('lexiverse_bookmarks', JSON.stringify(updated));
+  const askScholarAboutContext = (content: string, type: string) => {
+    const prompt = `Can you explain the significance and context of this ${type}: "${content}"?`;
+    setChatInput(prompt);
+    setActiveTab('scholar-ai');
   };
 
   async function handleWordSearch(e?: React.FormEvent) {
@@ -158,8 +132,9 @@ export default function Home() {
     try {
       const data = await defineAndAnalyzeTerm({ strongsNumber: searchTerm });
       setWordResult(data);
-      addToHistory('word', searchTerm);
-      setActiveTab('word-study');
+      setCurrentContext(`Word Study: ${data.originalWord} (${data.transliteration})`);
+      addToHistory('lexicon', searchTerm);
+      setActiveTab('lexicon');
     } catch (error) {
       console.error(error);
     } finally {
@@ -174,11 +149,12 @@ export default function Home() {
     try {
       const data = await compareTranslations({ 
         word: transWord, 
-        language: transLanguage, 
+        language: 'Auto-detect', 
         versions: ['KJV', 'NIV', 'ESV', 'NASB'] 
       });
       setTransResult(data);
-      addToHistory('translation', transWord);
+      setCurrentContext(`Translation Comparison for "${transWord}"`);
+      addToHistory('translations', transWord);
     } catch (error) {
       console.error(error);
     } finally {
@@ -193,11 +169,12 @@ export default function Home() {
     try {
       const data = await interactiveVerseExplorationAI({
         term: verseRef,
-        question: verseQuestion || `Explain the significance of ${verseRef} using the passage text.`,
+        question: `Explain the theological significance of ${verseRef} in its original context.`,
         history: []
       });
       setVerseExploration(data.response);
-      addToHistory('verse', verseRef);
+      setCurrentContext(`Verse Analysis: ${verseRef}`);
+      addToHistory('verse-explorer', verseRef);
     } catch (error) {
       console.error(error);
     } finally {
@@ -216,7 +193,7 @@ export default function Home() {
     setIsLoading(true);
     try {
       const data = await interactiveVerseExplorationAI({
-        term: 'Interactive Session',
+        term: currentContext || 'General Biblical Research',
         question: userMsg,
         history: chatHistory
       });
@@ -227,10 +204,6 @@ export default function Home() {
       setIsLoading(false);
     }
   }
-
-  const toggleModule = (id: string) => {
-    setModules(prev => prev.map(m => m.id === id ? { ...m, installed: !m.installed } : m));
-  };
 
   if (!mounted) return null;
 
@@ -249,12 +222,12 @@ export default function Home() {
           <ScrollArea className="flex-1">
             <SidebarContent>
               <SidebarGroup>
-                <SidebarGroupLabel>Tools</SidebarGroupLabel>
+                <SidebarGroupLabel>Digital Library</SidebarGroupLabel>
                 <SidebarMenu>
                   {[
-                    { id: 'word-study', label: 'Lexicon', icon: BookOpen },
-                    { id: 'translations', label: 'Versions', icon: FileText },
-                    { id: 'verse-explorer', label: 'Verse Explorer', icon: Scroll },
+                    { id: 'bibles', label: 'Bibles', icon: Book },
+                    { id: 'commentaries', label: 'Commentaries', icon: Scroll },
+                    { id: 'lexicon', label: 'Lexicon', icon: BookOpen },
                   ].map((item) => (
                     <SidebarMenuItem key={item.id}>
                       <SidebarMenuButton 
@@ -271,12 +244,32 @@ export default function Home() {
               </SidebarGroup>
 
               <SidebarGroup>
-                <SidebarGroupLabel>System</SidebarGroupLabel>
+                <SidebarGroupLabel>Research Tools</SidebarGroupLabel>
                 <SidebarMenu>
                   {[
-                    { id: 'ai-assistant', label: 'Scholar AI', icon: Mic },
-                    { id: 'sword-modules', label: 'Library', icon: Puzzle },
-                    { id: 'history', label: 'Logs', icon: History },
+                    { id: 'translations', label: 'Comparisons', icon: Scale },
+                    { id: 'verse-explorer', label: 'Verse Explorer', icon: Quote },
+                  ].map((item) => (
+                    <SidebarMenuItem key={item.id}>
+                      <SidebarMenuButton 
+                        isActive={activeTab === item.id} 
+                        onClick={() => setActiveTab(item.id as ViewMode)}
+                        tooltip={item.label}
+                      >
+                        <item.icon className="mr-2 h-5 w-5" /> 
+                        {item.label}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroup>
+
+              <SidebarGroup>
+                <SidebarGroupLabel>AI Engine</SidebarGroupLabel>
+                <SidebarMenu>
+                  {[
+                    { id: 'scholar-ai', label: 'Scholar AI', icon: Mic },
+                    { id: 'history', label: 'Research Logs', icon: History },
                   ].map((item) => (
                     <SidebarMenuItem key={item.id}>
                       <SidebarMenuButton 
@@ -295,7 +288,7 @@ export default function Home() {
           </ScrollArea>
           <SidebarFooter className="p-4 border-t">
              <div className="flex justify-between items-center group-data-[collapsible=icon]:hidden">
-                <span className="text-[10px] text-muted-foreground uppercase">API Powered</span>
+                <span className="text-[10px] text-muted-foreground uppercase">LexiVerse v2.1</span>
                 <Button variant="ghost" size="icon" className="rounded-full h-8 w-8" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle theme">
                   {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
                 </Button>
@@ -304,271 +297,160 @@ export default function Home() {
         </Sidebar>
 
         <SidebarInset className="bg-background overflow-y-auto">
-          <main className="container max-w-5xl mx-auto py-10 px-6">
+          <main className="container max-w-5xl mx-auto py-10 px-6" id="main-content">
             
-            {activeTab === 'word-study' && (
-              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
-                {!wordResult ? (
-                  <div className="flex flex-col items-center justify-center py-24 text-center">
-                    <h1 className="text-4xl font-bold font-headline text-primary mb-4">Semantic Lexicon</h1>
-                    <p className="text-muted-foreground mb-8 max-w-md">Search Strong's numbers or original terms for deep morphological analysis.</p>
-                    <Card className="w-full max-w-md border shadow-lg">
-                      <CardContent className="pt-6">
-                        <form onSubmit={handleWordSearch} className="flex gap-2">
-                          <Input 
-                            id={wordSearchId}
-                            placeholder="e.g. G3056" 
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="h-11"
-                          />
-                          <Button type="submit" disabled={isLoading}>
-                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Study'}
-                          </Button>
-                        </form>
-                      </CardContent>
-                    </Card>
+            {activeTab === 'bibles' && (
+              <div className="space-y-6 animate-in fade-in">
+                <header className="flex justify-between items-end border-b pb-6">
+                  <div>
+                    <h1 className="text-3xl font-bold font-headline">Scripture Modules</h1>
+                    <p className="text-muted-foreground">Select a version to begin reading and analysis.</p>
                   </div>
-                ) : (
-                  <article className="space-y-6">
-                    <header className="flex justify-between items-end border-b pb-6">
+                </header>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {versions.length > 0 ? versions.map((v) => (
+                    <Card key={v.id} className="hover:border-primary transition-all cursor-pointer group">
+                      <CardHeader className="pb-3">
+                        <Badge variant="outline" className="w-fit mb-2">{v.language.toUpperCase()}</Badge>
+                        <CardTitle className="text-lg">{v.name}</CardTitle>
+                        <CardDescription>{v.abbreviation}</CardDescription>
+                      </CardHeader>
+                      <CardFooter>
+                        <Button variant="ghost" className="w-full justify-between group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                          Open Text <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  )) : (
+                    <div className="col-span-full py-20 text-center">
+                       <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+                       <p className="mt-4 text-muted-foreground">Syncing available versions...</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'commentaries' && (
+              <div className="space-y-6 animate-in fade-in">
+                <header>
+                  <h1 className="text-3xl font-bold font-headline">Commentary Research</h1>
+                  <p className="text-muted-foreground">Synthesized historical and linguistic context for your study.</p>
+                </header>
+                <Card className="bg-muted/30 border-dashed">
+                  <CardContent className="py-12 text-center">
+                    <Feather className="h-12 w-12 mx-auto mb-4 opacity-20 text-primary" />
+                    <h3 className="font-bold text-lg mb-2">Integrated Research Mode</h3>
+                    <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6">
+                      Select a verse in the Explorer or use the Scholar AI to generate commentary-style insights from historical scholars.
+                    </p>
+                    <Button onClick={() => setActiveTab('verse-explorer')}>
+                      Go to Verse Explorer
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {activeTab === 'lexicon' && (
+              <div className="space-y-8 animate-in fade-in">
+                <div className="text-center py-10">
+                  <h1 className="text-4xl font-bold font-headline text-primary mb-4">Semantic Lexicon</h1>
+                  <div className="max-w-md mx-auto">
+                    <form onSubmit={handleWordSearch} className="flex gap-2">
+                      <Input 
+                        id={wordSearchId}
+                        placeholder="Search Strong's (e.g. G3056)" 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="h-12 shadow-sm"
+                      />
+                      <Button type="submit" size="lg" disabled={isLoading} className="shadow-md">
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                      </Button>
+                    </form>
+                  </div>
+                </div>
+
+                {wordResult && (
+                  <article className="space-y-6 animate-in slide-in-from-bottom-4">
+                    <header className="flex justify-between items-center border-b pb-6">
                       <div>
-                        <h1 className="text-5xl font-bold font-headline text-primary">{wordResult.originalWord}</h1>
-                        <p className="text-lg text-muted-foreground italic">{wordResult.transliteration} • {wordResult.pronunciation}</p>
+                        <h2 className="text-5xl font-bold font-headline text-primary">{wordResult.originalWord}</h2>
+                        <p className="text-xl text-muted-foreground italic mt-1">
+                          {wordResult.transliteration} • {wordResult.pronunciation}
+                        </p>
                       </div>
-                      <Badge className="bg-primary px-4 py-1">{wordResult.searchStrongNumber}</Badge>
+                      <div className="flex flex-col items-end gap-2">
+                        <Badge className="bg-accent text-accent-foreground px-4 py-1 text-md">
+                          {wordResult.searchStrongNumber}
+                        </Badge>
+                        <Button variant="outline" size="sm" onClick={() => askScholarAboutContext(`${wordResult.originalWord} (${wordResult.searchStrongNumber})`, 'Lexicon Term')}>
+                          Ask AI <Mic className="h-3 w-3 ml-2" />
+                        </Button>
+                      </div>
                     </header>
                     <div className="grid gap-6 md:grid-cols-2">
-                      <Card className="shadow-sm">
-                        <CardHeader><CardTitle className="text-lg font-headline">Lexical Definition</CardTitle></CardHeader>
-                        <CardContent><p className="leading-relaxed">{wordResult.definition}</p></CardContent>
+                      <Card className="shadow-lg border-primary/10">
+                        <CardHeader className="bg-primary/5"><CardTitle className="text-lg font-headline">Lexical Definition</CardTitle></CardHeader>
+                        <CardContent className="pt-6"><p className="leading-relaxed text-lg">{wordResult.definition}</p></CardContent>
                       </Card>
-                      <Card className="shadow-sm">
-                        <CardHeader><CardTitle className="text-lg font-headline">Parsing Data</CardTitle></CardHeader>
-                        <CardContent><pre className="text-xs bg-muted p-3 rounded font-mono overflow-auto">{wordResult.lexicalData}</pre></CardContent>
+                      <Card className="shadow-lg border-primary/10">
+                        <CardHeader className="bg-primary/5"><CardTitle className="text-lg font-headline">Grammar & Parsing</CardTitle></CardHeader>
+                        <CardContent className="pt-6">
+                          <pre className="text-xs bg-muted/50 p-4 rounded font-mono overflow-auto border">{wordResult.lexicalData}</pre>
+                        </CardContent>
                       </Card>
                     </div>
-                    <Button variant="outline" onClick={() => setWordResult(null)}>New Search</Button>
                   </article>
                 )}
               </div>
             )}
 
-            {activeTab === 'verse-explorer' && (
-              <div className="space-y-8 animate-in fade-in">
-                <header className="text-center mb-10">
-                  <h1 className="text-3xl font-bold font-headline mb-2">Verse Analytics</h1>
-                  <p className="text-muted-foreground">Contextual passage analysis powered by live scripture data.</p>
-                </header>
-                <Card className="max-w-2xl mx-auto shadow-md">
-                  <CardContent className="pt-6 space-y-4">
-                    <form onSubmit={handleVerseExploration} className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor={verseRefId}>Bible Reference</Label>
-                        <Input 
-                          id={verseRefId}
-                          placeholder="John 1:1" 
-                          value={verseRef}
-                          onChange={(e) => setVerseRef(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor={verseQuestionId}>Theological Inquiry (Optional)</Label>
-                        <Textarea 
-                          id={verseQuestionId}
-                          placeholder="What is the significance of the logos here?" 
-                          value={verseQuestion}
-                          onChange={(e) => setVerseQuestion(e.target.value)}
-                        />
-                      </div>
-                      <Button className="w-full h-11" type="submit" disabled={isLoading}>
-                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Scroll className="h-4 w-4 mr-2" />}
-                        Analyze Passage
-                      </Button>
-                    </form>
-                  </CardContent>
-                </Card>
-                {verseExploration && (
-                  <Card className="mt-8 border-l-4 border-l-accent shadow-lg animate-in slide-in-from-top-4">
-                    <CardHeader className="border-b bg-muted/20">
-                      <CardTitle className="text-xl font-headline flex items-center gap-2">
-                        <BookMarked className="h-5 w-5 text-accent" /> Analysis: {verseRef}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="py-6">
-                      <p className="whitespace-pre-wrap leading-relaxed text-muted-foreground">{verseExploration}</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'sword-modules' && (
-              <div className="space-y-8 animate-in fade-in">
-                <header className="flex justify-between items-end border-b pb-6">
-                  <div>
-                    <h1 className="text-3xl font-bold font-headline">Digital Library</h1>
-                    <p className="text-muted-foreground text-sm">Managing versions from bible.helloao.org for accurate research.</p>
-                  </div>
-                </header>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {modules.map((mod) => (
-                    <Card key={mod.id} className={`p-4 border shadow-sm ${mod.installed ? 'bg-primary/5 border-primary/20' : ''}`}>
-                      <div className="flex justify-between items-center">
-                        <div className="flex gap-3 items-center">
-                          <div className={`p-2 rounded ${mod.installed ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
-                            <Book className="h-5 w-5" />
-                          </div>
-                          <div>
-                            <h3 className="font-bold">{mod.name}</h3>
-                            <p className="text-[10px] uppercase text-muted-foreground">{mod.language} • {mod.abbreviation}</p>
-                          </div>
-                        </div>
-                        <Button size="sm" variant={mod.installed ? 'outline' : 'default'} onClick={() => toggleModule(mod.id)}>
-                          {mod.installed ? 'Remove' : 'Add'}
-                        </Button>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'ai-assistant' && (
-               <div className="flex flex-col h-[70vh] gap-4">
-                 <header className="mb-4">
-                    <h1 className="text-2xl font-bold font-headline">Scholar AI Assistant</h1>
-                    <p className="text-sm text-muted-foreground">Expert discussion on biblical terms, historical context, and theology.</p>
-                 </header>
-                 <ScrollArea className="flex-1 border rounded-lg p-4 bg-muted/5">
-                   <div className="space-y-4">
-                     {chatHistory.length === 0 && (
-                       <div className="text-center py-20 text-muted-foreground">
-                         <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-20" />
-                         <p>Start a conversation with the scholarly assistant.</p>
-                       </div>
-                     )}
-                     {chatHistory.map((m, i) => (
-                       <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                         <div className={`max-w-[80%] p-3 rounded-lg ${m.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-card border shadow-sm'}`}>
-                           <p className="text-sm whitespace-pre-wrap">{m.content}</p>
-                         </div>
-                       </div>
-                     ))}
-                     {isLoading && (
-                       <div className="flex justify-start">
-                         <div className="bg-muted p-3 rounded-lg flex items-center gap-2">
-                           <Loader2 className="h-4 w-4 animate-spin" />
-                           <span className="text-xs">Scholar is thinking...</span>
-                         </div>
-                       </div>
-                     )}
-                   </div>
-                 </ScrollArea>
-                 <form onSubmit={handleAIChat} className="flex gap-2">
-                   <Input 
-                     id={chatInputId}
-                     placeholder="Ask the Scholar AI about a term or passage..." 
-                     value={chatInput}
-                     onChange={(e) => setChatInput(e.target.value)}
-                     className="h-12"
-                   />
-                   <Button type="submit" size="icon" disabled={isLoading} className="h-12 w-12">
-                     <Send className="h-5 w-5" />
-                   </Button>
-                 </form>
-               </div>
-            )}
-
-            {activeTab === 'history' && (
-              <div className="space-y-6">
-                <header>
-                  <h1 className="text-3xl font-bold font-headline">Session Logs</h1>
-                  <p className="text-muted-foreground">Your recent research activity.</p>
-                </header>
-                <Card>
-                  <CardContent className="p-0">
-                    {history.length === 0 ? (
-                      <div className="p-8 text-center text-muted-foreground">No recent activity.</div>
-                    ) : (
-                      <div className="divide-y">
-                        {history.map(h => (
-                          <div key={h.id} className="p-4 flex justify-between items-center hover:bg-muted/30 cursor-pointer transition-colors" onClick={() => setActiveTab(h.type as any)}>
-                            <div className="flex gap-3 items-center">
-                              <Badge variant="outline" className="font-mono text-[10px]">{h.type.toUpperCase()}</Badge>
-                              <span className="font-medium">{h.term}</span>
-                            </div>
-                            <span className="text-xs text-muted-foreground">{h.date}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
             {activeTab === 'translations' && (
               <div className="space-y-8 animate-in fade-in">
-                <header className="text-center mb-10">
-                  <h1 className="text-3xl font-bold font-headline mb-2">Version Comparison</h1>
-                  <p className="text-muted-foreground">Analyze linguistic nuances across major Bible translations.</p>
+                <header className="text-center">
+                  <h1 className="text-3xl font-bold font-headline mb-2">Comparative Translations</h1>
+                  <p className="text-muted-foreground">Examine how specific terms differ across major versions.</p>
                 </header>
-                <Card className="max-w-2xl mx-auto shadow-md">
+                <Card className="max-w-2xl mx-auto shadow-md border-t-4 border-t-accent">
                   <CardContent className="pt-6">
-                    <form onSubmit={handleTranslationCompare} className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor={transSearchId}>Term / Word</Label>
-                          <Input 
-                            id={transSearchId}
-                            placeholder="e.g. Logos" 
-                            value={transWord}
-                            onChange={(e) => setTransWord(e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Language</Label>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="outline" className="w-full justify-between">
-                                {transLanguage} <Languages className="h-4 w-4 ml-2" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-full">
-                              {['Greek', 'Hebrew', 'Aramaic', 'Latin'].map(lang => (
-                                <DropdownMenuItem key={lang} onClick={() => setTransLanguage(lang)}>
-                                  {lang}
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
-                      <Button className="w-full h-11" type="submit" disabled={isLoading}>
-                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Languages className="h-4 w-4 mr-2" />}
-                        Compare Versions
+                    <form onSubmit={handleTranslationCompare} className="flex gap-2">
+                      <Input 
+                        id={transSearchId}
+                        placeholder="Enter word to compare (e.g. Logos, Love, Grace)" 
+                        value={transWord}
+                        onChange={(e) => setTransWord(e.target.value)}
+                        className="h-12"
+                      />
+                      <Button type="submit" size="lg" disabled={isLoading}>
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Languages className="h-4 w-4" />}
                       </Button>
                     </form>
                   </CardContent>
                 </Card>
 
                 {transResult && (
-                  <div className="grid gap-6 mt-8 animate-in slide-in-from-bottom-4">
-                    <Card className="border-t-4 border-t-primary">
-                      <CardHeader><CardTitle className="font-headline">Theological Summary</CardTitle></CardHeader>
-                      <CardContent><p className="text-muted-foreground leading-relaxed">{transResult.summary}</p></CardContent>
+                  <div className="space-y-8 animate-in slide-in-from-bottom-4">
+                    <Card className="bg-accent/5 border-accent/20">
+                      <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="font-headline text-2xl">Linguistic Synthesis</CardTitle>
+                        <Button variant="ghost" size="sm" onClick={() => askScholarAboutContext(transResult.summary, 'Translation Comparison')}>
+                          Explain Synthesis <Mic className="h-4 w-4 ml-2" />
+                        </Button>
+                      </CardHeader>
+                      <CardContent><p className="text-muted-foreground leading-relaxed italic">{transResult.summary}</p></CardContent>
                     </Card>
                     <div className="grid gap-4 md:grid-cols-2">
                       {transResult.translations.map((t, i) => (
-                        <Card key={i} className="hover:border-primary/50 transition-colors">
+                        <Card key={i} className="hover:shadow-md transition-shadow">
                           <CardHeader className="pb-2">
                             <Badge variant="secondary" className="w-fit">{t.version}</Badge>
-                            <CardTitle className="text-lg mt-2">{t.translation}</CardTitle>
+                            <CardTitle className="text-2xl mt-2 font-headline">{t.translation}</CardTitle>
                           </CardHeader>
                           <CardContent>
-                            <p className="text-xs text-primary font-serif italic mb-2">{t.originalWord} ({t.transliteration})</p>
-                            <p className="text-sm text-muted-foreground">{t.notes}</p>
+                            <p className="text-sm font-medium text-primary mb-3">Original: {t.originalWord} ({t.transliteration})</p>
+                            <p className="text-sm text-muted-foreground leading-relaxed">{t.notes}</p>
                           </CardContent>
                         </Card>
                       ))}
@@ -578,9 +460,160 @@ export default function Home() {
               </div>
             )}
 
+            {activeTab === 'verse-explorer' && (
+              <div className="space-y-8 animate-in fade-in">
+                <header className="text-center">
+                  <h1 className="text-3xl font-bold font-headline">Verse Analytics</h1>
+                  <p className="text-muted-foreground">Contextual passage analysis powered by live scripture data.</p>
+                </header>
+                <Card className="max-w-2xl mx-auto shadow-md">
+                  <CardContent className="pt-6">
+                    <form onSubmit={handleVerseExploration} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor={verseRefId}>Reference (e.g. John 3:16)</Label>
+                        <Input 
+                          id={verseRefId}
+                          placeholder="Enter a Bible verse..." 
+                          value={verseRef}
+                          onChange={(e) => setVerseRef(e.target.value)}
+                          className="h-12"
+                        />
+                      </div>
+                      <Button className="w-full h-12 text-lg" type="submit" disabled={isLoading}>
+                        {isLoading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Zap className="h-5 w-5 mr-2" />}
+                        Run Deep Analysis
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+
+                {verseExploration && (
+                  <Card className="border-l-4 border-l-primary shadow-xl overflow-hidden">
+                    <CardHeader className="bg-muted/50 border-b flex flex-row justify-between items-center">
+                      <CardTitle className="font-headline text-xl">Scholarly Overview: {verseRef}</CardTitle>
+                      <Button variant="outline" size="sm" onClick={() => askScholarAboutContext(verseExploration, `Analysis of ${verseRef}`)}>
+                        Further Inquiry <Mic className="h-4 w-4 ml-2" />
+                      </Button>
+                    </CardHeader>
+                    <CardContent className="py-8">
+                      <p className="whitespace-pre-wrap leading-relaxed text-muted-foreground text-lg">{verseExploration}</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'scholar-ai' && (
+              <div className="flex flex-col h-[80vh] gap-4 animate-in fade-in">
+                <header className="flex justify-between items-center border-b pb-4">
+                  <div>
+                    <h1 className="text-2xl font-bold font-headline">Scholar AI Engine</h1>
+                    <p className="text-sm text-muted-foreground">Current Context: <span className="text-primary font-medium">{currentContext || 'Ready'}</span></p>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => {setChatHistory([]); setCurrentContext(null);}} className="text-destructive">
+                    Clear Session <Trash2 className="h-4 w-4 ml-2" />
+                  </Button>
+                </header>
+                
+                <Card className="flex-1 flex flex-col bg-muted/5 shadow-inner border-none overflow-hidden">
+                  <ScrollArea className="flex-1 p-6" ref={scrollRef}>
+                    <div className="space-y-6 max-w-3xl mx-auto">
+                      {chatHistory.length === 0 && (
+                        <div className="text-center py-32 text-muted-foreground animate-in zoom-in-95">
+                          <MessageSquare className="h-16 w-16 mx-auto mb-6 opacity-10" />
+                          <h3 className="text-xl font-headline mb-2">How can I assist your research today?</h3>
+                          <p className="text-sm">You can ask about current passages, translation nuances, or historical context.</p>
+                        </div>
+                      )}
+                      {chatHistory.map((m, i) => (
+                        <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-[85%] p-4 rounded-2xl shadow-sm ${
+                            m.role === 'user' 
+                              ? 'bg-primary text-primary-foreground rounded-tr-none' 
+                              : 'bg-card border rounded-tl-none'
+                          }`}>
+                            <p className="text-md whitespace-pre-wrap leading-relaxed">{m.content}</p>
+                          </div>
+                        </div>
+                      ))}
+                      {isLoading && (
+                        <div className="flex justify-start">
+                          <div className="bg-card border p-4 rounded-2xl rounded-tl-none flex items-center gap-3">
+                            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                            <span className="text-sm font-medium italic">Scholar is analyzing...</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </Card>
+
+                <form onSubmit={handleAIChat} className="flex gap-3 max-w-3xl mx-auto w-full">
+                  <div className="flex-1 relative">
+                    <Input 
+                      id={chatInputId}
+                      placeholder="Ask the Scholar AI anything..." 
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      className="h-14 pr-12 rounded-xl shadow-lg"
+                      autoFocus
+                    />
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                      <Mic className="h-5 w-5 text-muted-foreground opacity-50" />
+                    </div>
+                  </div>
+                  <Button type="submit" size="icon" disabled={isLoading || !chatInput.trim()} className="h-14 w-14 rounded-xl shadow-lg">
+                    <Send className="h-6 w-6" />
+                  </Button>
+                </form>
+              </div>
+            )}
+
+            {activeTab === 'history' && (
+              <div className="space-y-6 animate-in fade-in">
+                <header>
+                  <h1 className="text-3xl font-bold font-headline">Research Logs</h1>
+                  <p className="text-muted-foreground">Session history and recently accessed resources.</p>
+                </header>
+                <Card className="shadow-md">
+                  <CardContent className="p-0">
+                    {history.length === 0 ? (
+                      <div className="p-20 text-center text-muted-foreground">
+                        <History className="h-12 w-12 mx-auto mb-4 opacity-10" />
+                        <p>Your journey has just begun. Activity will appear here.</p>
+                      </div>
+                    ) : (
+                      <div className="divide-y">
+                        {history.map(h => (
+                          <div key={h.id} className="p-5 flex justify-between items-center hover:bg-muted/50 cursor-pointer transition-colors group" onClick={() => setActiveTab(h.type as any)}>
+                            <div className="flex gap-4 items-center">
+                              <div className="p-2 bg-muted rounded-full group-hover:bg-primary/10 transition-colors">
+                                <History className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+                              </div>
+                              <div>
+                                <div className="flex gap-2 items-center">
+                                  <Badge variant="outline" className="text-[9px] uppercase tracking-wider">{h.type}</Badge>
+                                  <span className="font-semibold text-lg">{h.term}</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1">{h.date}</p>
+                              </div>
+                            </div>
+                            <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
           </main>
         </SidebarInset>
       </div>
     </SidebarProvider>
   );
 }
+
