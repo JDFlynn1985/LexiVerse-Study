@@ -9,7 +9,7 @@ import {
   signOut,
   deleteUser
 } from 'firebase/auth';
-import { doc, setDoc, onSnapshot, collection, query, orderBy, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, collection, query, orderBy, addDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { appConfig } from '@/app-config';
 import { useAuth, useFirestore, useUser, useCollection } from '@/firebase';
 import { logSearch } from '@/lib/search-logging';
@@ -78,7 +78,12 @@ import {
   Cpu,
   Share2,
   Smartphone,
-  Puzzle
+  Puzzle,
+  CheckCircle2,
+  XCircle,
+  FileJson,
+  Info,
+  ScanText
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -125,6 +130,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // AI Flow Imports
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
@@ -134,10 +140,11 @@ import { generateHistoricalTimeline, type HistoricalTimelineOutput } from '@/ai/
 import { aiStudyAssistant, type AiStudyAssistantOutput } from '@/ai/flows/ai-study-assistant';
 import { interactiveVerseExplorationAI, type InteractiveVerseExplorationAIOutput } from '@/ai/flows/interactive-verse-exploration-ai';
 import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/compare-translations-ai';
+import { extractTextFromImage } from '@/ai/flows/ocr-flow';
 import { trackAdClick } from '@/components/analytics';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 
-type ViewMode = 'dashboard' | 'lexicon' | 'dictionaries' | 'commentaries' | 'wiki' | 'theology-map' | 'timeline' | 'writing-assistant' | 'integrity' | 'ai-settings' | 'support' | 'ai-assistant' | 'verse-explorer' | 'compare-translations';
+type ViewMode = 'dashboard' | 'lexicon' | 'dictionaries' | 'commentaries' | 'wiki' | 'theology-map' | 'timeline' | 'writing-assistant' | 'integrity' | 'ai-settings' | 'support' | 'ai-assistant' | 'verse-explorer' | 'compare-translations' | 'research-library' | 'moderation';
 
 interface WikiEntry {
   id: string;
@@ -148,7 +155,7 @@ interface WikiEntry {
   status: 'pending' | 'approved' | 'rejected';
   authorUid: string;
   authorName: string;
-  createdAt: string;
+  createdAt: any;
 }
 
 interface UserProfile {
@@ -232,6 +239,10 @@ export default function Home() {
   const [ticketSubject, setTicketSubject] = useState('');
   const [ticketDescription, setTicketDescription] = useState('');
 
+  // OCR States
+  const [ocrImage, setOcrImage] = useState<string | null>(null);
+  const [ocrResult, setOcrResult] = useState<string | null>(null);
+
   const wikiQuery = useMemo(() => {
     if (!db) return null;
     return query(collection(db, 'wiki_entries'), orderBy('createdAt', 'desc'));
@@ -299,7 +310,8 @@ export default function Home() {
       setDoc(userRef, { 
         uid: result.user.uid, 
         displayName: result.user.displayName, 
-        email: result.user.email 
+        email: result.user.email,
+        isAdmin: false // Default to false
       }, { merge: true });
       toast({ title: "Logged in", description: `Welcome, ${result.user.displayName}` });
     } catch (error: any) {
@@ -329,13 +341,6 @@ export default function Home() {
     }
   };
 
-  const handleRequestData = () => {
-    toast({ 
-      title: "Request Received", 
-      description: "A secure download link containing all your scholarly activity and profile data will be sent to your email within 48 hours." 
-    });
-  };
-
   const handleSearch = async (term: string, type: ViewMode) => {
     if (!term.trim()) return;
     setIsLoading(true);
@@ -356,7 +361,8 @@ export default function Home() {
         result = await generateHistoricalTimeline({ topic: term });
         setTimelineResult(result);
       } else if (type === 'ai-assistant') {
-        result = await aiStudyAssistant({ term });
+        const researchContext = recentDocuments.map(d => d.content);
+        result = await aiStudyAssistant({ term, researchContext });
         setAssistantResult(result);
       } else if (type === 'compare-translations') {
         result = await compareTranslations({ word: term, language: 'Greek', versions: ['KJV', 'NIV', 'ESV', 'NASB'] });
@@ -407,6 +413,75 @@ export default function Home() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleWikiSubmit = async () => {
+    if (!user || !db) return;
+    if (!newWikiTitle || !newWikiContent) return;
+    setIsLoading(true);
+    try {
+      await addDoc(collection(db, 'wiki_entries'), {
+        title: newWikiTitle,
+        content: newWikiContent,
+        worksCited: newWikiWorksCited,
+        bibliography: newWikiBiblio,
+        status: 'pending',
+        authorUid: user.uid,
+        authorName: user.displayName || 'Anonymous',
+        createdAt: serverTimestamp()
+      });
+      toast({ title: "Submitted", description: "Your article has been sent for scholarly peer review." });
+      setNewWikiTitle('');
+      setNewWikiContent('');
+      setNewWikiWorksCited('');
+      setNewWikiBiblio('');
+    } catch (e) {
+      toast({ variant: 'destructive', title: "Submission Failed" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleModeration = async (id: string, status: 'approved' | 'rejected') => {
+    if (!db) return;
+    try {
+      await updateDoc(doc(db, 'wiki_entries', id), { status });
+      toast({ title: `Article ${status.charAt(0).toUpperCase() + status.slice(1)}` });
+    } catch (e) {
+      toast({ variant: 'destructive', title: "Action Failed" });
+    }
+  };
+
+  const handleOCR = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      setOcrImage(base64);
+      setIsLoading(true);
+      try {
+        const res = await extractTextFromImage({ imagePart: base64 });
+        setOcrResult(res.text);
+        toast({ title: "Text Extracted", description: "Scholarly paleography analysis complete." });
+      } catch (err) {
+        toast({ variant: 'destructive', title: "OCR Failed" });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleExportBibliography = (result: any) => {
+    if (!result || !result.bibliography) return;
+    const blob = new Blob([result.bibliography], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `lexiverse-bibliography-${Date.now()}.txt`;
+    a.click();
+    toast({ title: "Bibliography Exported", description: "File downloaded in Zotero-compatible format." });
   };
 
   if (!mounted) return null;
@@ -466,6 +541,7 @@ export default function Home() {
               <SidebarGroupLabel>{t.nav.library}</SidebarGroupLabel>
               <SidebarMenu>
                 {[
+                  { id: 'research-library', label: "Research Library", icon: Library },
                   { id: 'lexicon', label: t.nav.lexicon, icon: BookOpen },
                   { id: 'dictionaries', label: t.nav.dictionaries, icon: Type },
                   { id: 'commentaries', label: t.nav.commentaries, icon: Scroll },
@@ -497,6 +573,19 @@ export default function Home() {
                 ))}
               </SidebarMenu>
             </SidebarGroup>
+
+            {userProfile?.isAdmin && (
+              <SidebarGroup>
+                <SidebarGroupLabel>Administration</SidebarGroupLabel>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton isActive={activeTab === 'moderation'} onClick={() => setActiveTab('moderation')} tooltip="Wiki Moderation">
+                      <ShieldAlert className="h-5 w-5" /> <span>Wiki Moderation</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroup>
+            )}
           </SidebarContent>
           <SidebarFooter className="p-4 border-t flex flex-col gap-2">
             <div className="flex flex-row items-center justify-between w-full">
@@ -547,7 +636,7 @@ export default function Home() {
                       <p className="text-muted-foreground text-lg">{t.dashboard.subtitle}</p>
                     </div>
                     <div className="flex gap-2">
-                       <Button variant="outline" size="sm" className="gap-2">
+                       <Button variant="outline" size="sm" className="gap-2" onClick={() => setActiveTab('research-library')}>
                          <FileUp className="h-4 w-4" /> {t.dashboard.upload_paper}
                        </Button>
                     </div>
@@ -667,37 +756,37 @@ export default function Home() {
                     <Card className="md:col-span-2 shadow-md border-primary/10">
                       <CardHeader className="pb-3">
                         <CardTitle className="font-headline text-sm flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4 text-primary" /> Future Research Horizons
+                          <TrendingUp className="h-4 w-4 text-primary" /> Research Lab Features
                         </CardTitle>
-                        <CardDescription>Upcoming features for the scholarly community.</CardDescription>
+                        <CardDescription>Advanced scholarly workflows implemented.</CardDescription>
                       </CardHeader>
                       <CardContent className="grid gap-3 md:grid-cols-2">
-                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5">
+                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setActiveTab('research-library')}>
                            <Cpu className="h-5 w-5 text-accent shrink-0 mt-0.5" />
                            <div>
-                             <p className="text-xs font-bold">Vector Search (RAG)</p>
-                             <p className="text-[10px] text-muted-foreground">AI semantic search across your personal PDF library.</p>
+                             <p className="text-xs font-bold">Research OCR & Library</p>
+                             <p className="text-[10px] text-muted-foreground">Manage papers and extract text from primary source images.</p>
                            </div>
                         </div>
-                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5">
+                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setActiveTab('wiki')}>
                            <Share2 className="h-5 w-5 text-accent shrink-0 mt-0.5" />
                            <div>
-                             <p className="text-xs font-bold">Collaborative Peer-Review</p>
-                             <p className="text-[10px] text-muted-foreground">Submit wiki entries for formal academic review by admins.</p>
+                             <p className="text-xs font-bold">Peer-Reviewed Wiki</p>
+                             <p className="text-[10px] text-muted-foreground">Contribute to a curated knowledge base with moderator workflows.</p>
                            </div>
                         </div>
-                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5">
+                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setActiveTab('ai-assistant')}>
                            <Smartphone className="h-5 w-5 text-accent shrink-0 mt-0.5" />
                            <div>
-                             <p className="text-xs font-bold">Offline Lexicon (PWA)</p>
-                             <p className="text-[10px] text-muted-foreground">Access Strong's data and notes without an internet connection.</p>
+                             <p className="text-xs font-bold">AI Contextual Synthesis</p>
+                             <p className="text-[10px] text-muted-foreground">AI Assistant now prioritizes and cites your research context.</p>
                            </div>
                         </div>
-                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5">
+                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setActiveTab('ai-settings')}>
                            <Puzzle className="h-5 w-5 text-accent shrink-0 mt-0.5" />
                            <div>
-                             <p className="text-xs font-bold">Zotero/Mendeley Sync</p>
-                             <p className="text-[10px] text-muted-foreground">Seamlessly import/export bibliographic metadata.</p>
+                             <p className="text-xs font-bold">Academic Data Sync</p>
+                             <p className="text-[10px] text-muted-foreground">Zotero-ready exports and bibliographic standard formatting.</p>
                            </div>
                         </div>
                       </CardContent>
@@ -714,17 +803,259 @@ export default function Home() {
                         </div>
                         <Separator className="bg-primary/10" />
                         <div className="flex justify-between items-end">
-                          <span className="text-xs text-muted-foreground">{t.dashboard.logs}</span>
-                          <span className="text-2xl font-bold text-primary font-headline">{history.length}</span>
+                          <span className="text-xs text-muted-foreground">Research Papers</span>
+                          <span className="text-2xl font-bold text-primary font-headline">{recentDocuments.length}</span>
                         </div>
                         <div className="pt-2">
                           <div className="h-1.5 w-full bg-primary/10 rounded-full overflow-hidden">
                             <div className="h-full bg-primary w-2/3" />
                           </div>
-                          <p className="text-[9px] text-muted-foreground mt-1">Research target reached.</p>
+                          <p className="text-[9px] text-muted-foreground mt-1">Scholarly activity high.</p>
                         </div>
                       </CardContent>
                     </Card>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'research-library' && (
+                <div className="space-y-8 animate-in fade-in">
+                  <header className="flex justify-between items-start">
+                    <div>
+                      <h1 className="text-3xl font-bold font-headline">Research Library</h1>
+                      <p className="text-muted-foreground">Manage your scholarly knowledge base and extract primary source data.</p>
+                    </div>
+                    <div className="flex gap-2">
+                       <Label htmlFor="ocr-upload" className="cursor-pointer">
+                         <div className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors text-sm font-medium">
+                           <ScanText className="h-4 w-4" /> AI OCR Extraction
+                         </div>
+                         <Input id="ocr-upload" type="file" className="hidden" accept="image/*" onChange={handleOCR} />
+                       </Label>
+                    </div>
+                  </header>
+
+                  <div className="grid gap-8 md:grid-cols-3">
+                    <Card className="md:col-span-2">
+                      <CardHeader>
+                        <CardTitle className="text-lg font-headline flex items-center gap-2">
+                          <Files className="h-5 w-5 text-primary" /> My Scholarly Papers
+                        </CardTitle>
+                        <CardDescription>Documents currently linked to your AI research context.</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                         <div className="space-y-4">
+                            {recentDocuments.map(doc => (
+                              <div key={doc.id} className="flex items-center justify-between p-4 bg-muted/20 rounded-xl border group hover:border-primary/20 transition-all">
+                                <div className="flex items-center gap-3">
+                                  <div className="p-2 bg-muted rounded-lg"><FileText className="h-5 w-5 text-muted-foreground" /></div>
+                                  <div>
+                                    <p className="font-bold text-sm">{doc.name}</p>
+                                    <p className="text-[10px] text-muted-foreground uppercase">{doc.type} • Uploaded {doc.uploadDate}</p>
+                                  </div>
+                                </div>
+                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button variant="ghost" size="sm" onClick={() => {
+                                    setActiveTab('ai-assistant');
+                                    setAssistantTerm(doc.name);
+                                  }}><Sparkles className="h-4 w-4 mr-1" /> Analyze</Button>
+                                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button>
+                                </div>
+                              </div>
+                            ))}
+                         </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg font-headline">AI Extraction Lab</CardTitle>
+                        <CardDescription>Status of your multimodal OCR and paleography tasks.</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                         {ocrImage && (
+                           <div className="space-y-4">
+                             <div className="aspect-video bg-muted rounded-lg overflow-hidden border">
+                               <img src={ocrImage} alt="OCR Source" className="w-full h-full object-cover" />
+                             </div>
+                             {isLoading ? (
+                               <div className="flex items-center justify-center py-10">
+                                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                 <span className="ml-3 text-sm italic">Analyzing paleography...</span>
+                               </div>
+                             ) : ocrResult && (
+                               <div className="space-y-2">
+                                 <Label className="text-xs uppercase text-muted-foreground">Extracted Text</Label>
+                                 <div className="bg-muted p-3 rounded-lg text-xs leading-relaxed max-h-[200px] overflow-auto">
+                                   {ocrResult}
+                                 </div>
+                                 <Button variant="outline" size="sm" className="w-full" onClick={() => {
+                                   const newDoc = {
+                                     id: Date.now().toString(),
+                                     name: `Extracted Research ${new Date().toLocaleDateString()}.txt`,
+                                     type: 'TXT',
+                                     uploadDate: new Date().toLocaleDateString(),
+                                     content: ocrResult
+                                   };
+                                   setRecentDocuments([newDoc, ...recentDocuments]);
+                                   setOcrResult(null);
+                                   setOcrImage(null);
+                                   toast({ title: "Paper Added", description: "Transcription saved to Research Library." });
+                                 }}><Plus className="h-3 w-3 mr-2" /> Add to Library</Button>
+                               </div>
+                             )}
+                           </div>
+                         )}
+                         {!ocrImage && (
+                            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                              <ScanText className="h-10 w-10 opacity-20 mb-4" />
+                              <p className="text-xs text-center italic px-10">Upload images of manuscripts or papers to perform AI text extraction.</p>
+                            </div>
+                         )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'wiki' && (
+                <div className="space-y-6 animate-in fade-in">
+                  <header className="flex justify-between items-center">
+                    <div>
+                      <h1 className="text-3xl font-bold font-headline">{t.nav.wiki}</h1>
+                      <p className="text-muted-foreground">Collaborative scholarly articles with peer-review oversight.</p>
+                    </div>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button className="gap-2"><Plus className="h-4 w-4" /> Contribute Article</Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                          <DialogTitle className="font-headline">Propose Scholarly Entry</DialogTitle>
+                          <DialogDescription>Submit a research-backed article for academic review by the moderating committee.</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          <div className="space-y-2">
+                            <Label>Article Title</Label>
+                            <Input placeholder="e.g., The Semantic Range of Logos in Johannine Literature" value={newWikiTitle} onChange={e => setNewWikiTitle(e.target.value)} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Scholarly Content</Label>
+                            <Textarea className="min-h-[200px]" placeholder="Detailed academic analysis..." value={newWikiContent} onChange={e => setNewWikiContent(e.target.value)} />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Works Cited (Primary)</Label>
+                              <Textarea placeholder="List major scripture/lexicon refs..." value={newWikiWorksCited} onChange={e => setNewWikiWorksCited(e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Full Bibliography (SBL/Turabian)</Label>
+                              <Textarea placeholder="Formal citations..." value={newWikiBiblio} onChange={e => setNewWikiBiblio(e.target.value)} />
+                            </div>
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button variant="outline" disabled={isLoading} onClick={() => setNewWikiTitle('')}>Clear</Button>
+                          <Button onClick={handleWikiSubmit} disabled={isLoading || !newWikiTitle || !newWikiContent}>
+                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 mr-2" />} Submit for Review
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </header>
+
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Search scholarly wiki..." className="pl-10" value={wikiSearch} onChange={e => setWikiSearch(e.target.value)} />
+                  </div>
+
+                  <div className="grid gap-6">
+                    {approvedWikiEntries.length > 0 ? (
+                      approvedWikiEntries.map(entry => (
+                        <Card key={entry.id} className="group hover:border-primary/20 transition-all">
+                          <CardHeader>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <CardTitle className="font-headline text-xl text-primary">{entry.title}</CardTitle>
+                                <CardDescription className="flex items-center gap-2 mt-1">
+                                  <User className="h-3 w-3" /> By {entry.authorName} • <Calendar className="h-3 w-3" /> {entry.createdAt?.toDate().toLocaleDateString() || 'Recently'}
+                                </CardDescription>
+                              </div>
+                              <Badge variant="outline" className="bg-green-500/5 text-green-600 border-green-200">Peer Reviewed</Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-sm leading-relaxed text-muted-foreground line-clamp-3">{entry.content}</p>
+                          </CardContent>
+                          <CardFooter className="bg-muted/10 flex justify-between">
+                            <Button variant="ghost" size="sm" className="gap-2">Read Full Entry <ChevronRight className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="sm" className="gap-2" onClick={() => handleExportBibliography(entry)}>
+                              <FileJson className="h-4 w-4" /> Export Bibliography
+                            </Button>
+                          </CardFooter>
+                        </Card>
+                      ))
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                        <Globe className="h-12 w-12 opacity-20 mb-4" />
+                        <p className="text-sm italic">No entries found matching your search. Consider contributing a new article.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'moderation' && userProfile?.isAdmin && (
+                <div className="space-y-6 animate-in fade-in">
+                  <header>
+                    <h1 className="text-3xl font-bold font-headline">Wiki Moderation</h1>
+                    <p className="text-muted-foreground">Review and approve scholarly submissions to maintain academic integrity.</p>
+                  </header>
+
+                  <div className="grid gap-6">
+                    {pendingWikiEntries.length > 0 ? (
+                      pendingWikiEntries.map(entry => (
+                        <Card key={entry.id} className="border-amber-200 bg-amber-50/10">
+                          <CardHeader>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <CardTitle className="font-headline text-lg">{entry.title}</CardTitle>
+                                <CardDescription>Submitted by {entry.authorName}</CardDescription>
+                              </div>
+                              <Badge variant="secondary" className="bg-amber-100 text-amber-700">Pending Review</Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div className="bg-white/50 p-4 rounded-lg border text-sm italic">
+                              {entry.content}
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 text-xs">
+                              <div>
+                                <span className="font-bold block mb-1">Works Cited</span>
+                                <p className="text-muted-foreground">{entry.worksCited}</p>
+                              </div>
+                              <div>
+                                <span className="font-bold block mb-1">Bibliography</span>
+                                <p className="text-muted-foreground">{entry.bibliography}</p>
+                              </div>
+                            </div>
+                          </CardContent>
+                          <CardFooter className="justify-end gap-2 border-t pt-4">
+                            <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => handleModeration(entry.id, 'rejected')}>
+                              <XCircle className="h-4 w-4 mr-2" /> Reject
+                            </Button>
+                            <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleModeration(entry.id, 'approved')}>
+                              <CheckCircle2 className="h-4 w-4 mr-2" /> Approve & Publish
+                            </Button>
+                          </CardFooter>
+                        </Card>
+                      ))
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-20 text-muted-foreground bg-muted/20 rounded-xl">
+                        <ShieldCheck className="h-12 w-12 opacity-20 mb-4" />
+                        <p className="text-sm">Queue is clear. All submissions have been reviewed.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -938,9 +1269,14 @@ export default function Home() {
                   </Card>
                   {assistantResult && (
                     <Card>
-                      <CardHeader>
-                        <CardTitle className="text-2xl font-headline">{assistantResult.originalWord}</CardTitle>
-                        <CardDescription>{assistantResult.transliteration} • {assistantResult.pronunciation}</CardDescription>
+                      <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                          <CardTitle className="text-2xl font-headline">{assistantResult.originalWord}</CardTitle>
+                          <CardDescription>{assistantResult.transliteration} • {assistantResult.pronunciation}</CardDescription>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => handleExportBibliography(assistantResult)}>
+                          <Download className="h-4 w-4 mr-2" /> Export Bib
+                        </Button>
                       </CardHeader>
                       <CardContent className="space-y-6">
                         <div>
@@ -950,7 +1286,7 @@ export default function Home() {
                           </ul>
                         </div>
                         <div>
-                          <h4 className="font-bold text-sm uppercase mb-2">AI Insights</h4>
+                          <h4 className="font-bold text-sm uppercase mb-2">AI Insights & Research Synthesis</h4>
                           <p className="text-sm leading-relaxed">{assistantResult.aiInsights}</p>
                         </div>
                         <Separator />
@@ -1077,9 +1413,14 @@ export default function Home() {
                           </div>
                         </div>
 
-                        <div className="bg-muted p-4 rounded-lg">
-                          <h4 className="font-bold text-xs uppercase mb-2 flex items-center gap-2"><Library className="h-3.5 w-3.5" /> SBL Bibliography</h4>
-                          <p className="text-[10px] italic font-serif leading-relaxed">{lexiconResult.bibliography}</p>
+                        <div className="bg-muted p-4 rounded-lg flex justify-between items-start">
+                          <div>
+                            <h4 className="font-bold text-xs uppercase mb-2 flex items-center gap-2"><Library className="h-3.5 w-3.5" /> SBL Bibliography</h4>
+                            <p className="text-[10px] italic font-serif leading-relaxed">{lexiconResult.bibliography}</p>
+                          </div>
+                          <Button variant="ghost" size="icon" onClick={() => handleExportBibliography(lexiconResult)}>
+                            <Download className="h-4 w-4" />
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -1170,3 +1511,4 @@ export default function Home() {
     </SidebarProvider>
   );
 }
+

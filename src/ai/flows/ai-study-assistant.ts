@@ -3,6 +3,7 @@
  * @fileOverview Comprehensive AI Study Assistant for in-depth biblical research.
  * Orchestrates scripture term analysis and generates structured academic reports,
  * incorporating user-uploaded research papers as additional context.
+ * Adopts an expert scholarly persona speaking to a seminary student.
  */
 
 import { ai } from '@/ai/genkit';
@@ -42,8 +43,8 @@ const AiStudyAssistantOutputSchema = z.object({
   commentaryInsights: z.string().describe('Summary of commentary insights.'),
   verseUsages: z.array(z.string()).describe('Verses where the word is used.'),
   translationVariations: z.array(z.string()).describe('Variations across versions.'),
-  aiInsights: z.string().describe('AI-generated insights including simulated neuromorphic results.'),
-  bibliography: z.string().describe('Academic bibliography of sources.'),
+  aiInsights: z.string().describe('AI-generated insights including simulated neuromorphic results and synthesis of uploaded research.'),
+  bibliography: z.string().describe('Academic bibliography of sources in SBL or Turabian style.'),
 });
 
 export type AiStudyAssistantOutput = z.infer<typeof AiStudyAssistantOutputSchema>;
@@ -74,14 +75,14 @@ Aggregated Data: {{{aggregatedData}}}
 Neuromorphic Insight: {{{brainJsInsight}}}
 
 {{#if researchContext}}
-User-Uploaded Research Context:
+User-Uploaded Research Context (RAG):
 ---
 {{{researchContext}}}
 ---
-Ensure you integrate insights from the uploaded research papers into the analysis where appropriate, acknowledging the user's existing research framework.
+Your task is to integrate insights from the user's uploaded research papers into the final analysis. Explicitly cite "User Research" or "Internal Knowledge Base" when drawing from these papers. Combine your general scholarly knowledge with the specific nuances found in their papers to provide a personalized synthesis.
 {{/if}}
 
-Ensure the response follows the AiStudyAssistantOutputSchema exactly. Provide real scripture citations if relevant. Structure the report for high-level academic review, focusing on linguistic precision and theological depth.`,
+Ensure the response follows the AiStudyAssistantOutputSchema exactly. Provide real scripture citations where relevant. Structure the report for high-level academic review, focusing on linguistic precision and theological depth.`,
 });
 
 const aiStudyAssistantFlow = ai.defineFlow(
