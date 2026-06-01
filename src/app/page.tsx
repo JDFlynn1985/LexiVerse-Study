@@ -82,11 +82,12 @@ import {
   Clock,
   File,
   StickyNote,
-  Image as ImageIcon,
+  ImageIcon,
   Eye,
   Cloud,
   FolderOpen,
-  Images as ImagesIcon
+  Images as ImagesIcon,
+  ScanText
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -128,6 +129,7 @@ import { interactiveVerseExplorationAI } from '@/ai/flows/interactive-verse-expl
 import { refineWriting, type WritingAssistantOutput } from '@/ai/flows/writing-assistant-ai';
 import { formatBibliography, type FormatBibliographyOutput } from '@/ai/flows/format-bibliography-ai';
 import { checkIntegrity, type AcademicIntegrityOutput } from '@/ai/flows/academic-integrity-ai';
+import { extractTextFromImage } from '@/ai/flows/ocr-flow';
 import { getVersions, getChapterContent, parseReference, type BibleVersion, type BibleChapter } from '@/lib/bible-api';
 
 type ViewMode = 'dashboard' | 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers' | 'gallery' | 'writing-assistant' | 'integrity';
@@ -155,6 +157,7 @@ interface ResearchPaper {
   author?: string;
   date: string;
   driveFileId?: string;
+  extractedText?: string;
 }
 
 interface SessionItem {
@@ -216,7 +219,7 @@ export default function Home() {
   const [integrityResult, setIntegrityResult] = useState<AcademicIntegrityOutput | null>(null);
 
   const galleryImages = useMemo(() => {
-    return researchPapers.filter(p => ['png', 'jpg', 'jpeg', 'webp'].includes(p.format));
+    return researchPapers.filter(p => isImage(p.format));
   }, [researchPapers]);
 
   useEffect(() => {
@@ -342,7 +345,7 @@ export default function Home() {
         if (!paper) return;
         name = paper.title;
         content = paper.content;
-        if (['png', 'jpg', 'jpeg', 'webp'].includes(paper.format)) {
+        if (isImage(paper.format)) {
           mimeType = `image/${paper.format === 'jpg' ? 'jpeg' : paper.format}`;
           const blob = await (await fetch(paper.content)).blob();
           const metadata = { name, parents: [driveFolderId] };
@@ -440,11 +443,18 @@ export default function Home() {
     setIsLoading(true);
 
     try {
+      // Include extracted OCR text in context
+      const context = researchPapers.map(p => {
+        let text = p.content;
+        if (p.extractedText) text += `\n[EXTRACTED FROM IMAGE]: ${p.extractedText}`;
+        return text;
+      }).slice(0, 3);
+
       const result = await interactiveVerseExplorationAI({
         term: strongsTerm || 'Bible Study',
         question: chatInput,
         history: chatHistory,
-        researchContext: researchPapers.map(p => p.content).slice(0, 3)
+        researchContext: context
       });
       setChatHistory(prev => [...prev, { role: 'model', content: result.response }]);
     } catch (error) {
@@ -479,7 +489,7 @@ export default function Home() {
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.extractRawText({ arrayBuffer });
         content = result.value;
-      } else if (['png', 'jpg', 'jpeg', 'webp'].includes(ext || '')) {
+      } else if (isImage(ext || '')) {
         format = ext as any;
         const reader = new FileReader();
         content = await new Promise((resolve, reject) => {
@@ -501,6 +511,72 @@ export default function Home() {
       toast({ title: "Document Added", description: `${file.name} is now available in library.` });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Upload Failed' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePerformOCR = async (paperId: string) => {
+    const paper = researchPapers.find(p => p.id === paperId);
+    if (!paper || !isImage(paper.format)) return;
+
+    setIsLoading(true);
+    try {
+      const result = await extractTextFromImage({ imagePart: paper.content });
+      const updated = researchPapers.map(p => 
+        p.id === paperId ? { ...p, extractedText: result.text } : p
+      );
+      setResearchPapers(updated);
+      localStorage.setItem('lexiverse_papers', JSON.stringify(updated));
+      toast({ title: "OCR Complete", description: "Text has been extracted and indexed for Scholar AI." });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'OCR Failed', description: "Could not extract text from this image." });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleWritingRefinement = async () => {
+    if (!writingInput.trim()) return;
+    setIsLoading(true);
+    try {
+      const result = await refineWriting({ text: writingInput, mode: 'academic' });
+      setWritingResult(result);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Refinement Failed' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleIntegrityScan = async () => {
+    if (!integrityInput.trim()) return;
+    setIsLoading(true);
+    try {
+      const result = await checkIntegrity({ 
+        text: integrityInput, 
+        researchContext: researchPapers.map(p => p.content).slice(0, 3) 
+      });
+      setIntegrityResult(result);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Integrity Scan Failed' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleTranslationComparison = async () => {
+    if (!transWord.trim()) return;
+    setIsLoading(true);
+    try {
+      const result = await compareTranslations({ 
+        word: transWord, 
+        language: 'Greek/Hebrew', 
+        versions: selectedVersions 
+      });
+      setTransResult(result);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Comparison Failed' });
     } finally {
       setIsLoading(false);
     }
@@ -684,7 +760,7 @@ export default function Home() {
                           {researchPapers.slice(0, 4).map(paper => (
                             <div key={paper.id} className="flex items-center p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer group" onClick={() => { setActiveTab(isImage(paper.format) ? 'gallery' : 'papers'); }}>
                               <div className={`p-2 rounded bg-muted group-hover:bg-background transition-colors mr-3`}>
-                                {['png', 'jpg', 'jpeg', 'webp'].includes(paper.format) ? <ImageIcon className="h-4 w-4" /> : <FileCode className="h-4 w-4" />}
+                                {isImage(paper.format) ? <ImageIcon className="h-4 w-4" /> : <FileCode className="h-4 w-4" />}
                               </div>
                               <div className="flex-1 overflow-hidden">
                                 <p className="text-sm font-semibold truncate">{paper.title}</p>
@@ -737,42 +813,6 @@ export default function Home() {
                     </CardContent>
                   </Card>
                 </div>
-
-                <div className="grid gap-6 md:grid-cols-3">
-                  <Card className="hover:border-primary/50 transition-colors cursor-pointer group" onClick={() => setActiveTab('gallery')}>
-                    <CardHeader className="flex flex-row items-center gap-4">
-                      <div className="bg-primary/10 p-3 rounded-full group-hover:bg-primary/20 transition-colors">
-                        <ImagesIcon className="h-6 w-6 text-primary" />
-                      </div>
-                      <div className="space-y-0.5">
-                        <CardTitle className="text-lg">Visual Gallery</CardTitle>
-                        <CardDescription className="text-xs">View archaeological media and charts.</CardDescription>
-                      </div>
-                    </CardHeader>
-                  </Card>
-                  <Card className="hover:border-primary/50 transition-colors cursor-pointer group" onClick={() => setActiveTab('scholar-ai')}>
-                    <CardHeader className="flex flex-row items-center gap-4">
-                      <div className="bg-primary/10 p-3 rounded-full group-hover:bg-primary/20 transition-colors">
-                        <MessageSquare className="h-6 w-6 text-primary" />
-                      </div>
-                      <div className="space-y-0.5">
-                        <CardTitle className="text-lg">Scholar AI</CardTitle>
-                        <CardDescription className="text-xs">Analyze your entire dataset.</CardDescription>
-                      </div>
-                    </CardHeader>
-                  </Card>
-                  <Card className="hover:border-primary/50 transition-colors cursor-pointer group" onClick={() => setActiveTab('writing-assistant')}>
-                    <CardHeader className="flex flex-row items-center gap-4">
-                      <div className="bg-primary/10 p-3 rounded-full group-hover:bg-primary/20 transition-colors">
-                        <Edit3 className="h-6 w-6 text-primary" />
-                      </div>
-                      <div className="space-y-0.5">
-                        <CardTitle className="text-lg">Writing Desk</CardTitle>
-                        <CardDescription className="text-xs">Refine your latest academic draft.</CardDescription>
-                      </div>
-                    </CardHeader>
-                  </Card>
-                </div>
               </div>
             )}
 
@@ -790,7 +830,7 @@ export default function Home() {
                 {galleryImages.length > 0 ? (
                   <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     {galleryImages.map(img => (
-                      <Card key={img.id} className="group overflow-hidden bg-muted/20">
+                      <Card key={img.id} className="group overflow-hidden bg-muted/20 flex flex-col">
                         <div className="aspect-[4/3] w-full overflow-hidden relative">
                           <img src={img.content} alt={img.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
@@ -803,6 +843,11 @@ export default function Home() {
                                   <div className="p-4 bg-background/80 backdrop-blur-md text-center">
                                     <h3 className="font-headline font-bold text-lg">{img.title}</h3>
                                     <p className="text-xs text-muted-foreground italic">Reference Item • {img.date}</p>
+                                    {img.extractedText && (
+                                      <ScrollArea className="h-32 mt-4 text-left p-2 bg-muted/50 rounded text-xs leading-relaxed">
+                                        <div className="font-mono">{img.extractedText}</div>
+                                      </ScrollArea>
+                                    )}
                                   </div>
                                 </DialogContent>
                              </Dialog>
@@ -811,12 +856,28 @@ export default function Home() {
                              )}
                           </div>
                         </div>
-                        <CardContent className="p-4">
+                        <CardContent className="p-4 flex-1">
                           <div className="flex justify-between items-start gap-2">
                             <p className="text-sm font-semibold truncate flex-1">{img.title}</p>
                             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{img.format.toUpperCase()}</Badge>
                           </div>
                           <p className="text-[10px] text-muted-foreground mt-1">Captured: {img.date}</p>
+                          {img.extractedText ? (
+                            <div className="mt-3 flex items-center gap-1.5 text-[10px] text-emerald-600 font-bold">
+                              <Check className="h-3 w-3" /> Text Extracted
+                            </div>
+                          ) : (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="w-full mt-3 h-8 text-[10px] gap-2" 
+                              onClick={() => handlePerformOCR(img.id)}
+                              disabled={isLoading}
+                            >
+                              {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <ScanText className="h-3 w-3" />}
+                              Scan for Text (OCR)
+                            </Button>
+                          )}
                         </CardContent>
                       </Card>
                     ))}
@@ -1083,7 +1144,7 @@ export default function Home() {
                   </div>
                 </header>
                 <div className="grid gap-4 md:grid-cols-3">
-                  {researchPapers.filter(p => !['png', 'jpg', 'jpeg', 'webp'].includes(p.format)).map(paper => (
+                  {researchPapers.filter(p => !isImage(p.format)).map(paper => (
                     <Card key={paper.id} className="group overflow-hidden">
                       <div className={`h-1 w-full ${
                         paper.format === 'pdf' ? 'bg-red-500' : 
@@ -1261,7 +1322,6 @@ export default function Home() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>External Workspaces</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => {
                   const selection = window.getSelection()?.toString();
@@ -1289,4 +1349,4 @@ export default function Home() {
   );
 }
 
-const isImage = (format: string) => ['png', 'jpg', 'jpeg', 'webp'].includes(format);
+const isImage = (format: string) => ['png', 'jpg', 'jpeg', 'webp'].includes(format.toLowerCase());

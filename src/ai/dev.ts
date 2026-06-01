@@ -12,4 +12,5 @@ import '@/ai/flows/interactive-verse-exploration-ai.ts';
 import '@/ai/flows/writing-assistant-ai.ts';
 import '@/ai/flows/format-bibliography-ai.ts';
 import '@/ai/flows/academic-integrity-ai.ts';
+import '@/ai/flows/ocr-flow.ts';
 
