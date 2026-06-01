@@ -61,7 +61,12 @@ import {
   FileText,
   FileSearch,
   FileUp,
-  Files
+  Files,
+  User,
+  MapPin,
+  Calendar,
+  Zap,
+  Hammer
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -214,7 +219,6 @@ export default function Home() {
     if (savedDocs) {
       setRecentDocuments(JSON.parse(savedDocs));
     } else {
-      // Seed with sample scholarly docs for first-time view
       const samples: ResearchDocument[] = [
         { id: '1', name: 'Analysis of Hellenistic Syncretism.pdf', type: 'PDF', uploadDate: new Date().toLocaleDateString(), content: 'The convergence of Greek and Jewish thought...' },
         { id: '2', name: 'Pauline Eschatology Draft.docx', type: 'DOCX', uploadDate: new Date().toLocaleDateString(), content: 'Investigating the "Already/Not Yet" tension...' }
@@ -380,6 +384,17 @@ export default function Home() {
       setTicketSubject('');
       setTicketDescription('');
     }, 1500);
+  };
+
+  const getClassificationIcon = (type: string) => {
+    switch (type) {
+      case 'Person': return <User className="h-3 w-3" />;
+      case 'Place': return <MapPin className="h-3 w-3" />;
+      case 'Event': return <Calendar className="h-3 w-3" />;
+      case 'Promise': return <Zap className="h-3 w-3" />;
+      case 'Command': return <Hammer className="h-3 w-3" />;
+      default: return null;
+    }
   };
 
   if (!mounted) return null;
@@ -800,10 +815,21 @@ export default function Home() {
                       <Card className="border-primary/20 shadow-md">
                         <CardHeader className="bg-primary/5 border-b">
                           <div className="flex justify-between items-start">
-                            <div>
-                              <Badge variant="outline" className="mb-2 uppercase text-[10px] tracking-widest">{lexiconResult.searchStrongNumber}</Badge>
+                            <div className="space-y-2">
+                              <Badge variant="outline" className="uppercase text-[10px] tracking-widest">{lexiconResult.searchStrongNumber}</Badge>
                               <CardTitle className="text-4xl font-headline text-primary">{lexiconResult.originalWord}</CardTitle>
-                              <CardDescription className="text-lg">{lexiconResult.transliteration} • {lexiconResult.pronunciation}</CardDescription>
+                              <CardDescription className="text-lg flex flex-wrap gap-x-4 gap-y-1 items-center">
+                                <span>{lexiconResult.transliteration} • {lexiconResult.pronunciation}</span>
+                                <Badge variant="secondary" className="font-bold">{lexiconResult.partOfSpeech}</Badge>
+                                <div className="flex gap-1">
+                                  {lexiconResult.classification.map((type) => (
+                                    <Badge key={type} variant="outline" className="bg-primary/5 text-primary border-primary/20 flex items-center gap-1">
+                                      {getClassificationIcon(type)}
+                                      {type}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </CardDescription>
                             </div>
                             <Button variant="ghost" size="sm" className="gap-2" onClick={() => setActiveTab('ai-assistant')}>
                               <Sparkles className="h-4 w-4" /> Synthesis
@@ -811,7 +837,6 @@ export default function Home() {
                           </div>
                         </CardHeader>
                         <CardContent className="pt-6 space-y-8">
-                          {/* Dictionary & Lexical Data */}
                           <div className="grid md:grid-cols-2 gap-8">
                             <div className="space-y-4">
                               <h4 className="font-bold text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><BookOpen className="h-3 w-3" /> Dictionary Entry</h4>
@@ -825,7 +850,6 @@ export default function Home() {
 
                           <Separator />
 
-                          {/* AI Overview & Historical Connotations */}
                           <div className="grid md:grid-cols-2 gap-8">
                              <div className="space-y-4 p-4 bg-primary/5 rounded-xl border border-primary/10">
                               <h4 className="font-bold text-xs uppercase tracking-widest flex items-center gap-2 text-primary"><Sparkles className="h-3 w-3" /> AI Overview</h4>
@@ -839,7 +863,6 @@ export default function Home() {
 
                           <Separator />
 
-                          {/* Detailed Verse Occurrences */}
                           <div className="space-y-6">
                             <h4 className="font-bold text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><FileText className="h-3 w-3" /> Scriptural Occurrences</h4>
                             <div className="space-y-4">
@@ -865,7 +888,6 @@ export default function Home() {
                             </div>
                           </div>
 
-                          {/* Roots & Bibliography */}
                           <div className="grid md:grid-cols-2 gap-8 pt-4">
                             {lexiconResult.roots && lexiconResult.roots.length > 0 && (
                               <div className="space-y-4">

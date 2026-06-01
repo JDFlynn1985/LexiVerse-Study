@@ -1,7 +1,7 @@
 'use server';
 /**
  * @fileOverview This flow defines and analyzes Greek or Hebrew terms based on Strong's numbers.
- * Enhanced to provide full verse text and contextual nuances for seminary students.
+ * Enhanced to provide full verse text, contextual nuances, part of speech, and classifications (Person, Place, Event, Promise, Command).
  *
  * - defineAndAnalyzeTerm - A function that takes a Strong's number and retrieves detailed information about the term.
  * - DefineAndAnalyzeTermInput - The input type for the defineAndAnalyzeTerm function.
@@ -41,6 +41,8 @@ const DefineAndAnalyzeTermOutputSchema = z.object({
   originalWord: z.string().describe('The original Greek, Hebrew, or Aramaic word in its proper alphabet.'),
   transliteration: z.string().describe('The transliteration of the original word.'),
   pronunciation: z.string().describe('The pronunciation guide for the original word.'),
+  partOfSpeech: z.string().describe('The grammatical part of speech (e.g., Noun, Verb, Adjective).'),
+  classification: z.array(z.enum(['Person', 'Place', 'Event', 'Promise', 'Command', 'Concept', 'Object', 'Action'])).describe('The classification of the term (is it a person, place, event, etc.).'),
   definition: z.string().describe('The primary dictionary-style definition of the term.'),
   lexicalData: z.string().optional().describe('Deep lexical data (morphology, usage) associated with the term.'),
   historicalConnotations: z.string().describe('Analysis of historical and cultural connotations of the term.'),
@@ -64,16 +66,18 @@ Your analysis must be tailored for a seminary student, assuming a high level of 
 Requirements:
 1. Provide the original word IN ITS PROPER GREEK, HEBREW, OR ARAMAIC ALPHABET (e.g., λόγος or בְּרֵאשִׁית).
 2. Provide a precise transliteration and a phonetic pronunciation guide.
-3. Provide a detailed dictionary entry and lexical breakdown using standard scholarly references.
-4. Synthesize an "AI Overview" summary of the term's theological significance in a formal, academic tone.
-5. Deeply explore the historical and cultural connotations (how it was understood in its original time).
-6. Find MAJOR verses where this term is used. For each verse:
+3. Identify the PART OF SPEECH clearly (e.g., Noun, Verb, Adjective).
+4. Classify the term: indicate if it primarily refers to a PERSON, PLACE, EVENT, PROMISE, or COMMAND. If multiple apply or it's a general concept, list them.
+5. Provide a detailed dictionary entry and lexical breakdown using standard scholarly references.
+6. Synthesize an "AI Overview" summary of the term's theological significance in a formal, academic tone.
+7. Deeply explore the historical and cultural connotations (how it was understood in its original time).
+8. Find MAJOR verses where this term is used. For each verse:
    - Provide the full text of the verse.
    - Provide the specific nuance of the term in that context.
    - Provide a simulated reference link for our "Verse Explorer".
-7. Trace etymological roots with precision.
-8. Provide insights from classical scholarly commentaries.
-9. Format an SBL bibliography.
+9. Trace etymological roots with precision.
+10. Provide insights from classical scholarly commentaries.
+11. Format an SBL bibliography.
 
 Speak as a mentor to a seminary student throughout the response. Format your response strictly as JSON adhering to the DefineAndAnalyzeTermOutputSchema.`,
     output: {
