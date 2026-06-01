@@ -16,13 +16,14 @@ export type CompareTranslationsInput = z.infer<typeof CompareTranslationsInputSc
 const TranslationDetailSchema = z.object({
   version: z.string().describe('The name of the Bible version.'),
   translation: z.string().describe('How the word is translated in this version.'),
-  originalWord: z.string().optional().describe('The original Greek/Hebrew word found in this version.'),
+  originalWord: z.string().optional().describe('The original Greek/Hebrew word in its proper alphabet.'),
   transliteration: z.string().optional().describe('The transliteration of the original word.'),
+  pronunciation: z.string().optional().describe('The pronunciation of the original word.'),
   notes: z.string().optional().describe('Nuances about this translation.'),
 });
 
 const CompareTranslationsOutputSchema = z.object({
-  originalWord: z.string().describe('The original input word.'),
+  originalWord: z.string().describe('The original input word in its source alphabet.'),
   language: z.string().describe('The source language of the word.'),
   versionsCompared: z.array(z.string()).describe('The list of versions compared.'),
   translations: z.array(TranslationDetailSchema).describe('Details of how the word is translated in each specified version.'),
@@ -42,8 +43,12 @@ const compareTranslationsPrompt = ai.definePrompt({
   prompt: `You are an expert biblical linguist and translator. Compare the translation of '{{word}}' ({{language}}) across these versions: {{#each versions}}{{{this}}}, {{/each}}.
 Your analysis must be structured for a seminary student, focusing on the translational philosophy and theological nuance of each version.
 
+Requirements:
+1. Include the original Greek or Hebrew word in its correct ALPHABET for every instance where an original word is referenced.
+2. Provide transliterations and pronunciations for all original terms.
+3. Address the user as a fellow scholar-in-training with formal academic rigor.
+
 Simulate fetching translations and providing original terms. Highlight theological nuances and differences in translation philosophy.
-Address the user as a fellow scholar-in-training.
 
 Format strictly as JSON adhering to CompareTranslationsOutputSchema.`,
 });

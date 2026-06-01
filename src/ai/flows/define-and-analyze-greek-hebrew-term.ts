@@ -38,7 +38,7 @@ const VerseOccurrenceSchema = z.object({
 
 const DefineAndAnalyzeTermOutputSchema = z.object({
   searchStrongNumber: z.string().describe("The Strong's number that was searched for."),
-  originalWord: z.string().describe('The original Greek, Hebrew, or Aramaic word.'),
+  originalWord: z.string().describe('The original Greek, Hebrew, or Aramaic word in its proper alphabet.'),
   transliteration: z.string().describe('The transliteration of the original word.'),
   pronunciation: z.string().describe('The pronunciation guide for the original word.'),
   definition: z.string().describe('The primary dictionary-style definition of the term.'),
@@ -59,21 +59,23 @@ export async function defineAndAnalyzeTerm(input: DefineAndAnalyzeTermInput): Pr
   const { output } = await ai.generate({
     model: selectedModel,
     prompt: `You are an expert biblical scholar specializing in ancient languages. Perform a comprehensive analysis of the Strong's number: ${input.strongsNumber}.
-Your analysis must be tailored for a seminary student, assuming a high level of linguistic interest and theological depth.
+Your analysis must be tailored for a seminary student, assuming a high level of linguistic interest and theological depth. 
 
 Requirements:
-1. Provide a detailed dictionary entry and lexical breakdown using standard scholarly references.
-2. Synthesize an "AI Overview" summary of the term's theological significance in a formal, academic tone.
-3. Deeply explore the historical and cultural connotations (how it was understood in its original time).
-4. Find EVERY major verse where this term is used. For each verse:
+1. Provide the original word IN ITS PROPER GREEK, HEBREW, OR ARAMAIC ALPHABET (e.g., λόγος or בְּרֵאשִׁית).
+2. Provide a precise transliteration and a phonetic pronunciation guide.
+3. Provide a detailed dictionary entry and lexical breakdown using standard scholarly references.
+4. Synthesize an "AI Overview" summary of the term's theological significance in a formal, academic tone.
+5. Deeply explore the historical and cultural connotations (how it was understood in its original time).
+6. Find MAJOR verses where this term is used. For each verse:
    - Provide the full text of the verse.
    - Provide the specific nuance of the term in that context.
    - Provide a simulated reference link for our "Verse Explorer".
-5. Trace etymological roots with precision.
-6. Provide insights from classical scholarly commentaries.
-7. Format an SBL bibliography.
+7. Trace etymological roots with precision.
+8. Provide insights from classical scholarly commentaries.
+9. Format an SBL bibliography.
 
-Format your response strictly as JSON adhering to the DefineAndAnalyzeTermOutputSchema.`,
+Speak as a mentor to a seminary student throughout the response. Format your response strictly as JSON adhering to the DefineAndAnalyzeTermOutputSchema.`,
     output: {
       schema: DefineAndAnalyzeTermOutputSchema,
     }

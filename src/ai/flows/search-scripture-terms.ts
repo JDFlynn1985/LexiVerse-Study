@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview A flow for searching scripture terms, integrating data from various sources.
@@ -17,12 +16,13 @@ const SearchScriptureTermInputSchema = z.object({
 export type SearchScriptureTermInput = z.infer<typeof SearchScriptureTermInputSchema>;
 
 const SearchScriptureTermOutputSchema = z.object({
+  originalWord: z.string().describe('The word in its original Greek or Hebrew alphabet.'),
   definition: z.string().describe('The definition of the term.'),
   lexicalData: z.string().describe('Lexical data associated with the term.'),
   transliteration: z.string().describe('The transliteration of the term.'),
   pronunciation: z.string().describe('The pronunciation of the term.'),
   rootData: z.object({
-    rootTerm: z.string().describe('The root term.'),
+    rootTerm: z.string().describe('The root term in its original alphabet.'),
     rootDefinition: z.string().describe('The definition of the root term.'),
     rootLexicalData: z.string().describe('Lexical data for the root term.'),
   }).optional(),
@@ -47,22 +47,23 @@ const prompt = ai.definePrompt({
   output: {
     schema: SearchScriptureTermOutputSchema,
   },
-  prompt: `You are a biblical scholar specializing in ancient languages.
+  prompt: `You are a biblical scholar specializing in ancient languages. Speak to the user as a dedicated seminary student.
 
 You will search for the provided term: '{{term}}'.
 
 Your task is to provide the following information:
+- The original word in its proper GREEK, HEBREW, or ARAMAIC ALPHABET.
 - Definition of the term.
 - Lexical data associated with the term.
 - Transliteration of the term.
 - Pronunciation of the term.
 
 Additionally, if possible, trace the word's roots and provide:
-- The root term.
+- The root term in its proper alphabet.
 - The definition of the root term.
 - Lexical data for the root term.
 
-Finally, list all scripture references where the term is used.
+Finally, list scripture references where the term is used.
 
 Search for data from BlueLetterBible.com and the YouVersion API. Format your response according to the SearchScriptureTermOutputSchema.`,
 });

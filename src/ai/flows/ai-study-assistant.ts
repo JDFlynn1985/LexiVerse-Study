@@ -34,7 +34,7 @@ const AiStudyAssistantInputSchema = z.object({
 export type AiStudyAssistantInput = z.infer<typeof AiStudyAssistantInputSchema>;
 
 const AiStudyAssistantOutputSchema = z.object({
-  originalWord: z.string().describe('The original Greek, Hebrew, or Aramaic word.'),
+  originalWord: z.string().describe('The original Greek, Hebrew, or Aramaic word in its proper alphabet.'),
   transliteration: z.string().describe('The transliteration.'),
   pronunciation: z.string().describe('The pronunciation guide.'),
   definitions: z.array(z.string()).describe('List of definitions.'),
@@ -65,6 +65,10 @@ const studyAssistantPrompt = ai.definePrompt({
 Your task is to synthesize the following aggregated data into a comprehensive academic report.
 Always speak to the user as if they are a dedicated seminary student, maintaining high academic rigor and formal theological tone.
 
+Requirements:
+1. Always include the word in its original GREEK or HEBREW ALPHABET in the originalWord field.
+2. Provide a precise transliteration and pronunciation.
+3. Use the following data as your basis:
 Term: {{term}}
 Aggregated Data: {{{aggregatedData}}}
 Neuromorphic Insight: {{{brainJsInsight}}}
