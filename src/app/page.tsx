@@ -140,6 +140,9 @@ export default function Home() {
     customApiKey: ''
   });
 
+  // Sidebar Quick Search State
+  const [sidebarSearchTerm, setSidebarSearchTerm] = useState('');
+
   // Search States
   const [strongsTerm, setStrongsTerm] = useState('');
   const [lexiconResult, setLexiconResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
@@ -267,6 +270,24 @@ export default function Home() {
     }
   };
 
+  const handleSidebarSearch = () => {
+    if (!sidebarSearchTerm.trim()) return;
+    
+    // Routing Logic: Strong's numbers (G/H followed by digits) go to Lexicon, else AI Assistant
+    const isStrongs = /^[GH]\d+/.test(sidebarSearchTerm.trim().toUpperCase());
+    
+    if (isStrongs) {
+      setActiveTab('lexicon');
+      setStrongsTerm(sidebarSearchTerm);
+      handleSearch(sidebarSearchTerm, 'lexicon');
+    } else {
+      setActiveTab('ai-assistant');
+      setAssistantTerm(sidebarSearchTerm);
+      handleSearch(sidebarSearchTerm, 'ai-assistant');
+    }
+    setSidebarSearchTerm('');
+  };
+
   const handleVerseExplore = async () => {
     if (!explorerQuestion.trim()) return;
     setIsLoading(true);
@@ -343,6 +364,19 @@ export default function Home() {
             <div className="flex items-center gap-2 px-2 py-4">
               <div className="bg-primary text-primary-foreground p-1.5 rounded-lg shadow-md"><Globe className="h-6 w-6" /></div>
               <span className="text-xl font-bold font-headline group-data-[collapsible=icon]:hidden">LexiVerse</span>
+            </div>
+            {/* Sidebar Quick Search */}
+            <div className="px-2 pb-4 group-data-[collapsible=icon]:hidden">
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Lexicon or AI query..."
+                  className="pl-8 bg-muted/50 border-none h-9 text-xs focus-visible:ring-primary/30"
+                  value={sidebarSearchTerm}
+                  onChange={(e) => setSidebarSearchTerm(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSidebarSearch()}
+                />
+              </div>
             </div>
           </SidebarHeader>
           <SidebarContent>
