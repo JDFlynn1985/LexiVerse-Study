@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useId, useRef, useMemo } from 'react';
@@ -98,7 +97,9 @@ import {
   Network,
   Milestone,
   Map as MapIcon,
-  BookMarked
+  BookMarked,
+  LifeBuoy,
+  HelpCircle
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -147,7 +148,7 @@ import { searchCommentariesForContext, type SearchCommentariesOutput } from '@/a
 import { getVersions, getChapterContent, parseReference, type BibleVersion, type BibleChapter } from '@/lib/bible-api';
 import { trackAdClick } from '@/components/analytics';
 
-type ViewMode = 'dashboard' | 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers' | 'gallery' | 'writing-assistant' | 'integrity' | 'ai-settings' | 'theology-map' | 'timeline' | 'maps';
+type ViewMode = 'dashboard' | 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers' | 'gallery' | 'writing-assistant' | 'integrity' | 'ai-settings' | 'theology-map' | 'timeline' | 'maps' | 'wiki' | 'support';
 
 interface Note {
   id: string;
@@ -768,6 +769,7 @@ export default function Home() {
                   { id: 'dictionaries', label: 'Dictionaries', icon: BookMarked },
                   { id: 'commentaries', label: 'Commentaries', icon: Scroll },
                   { id: 'translations', label: 'Parallel Versions', icon: Scale },
+                  { id: 'wiki', label: 'Scholarly Wiki (Wiki.js)', icon: Globe },
                   { id: 'papers', label: 'My Papers', icon: Library },
                   { id: 'gallery', label: 'Gallery & Maps', icon: ImagesIcon },
                 ].map((item) => (
@@ -812,6 +814,17 @@ export default function Home() {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
+              </SidebarMenu>
+            </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarGroupLabel>Help & Support</SidebarGroupLabel>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'support'} onClick={() => setActiveTab('support')} tooltip="Help Center (osTicket)">
+                    <LifeBuoy className="h-5 w-5" /> <span>Support Tickets</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
 
@@ -1015,6 +1028,84 @@ export default function Home() {
                           </div>
                         )}
                       </ScrollArea>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'wiki' && (
+              <div className="space-y-8 animate-in fade-in max-w-6xl mx-auto">
+                <header className="border-b pb-6">
+                  <h1 className="text-3xl font-bold font-headline">Scholarly Wiki</h1>
+                  <p className="text-muted-foreground">A collaborative knowledge base for theological research and project documentation (Powered by Wiki.js).</p>
+                </header>
+                <Card className="min-h-[600px] flex flex-col items-center justify-center p-12 text-center border-dashed">
+                  <Globe className="h-16 w-16 text-muted-foreground opacity-20 mb-6" />
+                  <div className="space-y-4 max-w-lg">
+                    <h2 className="text-2xl font-bold font-headline">Integrated Scholarly Knowledge</h2>
+                    <p className="text-muted-foreground leading-relaxed">
+                      Connect your LexiVerse workspace to your institution's Wiki.js instance. 
+                      Collaborate on theological terms, historical context, and shared bibliographies in real-time.
+                    </p>
+                    <div className="p-4 bg-muted/30 rounded-lg text-sm italic font-medium">
+                      Note: To enable direct integration, provide your Wiki.js API endpoint in the AI Engine Configuration.
+                    </div>
+                    <Button variant="outline" className="gap-2">
+                      <ExternalLink className="h-4 w-4" /> Open External Wiki
+                    </Button>
+                  </div>
+                </Card>
+              </div>
+            )}
+
+            {activeTab === 'support' && (
+              <div className="space-y-8 animate-in fade-in max-w-4xl mx-auto">
+                <header className="border-b pb-6">
+                  <h1 className="text-3xl font-bold font-headline">Help & Support</h1>
+                  <p className="text-muted-foreground">Technical assistance and research support for LexiVerse Explorer.</p>
+                </header>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><LifeBuoy className="h-5 w-5 text-primary" /> Support Tickets</CardTitle>
+                      <CardDescription>Open a ticket for technical issues or account inquiries via our osTicket system.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Subject</Label>
+                        <Input placeholder="Brief description of the issue" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Detailed Message</Label>
+                        <Textarea placeholder="Describe your technical difficulty or request..." className="min-h-[120px]" />
+                      </div>
+                    </CardContent>
+                    <CardFooter>
+                      <Button className="w-full">Create Ticket</Button>
+                    </CardFooter>
+                  </Card>
+                  
+                  <Card className="bg-primary/5">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><HelpCircle className="h-5 w-5 text-primary" /> Knowledge Base</CardTitle>
+                      <CardDescription>Frequently Asked Questions and user guides.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <h4 className="font-bold text-sm">How do I sync to Google Drive?</h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">Link your Google Account in the sidebar footer. Once linked, a 'Sync' icon will appear on all notes and research papers.</p>
+                      </div>
+                      <Separator />
+                      <div className="space-y-2">
+                        <h4 className="font-bold text-sm">Using Scholar AI for Citations</h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">Ensure you have selected the SBL style in the Citations manager. Scholar AI will respect these formatting rules during synthesis.</p>
+                      </div>
+                      <Separator />
+                      <div className="space-y-2">
+                        <h4 className="font-bold text-sm">Wiki.js Syncing</h4>
+                        <p className="text-xs text-muted-foreground leading-relaxed">To push research notes to the Scholarly Wiki, use the 'Export to Wiki' action available in the Research Notes detail view.</p>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
@@ -1840,7 +1931,7 @@ export default function Home() {
                         {integrityResult.findings.map((f, i) => (
                           <div key={i} className="p-3 bg-muted rounded border text-xs space-y-1">
                             <p className="font-bold text-destructive">Potential Attribution Issue: "{f.problematicText}"</p>
-                            <p className="italic">Suggestion: {f.citationSuggestion}</p>
+                            <p className="italic: Sugestion">Suggestion: {f.citationSuggestion}</p>
                           </div>
                         ))}
                       </CardContent>
