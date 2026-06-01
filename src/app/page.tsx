@@ -12,6 +12,7 @@ import {
   onAuthStateChanged,
   type User
 } from 'firebase/auth';
+import { appConfig } from '@/app-config';
 
 // Set up PDF.js worker
 if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
@@ -219,13 +220,8 @@ export default function Home() {
   const handleLogin = async () => {
     const { auth } = initializeFirebase();
     const provider = new GoogleAuthProvider();
-    // Request broader scopes for reading and managing files
-    provider.addScope('https://www.googleapis.com/auth/documents.readonly');
-    provider.addScope('https://www.googleapis.com/auth/spreadsheets.readonly');
-    provider.addScope('https://www.googleapis.com/auth/drive.metadata.readonly');
-    provider.addScope('https://www.googleapis.com/auth/drive.readonly');
-    provider.addScope('https://www.googleapis.com/auth/documents');
-    provider.addScope('https://www.googleapis.com/auth/spreadsheets');
+    // Request scopes from central appConfig
+    appConfig.google.scopes.forEach(scope => provider.addScope(scope));
     
     try {
       const result = await signInWithPopup(auth, provider);
@@ -1515,3 +1511,4 @@ export default function Home() {
     </SidebarProvider>
   );
 }
+
