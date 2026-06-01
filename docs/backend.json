@@ -10,6 +10,7 @@
         "displayName": { "type": "string" },
         "email": { "type": "string" },
         "photoURL": { "type": "string" },
+        "isAdmin": { "type": "boolean", "description": "Whether the user has administrative/moderator privileges." },
         "aiPreferences": {
           "type": "object",
           "properties": {
@@ -23,6 +24,33 @@
         }
       },
       "required": ["uid"]
+    },
+    "SearchLog": {
+      "title": "Search Log",
+      "description": "Log of research queries for administrative analysis.",
+      "type": "object",
+      "properties": {
+        "term": { "type": "string" },
+        "type": { "type": "string", "enum": ["lexicon", "dictionary", "commentary", "scripture", "theology", "timeline"] },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "uid": { "type": "string" }
+      }
+    },
+    "WikiEntry": {
+      "title": "Wiki Entry",
+      "description": "A scholarly wiki article requiring citations and moderation.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "worksCited": { "type": "string" },
+        "bibliography": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "authorUid": { "type": "string" },
+        "authorName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "content", "worksCited", "bibliography", "status"]
     }
   },
   "auth": {
@@ -32,6 +60,14 @@
     "/users/{userId}": {
       "schema": "#/backend/entities/UserStudyProfile",
       "description": "User's study profile and settings."
+    },
+    "/search_logs/{logId}": {
+      "schema": "#/backend/entities/SearchLog",
+      "description": "Centralized logs for search analysis."
+    },
+    "/wiki_entries/{entryId}": {
+      "schema": "#/backend/entities/WikiEntry",
+      "description": "Scholarly wiki articles."
     }
   }
 }
