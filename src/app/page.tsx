@@ -77,7 +77,9 @@ import {
   Type,
   Maximize2,
   Minimize2,
-  Volume2
+  Volume2,
+  ArrowRight,
+  Clock
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -87,6 +89,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -119,7 +122,7 @@ import { formatBibliography, type FormatBibliographyOutput } from '@/ai/flows/fo
 import { checkIntegrity, type AcademicIntegrityOutput } from '@/ai/flows/academic-integrity-ai';
 import { getVersions, getChapterContent, parseReference, type BibleVersion, type BibleChapter } from '@/lib/bible-api';
 
-type ViewMode = 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers' | 'writing-assistant' | 'integrity';
+type ViewMode = 'dashboard' | 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers' | 'writing-assistant' | 'integrity';
 
 interface Note {
   id: string;
@@ -144,14 +147,8 @@ interface ResearchPaper {
   date: string;
 }
 
-interface DriveFile {
-  id: string;
-  name: string;
-  mimeType: string;
-}
-
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<ViewMode>('bibles');
+  const [activeTab, setActiveTab] = useState<ViewMode>('dashboard');
   const [isLoading, setIsLoading] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -252,7 +249,7 @@ export default function Home() {
     const updated = [newNote, ...notes];
     setNotes(updated);
     localStorage.setItem('lexiverse_notes', JSON.stringify(updated));
-    toast({ title: "Note Saved", description: "Text added to your personal research notes." });
+    toast({ title: "Note Saved" });
   };
 
   const handleSaveToBiblio = (citation: string, type: string = "Research Source") => {
@@ -261,7 +258,7 @@ export default function Home() {
     const updated = [newItem, ...biblioItems];
     setBiblioItems(updated);
     localStorage.setItem('lexiverse_biblio', JSON.stringify(updated));
-    toast({ title: "Citation Added", description: "Source added to your academic bibliography." });
+    toast({ title: "Citation Added" });
   };
 
   const handleLexiconSearch = async () => {
@@ -301,13 +298,16 @@ export default function Home() {
     setIsLoading(true);
     const parsed = parseReference(passageRef);
     if (!parsed) {
-      toast({ variant: 'destructive', title: 'Invalid Reference', description: 'Try "John 3" or "Genesis 1:1"' });
+      toast({ variant: 'destructive', title: 'Invalid Reference' });
       setIsLoading(false);
       return;
     }
     const content = await getChapterContent(readingVersion, parsed.bookName, parsed.chapter);
     if (content) {
       setCurrentPassage(content);
+      const newHistory = [{id: Date.now().toString(), type: 'Scripture', term: passageRef, date: new Date().toLocaleString()}, ...history];
+      setHistory(newHistory.slice(0, 10));
+      localStorage.setItem('lexiverse_history', JSON.stringify(newHistory));
     } else {
       toast({ variant: 'destructive', title: 'Passage not found' });
     }
@@ -328,7 +328,7 @@ export default function Home() {
         term: strongsTerm || 'Bible Study',
         question: chatInput,
         history: chatHistory,
-        researchContext: researchPapers.map(p => p.content).slice(0, 3) // Limiting context for prompt size
+        researchContext: researchPapers.map(p => p.content).slice(0, 3)
       });
       setChatHistory(prev => [...prev, { role: 'model', content: result.response }]);
     } catch (error) {
@@ -377,10 +377,46 @@ export default function Home() {
     }
   }
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsLoading(true);
+    try {
+      const format = file.name.endsWith('.pdf') ? 'pdf' : file.name.endsWith('.docx') ? 'docx' : 'txt';
+      let content = "";
+      if (format === 'pdf') {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let text = "";
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          text += textContent.items.map((item: any) => item.str).join(' ');
+        }
+        content = text;
+      } else if (format === 'docx') {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        content = result.value;
+      } else {
+        content = await file.text();
+      }
+      const newPaper: ResearchPaper = { id: Date.now().toString(), title: file.name, content, format: format as any, date: new Date().toLocaleDateString() };
+      const updated = [newPaper, ...researchPapers];
+      setResearchPapers(updated);
+      localStorage.setItem('lexiverse_papers', JSON.stringify(updated));
+      toast({ title: "Document Added", description: `${file.name} is now available in library.` });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Upload Failed' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const captureSelectionToNotes = () => {
     const selection = window.getSelection()?.toString();
     if (selection) handleSaveNote(selection, "Manual Study Capture");
-    else toast({ variant: "destructive", title: "No Text Selected", description: "Highlight text first." });
+    else toast({ variant: "destructive", title: "No Text Selected" });
   };
 
   if (!mounted) return null;
@@ -396,6 +432,17 @@ export default function Home() {
             </div>
           </SidebarHeader>
           <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} tooltip="Dashboard">
+                    <LayoutDashboard className="h-5 w-5" /> <span>Dashboard</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
+            
             <SidebarGroup>
               <SidebarGroupLabel>Library & Research</SidebarGroupLabel>
               <SidebarMenu>
@@ -413,6 +460,7 @@ export default function Home() {
                 ))}
               </SidebarMenu>
             </SidebarGroup>
+
             <SidebarGroup>
               <SidebarGroupLabel>Scholar AI Engine</SidebarGroupLabel>
               <SidebarMenu>
@@ -457,13 +505,152 @@ export default function Home() {
         </Sidebar>
 
         <SidebarInset>
-          <div className="fixed top-4 right-8 z-50 flex gap-2">
-            <Button variant="secondary" className="shadow-lg h-10 border" onClick={captureSelectionToNotes}>
-              <Highlighter className="h-4 w-4 mr-2" /> Capture Highlight
-            </Button>
-          </div>
+          <main className="container max-w-6xl mx-auto py-8 px-6">
+            {activeTab === 'dashboard' && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <header className="flex flex-col gap-2">
+                  <h1 className="text-4xl font-bold font-headline">Welcome back, {user?.displayName?.split(' ')[0] || 'Scholar'}</h1>
+                  <p className="text-muted-foreground text-lg">Your scholarly research workspace is ready.</p>
+                </header>
 
-          <main className="container max-w-5xl mx-auto py-10 px-6">
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                  <Card className="bg-primary/5 border-primary/20">
+                    <CardHeader className="pb-2">
+                      <CardDescription className="flex items-center gap-2"><Clock className="h-4 w-4" /> Recent Work</CardDescription>
+                      <CardTitle className="text-3xl">{history.length}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-xs text-muted-foreground">Activities tracked this session</CardContent>
+                  </Card>
+                  <Card className="bg-accent/5 border-accent/20">
+                    <CardHeader className="pb-2">
+                      <CardDescription className="flex items-center gap-2"><FileText className="h-4 w-4" /> My Library</CardDescription>
+                      <CardTitle className="text-3xl">{researchPapers.length}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-xs text-muted-foreground">Scholarly papers indexed</CardContent>
+                  </Card>
+                  <Card className="bg-primary/5 border-primary/20">
+                    <CardHeader className="pb-2">
+                      <CardDescription className="flex items-center gap-2"><Scroll className="h-4 w-4" /> Research Notes</CardDescription>
+                      <CardTitle className="text-3xl">{notes.length}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-xs text-muted-foreground">Captured study fragments</CardContent>
+                  </Card>
+                  <Card className="bg-accent/5 border-accent/20">
+                    <CardHeader className="pb-2">
+                      <CardDescription className="flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Citations</CardDescription>
+                      <CardTitle className="text-3xl">{biblioItems.length}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-xs text-muted-foreground">Pending bibliography items</CardContent>
+                  </Card>
+                </div>
+
+                <div className="grid gap-8 lg:grid-cols-3">
+                  <Card className="lg:col-span-2 shadow-sm border-dashed">
+                    <CardHeader className="flex flex-row items-center justify-between">
+                      <div className="space-y-1">
+                        <CardTitle className="text-xl font-headline">Quick Access Documents</CardTitle>
+                        <CardDescription>Recently uploaded or accessed research papers.</CardDescription>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => setActiveTab('papers')}>View Library <ArrowRight className="ml-2 h-4 w-4" /></Button>
+                    </CardHeader>
+                    <CardContent>
+                      {researchPapers.length > 0 ? (
+                        <div className="grid gap-4 md:grid-cols-2">
+                          {researchPapers.slice(0, 4).map(paper => (
+                            <div key={paper.id} className="flex items-center p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer group" onClick={() => { setActiveTab('papers'); }}>
+                              <div className={`p-2 rounded bg-muted group-hover:bg-background transition-colors mr-3`}>
+                                <FileCode className="h-4 w-4" />
+                              </div>
+                              <div className="flex-1 overflow-hidden">
+                                <p className="text-sm font-semibold truncate">{paper.title}</p>
+                                <p className="text-[10px] text-muted-foreground">{paper.date}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="py-12 flex flex-col items-center justify-center text-muted-foreground opacity-40">
+                          <Library className="h-12 w-12 mb-4" />
+                          <p>Your library is currently empty.</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <Card className="shadow-sm">
+                    <CardHeader>
+                      <CardTitle className="text-xl font-headline">Recent Research Logs</CardTitle>
+                      <CardDescription>Lexicon and Scripture history.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <ScrollArea className="h-[300px]">
+                        {history.length > 0 ? (
+                          <div className="divide-y">
+                            {history.map(item => (
+                              <div key={item.id} className="p-4 hover:bg-muted/50 transition-colors cursor-pointer flex justify-between items-center group" onClick={() => {
+                                if (item.type === 'Lexicon') { setStrongsTerm(item.term); handleLexiconSearch(); setActiveTab('lexicon'); }
+                                else { setPassageRef(item.term); loadPassage(); setActiveTab('bibles'); }
+                              }}>
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-[10px] py-0">{item.type}</Badge>
+                                    <span className="text-sm font-bold font-headline">{item.term}</span>
+                                  </div>
+                                  <p className="text-[10px] text-muted-foreground">{item.date}</p>
+                                </div>
+                                <ChevronRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="py-20 text-center text-muted-foreground opacity-30">
+                            <History className="h-8 w-8 mx-auto mb-2" />
+                            <p className="text-xs">No research history yet.</p>
+                          </div>
+                        )}
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-3">
+                  <Card className="hover:border-primary/50 transition-colors cursor-pointer group" onClick={() => setActiveTab('scholar-ai')}>
+                    <CardHeader className="flex flex-row items-center gap-4">
+                      <div className="bg-primary/10 p-3 rounded-full group-hover:bg-primary/20 transition-colors">
+                        <MessageSquare className="h-6 w-6 text-primary" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <CardTitle className="text-lg">Continue Dialogue</CardTitle>
+                        <CardDescription className="text-xs">Scholar AI is ready to synthesize.</CardDescription>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                  <Card className="hover:border-primary/50 transition-colors cursor-pointer group" onClick={() => setActiveTab('writing-assistant')}>
+                    <CardHeader className="flex flex-row items-center gap-4">
+                      <div className="bg-primary/10 p-3 rounded-full group-hover:bg-primary/20 transition-colors">
+                        <Edit3 className="h-6 w-6 text-primary" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <CardTitle className="text-lg">Writing Assistant</CardTitle>
+                        <CardDescription className="text-xs">Refine your latest draft.</CardDescription>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                  <Card className="hover:border-primary/50 transition-colors cursor-pointer group" onClick={() => setActiveTab('integrity')}>
+                    <CardHeader className="flex flex-row items-center gap-4">
+                      <div className="bg-primary/10 p-3 rounded-full group-hover:bg-primary/20 transition-colors">
+                        <ShieldCheck className="h-6 w-6 text-primary" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <CardTitle className="text-lg">Integrity Scan</CardTitle>
+                        <CardDescription className="text-xs">Check citations and attribution.</CardDescription>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                </div>
+              </div>
+            )}
+
             {activeTab === 'bibles' && (
               <div className="space-y-6 animate-in fade-in">
                 <header className="flex flex-col md:flex-row gap-4 items-center justify-between border-b pb-6">
@@ -570,10 +757,6 @@ export default function Home() {
                           </h4>
                           <p className="text-sm leading-relaxed text-muted-foreground">{lexiconResult.summary}</p>
                         </div>
-
-                        <div className="bg-muted/30 p-4 rounded-lg border italic text-xs">
-                          {lexiconResult.bibliography}
-                        </div>
                       </CardContent>
                     </Card>
 
@@ -582,7 +765,7 @@ export default function Home() {
                         <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Quote className="h-4 w-4" /> Scriptural Usage</CardTitle></CardHeader>
                         <CardContent className="space-y-2">
                           {lexiconResult.scriptureReferences.map((ref, i) => (
-                            <Button key={i} variant="ghost" size="sm" className="w-full justify-start font-mono text-xs" onClick={() => {setPassageRef(ref); setActiveTab('bibles');}}>
+                            <Button key={i} variant="ghost" size="sm" className="w-full justify-start font-mono text-xs" onClick={() => {setPassageRef(ref); loadPassage(); setActiveTab('bibles');}}>
                               <ChevronRight className="h-3 w-3 mr-2" /> {ref}
                             </Button>
                           ))}
@@ -610,7 +793,7 @@ export default function Home() {
               <div className="space-y-8 animate-in fade-in">
                 <header className="border-b pb-6">
                   <h1 className="text-3xl font-bold font-headline">Parallel Comparison</h1>
-                  <p className="text-muted-foreground">Compare translation philosophies and linguistic nuances side-by-side.</p>
+                  <p className="text-muted-foreground">Compare translation philosophies side-by-side.</p>
                 </header>
 
                 <div className="grid gap-6 md:grid-cols-2 max-w-2xl mx-auto items-end">
@@ -639,19 +822,9 @@ export default function Home() {
                             <p className="text-xl font-serif leading-relaxed mb-4">"{t.translation}"</p>
                             {t.notes && <p className="text-xs text-muted-foreground italic border-t pt-2">{t.notes}</p>}
                           </CardContent>
-                          <CardFooter>
-                            <Button variant="ghost" size="sm" className="w-full text-[10px] opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleSaveNote(`${t.version}: ${t.translation}`, `Comparison: ${transWord}`)}>
-                              <Plus className="h-3 w-3 mr-1" /> Save Note
-                            </Button>
-                          </CardFooter>
                         </Card>
                       ))}
                     </div>
-                    
-                    <Card className="bg-primary/5 border-dashed">
-                      <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Sparkles className="h-4 w-4" /> Comparative Synthesis</CardTitle></CardHeader>
-                      <CardContent><p className="text-sm leading-relaxed">{transResult.summary}</p></CardContent>
-                    </Card>
                   </div>
                 )}
               </div>
@@ -662,9 +835,8 @@ export default function Home() {
                 <header className="border-b pb-4 mb-4 flex justify-between items-center">
                   <div>
                     <h1 className="text-3xl font-bold font-headline">Scholar AI Chat</h1>
-                    <p className="text-muted-foreground text-sm">Synthetic analysis across scripture, lexicons, and your research library.</p>
+                    <p className="text-muted-foreground text-sm">Synthetic analysis across scripture and your library.</p>
                   </div>
-                  {researchPapers.length > 0 && <Badge variant="secondary" className="gap-1"><FileCode className="h-3 w-3" /> {researchPapers.length} Papers in Context</Badge>}
                 </header>
 
                 <Card className="flex-1 flex flex-col overflow-hidden shadow-2xl relative bg-card/50">
@@ -700,7 +872,7 @@ export default function Home() {
                   <form onSubmit={handleScholarChat} className="p-4 border-t bg-background/80 backdrop-blur flex gap-2">
                     <Input 
                       placeholder="Ask the Scholar AI..." 
-                      className="h-12 text-lg shadow-inner bg-card"
+                      className="h-12 shadow-inner bg-card"
                       value={chatInput}
                       onChange={e => setChatInput(e.target.value)}
                       disabled={isLoading}
@@ -710,106 +882,6 @@ export default function Home() {
                     </Button>
                   </form>
                 </Card>
-              </div>
-            )}
-
-            {/* Other tabs follow same patterns as before */}
-            {activeTab === 'notes' && (
-              <div className="space-y-8 animate-in fade-in">
-                <header className="flex justify-between items-center border-b pb-6">
-                  <div>
-                    <h1 className="text-3xl font-bold font-headline">Research Notes</h1>
-                    <p className="text-muted-foreground">Captured fragments and study reflections.</p>
-                  </div>
-                  <Button variant="outline" onClick={() => exportToGoogleDocs('Study Notes', notes.map(n => `Source: ${n.source}\n${n.content}\n---`).join('\n'))}>
-                    <ExternalLink className="h-4 w-4 mr-2" /> Export to Docs
-                  </Button>
-                </header>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {notes.map(note => (
-                    <Card key={note.id} className="relative group">
-                      <CardHeader className="pb-2">
-                        <div className="flex justify-between items-center">
-                          <Badge variant="outline" className="text-[10px]">{note.source}</Badge>
-                          <span className="text-[10px] text-muted-foreground">{note.date}</span>
-                        </div>
-                      </CardHeader>
-                      <CardContent><p className="text-sm font-serif line-clamp-6">{note.content}</p></CardContent>
-                      <CardFooter className="justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setNotes(notes.filter(n => n.id !== note.id))}><Trash2 className="h-4 w-4" /></Button>
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'bibliography' && (
-              <div className="space-y-8 animate-in fade-in">
-                <header className="flex justify-between items-center border-b pb-6">
-                  <div><h1 className="text-3xl font-bold font-headline">Academic Citation Manager</h1><p className="text-muted-foreground">Generate bibliographies, footnotes, and inline references.</p></div>
-                  <div className="flex gap-2">
-                    <Select value={biblioStyle} onValueChange={(val: any) => setBiblioStyle(val)}>
-                      <SelectTrigger className="w-[180px]"><SelectValue placeholder="Style" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="SBL">SBL (Biblical Studies)</SelectItem>
-                        <SelectItem value="Chicago">Chicago</SelectItem>
-                        <SelectItem value="Turabian">Turabian</SelectItem>
-                        <SelectItem value="APA">APA</SelectItem>
-                        <SelectItem value="MLA">MLA</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button onClick={handleBiblioFormatting} disabled={isLoading || biblioItems.length === 0}><FileCheck className="h-4 w-4 mr-2" /> Generate Bib</Button>
-                  </div>
-                </header>
-
-                <div className="grid gap-8 lg:grid-cols-[1fr,350px]">
-                  <div className="space-y-6">
-                    {formattedBiblioResult ? (
-                      <Card className="shadow-lg border-primary/20">
-                        <CardHeader className="bg-primary/5 border-b flex justify-between items-center flex-row">
-                          <CardTitle className="text-lg">Formatted Bibliography</CardTitle>
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm" onClick={() => exportToGoogleDocs(`Bib (${biblioStyle})`, formattedBiblioResult.formattedOutput)}>Export</Button>
-                            <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(formattedBiblioResult.formattedOutput); toast({ title: "Copied" }); }}><Copy className="h-4 w-4" /></Button>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="p-8"><p className="whitespace-pre-wrap font-serif text-lg leading-loose">{formattedBiblioResult.formattedOutput}</p></CardContent>
-                      </Card>
-                    ) : (
-                      <div className="space-y-4">
-                        <h2 className="text-xl font-bold font-headline">Study Resources</h2>
-                        {biblioItems.length === 0 ? <Card className="py-20 text-center"><ClipboardList className="h-12 w-12 mx-auto mb-4 opacity-10" /><p className="text-muted-foreground">No citations collected.</p></Card> : (
-                          <div className="grid gap-3">
-                            {biblioItems.map(item => (
-                              <Card key={item.id} className="group">
-                                <CardContent className="p-4 flex justify-between items-center">
-                                  <div className="space-y-1">
-                                    <Badge variant="secondary" className="text-[10px] mb-1">{item.sourceType}</Badge>
-                                    <p className="text-sm font-medium">{item.citation}</p>
-                                  </div>
-                                  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setBiblioItems(biblioItems.filter(i => i.id !== item.id))}><Trash2 className="h-4 w-4" /></Button>
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <aside>
-                    <Card className="bg-muted/10">
-                      <CardHeader><CardTitle className="text-sm">Style Guide Info</CardTitle></CardHeader>
-                      <CardContent className="text-xs space-y-3">
-                        <p><strong>SBL 2nd Edition</strong> is preferred for theological papers, requiring specific footnote structures for ancient texts.</p>
-                        <p><strong>Turabian</strong> is standard for postgraduate divinity degrees.</p>
-                      </CardContent>
-                    </Card>
-                  </aside>
-                </div>
               </div>
             )}
 
@@ -837,8 +909,10 @@ export default function Home() {
                       </CardHeader>
                       <CardContent><p className="text-[10px] text-muted-foreground line-clamp-3 italic">Uploaded on {paper.date}</p></CardContent>
                       <CardFooter className="justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleSaveNote(paper.content, `Paper: ${paper.title}`)}><Copy className="h-3 w-3" /></Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setResearchPapers(researchPapers.filter(p => p.id !== paper.id))}><Trash2 className="h-3 w-3" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => {
+                          setResearchPapers(researchPapers.filter(p => p.id !== paper.id));
+                          localStorage.setItem('lexiverse_papers', JSON.stringify(researchPapers.filter(p => p.id !== paper.id)));
+                        }}><Trash2 className="h-3 w-3" /></Button>
                       </CardFooter>
                     </Card>
                   ))}
@@ -846,6 +920,37 @@ export default function Home() {
               </div>
             )}
 
+            {/* Other existing views like notes, bibliography, writing-assistant, integrity would go here with same structure */}
+            {activeTab === 'notes' && (
+              <div className="space-y-8 animate-in fade-in">
+                <header className="flex justify-between items-center border-b pb-6">
+                  <div>
+                    <h1 className="text-3xl font-bold font-headline">Research Notes</h1>
+                    <p className="text-muted-foreground">Captured fragments and study reflections.</p>
+                  </div>
+                </header>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {notes.map(note => (
+                    <Card key={note.id} className="relative group">
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-center">
+                          <Badge variant="outline" className="text-[10px]">{note.source}</Badge>
+                          <span className="text-[10px] text-muted-foreground">{note.date}</span>
+                        </div>
+                      </CardHeader>
+                      <CardContent><p className="text-sm font-serif line-clamp-6">{note.content}</p></CardContent>
+                      <CardFooter className="justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => {
+                          setNotes(notes.filter(n => n.id !== note.id));
+                          localStorage.setItem('lexiverse_notes', JSON.stringify(notes.filter(n => n.id !== note.id)));
+                        }}><Trash2 className="h-4 w-4" /></Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+            
             {activeTab === 'writing-assistant' && (
               <div className="space-y-8 animate-in fade-in">
                 <header className="text-center">
@@ -865,7 +970,7 @@ export default function Home() {
                   </div>
                   <div className="space-y-4">
                     <Label>Scholar AI Refinement</Label>
-                    <Card className="min-h-[450px] bg-muted/5 p-6 overflow-hidden">
+                    <Card className="min-h-[450px] bg-muted/5 p-6">
                       <ScrollArea className="h-full">
                         {writingResult ? (
                           <div className="space-y-6">
@@ -882,59 +987,84 @@ export default function Home() {
                 </div>
               </div>
             )}
-
+            
+            {activeTab === 'bibliography' && (
+              <div className="space-y-8 animate-in fade-in">
+                <header className="flex justify-between items-center border-b pb-6">
+                  <div><h1 className="text-3xl font-bold font-headline">Academic Citation Manager</h1><p className="text-muted-foreground">Generate bibliographies and references.</p></div>
+                  <div className="flex gap-2">
+                    <Select value={biblioStyle} onValueChange={(val: any) => setBiblioStyle(val)}>
+                      <SelectTrigger className="w-[180px]"><SelectValue placeholder="Style" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="SBL">SBL (Biblical Studies)</SelectItem>
+                        <SelectItem value="Chicago">Chicago</SelectItem>
+                        <SelectItem value="Turabian">Turabian</SelectItem>
+                        <SelectItem value="APA">APA</SelectItem>
+                        <SelectItem value="MLA">MLA</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button onClick={handleBiblioFormatting} disabled={isLoading || biblioItems.length === 0}><FileCheck className="h-4 w-4 mr-2" /> Generate Bib</Button>
+                  </div>
+                </header>
+                {formattedBiblioResult ? (
+                  <Card className="shadow-lg border-primary/20">
+                    <CardHeader className="bg-primary/5 border-b flex justify-between items-center flex-row">
+                      <CardTitle className="text-lg">Formatted Bibliography</CardTitle>
+                      <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(formattedBiblioResult.formattedOutput); toast({ title: "Copied" }); }}><Copy className="h-4 w-4 mr-2" /> Copy</Button>
+                    </CardHeader>
+                    <CardContent className="p-8"><p className="whitespace-pre-wrap font-serif text-lg leading-loose">{formattedBiblioResult.formattedOutput}</p></CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid gap-4">
+                    {biblioItems.map(item => (
+                      <Card key={item.id} className="p-4 flex justify-between items-center">
+                        <div className="space-y-1">
+                          <Badge variant="secondary" className="text-[10px]">{item.sourceType}</Badge>
+                          <p className="text-sm font-medium">{item.citation}</p>
+                        </div>
+                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setBiblioItems(biblioItems.filter(i => i.id !== item.id))}><Trash2 className="h-4 w-4" /></Button>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            
             {activeTab === 'integrity' && (
               <div className="space-y-8 animate-in fade-in">
-                <header className="text-center"><h1 className="text-3xl font-bold font-headline">Integrity & Citation Scanner</h1><p className="text-muted-foreground">Ensure scholarly attribution and check against common sources.</p></header>
-                <div className="grid gap-6 md:grid-cols-[1fr,350px]">
+                <header className="text-center"><h1 className="text-3xl font-bold font-headline">Integrity & Citation Scanner</h1><p className="text-muted-foreground">Ensure scholarly attribution.</p></header>
+                <div className="grid gap-6 md:grid-cols-1 max-w-3xl mx-auto">
                   <div className="space-y-4">
-                    <Textarea placeholder="Paste text to scan for attribution errors..." className="min-h-[450px]" value={integrityInput} onChange={(e) => setIntegrityInput(e.target.value)} />
+                    <Textarea placeholder="Paste text to scan for attribution errors..." className="min-h-[350px]" value={integrityInput} onChange={(e) => setIntegrityInput(e.target.value)} />
                     <Button className="w-full h-12" onClick={handleIntegrityScan} disabled={isLoading}><ShieldCheck className="h-5 w-5 mr-2" /> Run Integrity Scan</Button>
                   </div>
-                  <ScrollArea className="h-[550px]">
-                    {integrityResult ? (
-                      <div className="space-y-4">
-                        <Card><CardHeader className="pb-2"><CardTitle className="text-sm flex justify-between items-center">Scan Result <Badge>{integrityResult.integrityScore}%</Badge></CardTitle></CardHeader><CardContent><p className="text-xs">{integrityResult.analysisSummary}</p></CardContent></Card>
+                  {integrityResult && (
+                    <Card>
+                      <CardHeader><CardTitle className="text-sm">Scan Summary - Score: {integrityResult.integrityScore}%</CardTitle></CardHeader>
+                      <CardContent className="space-y-4">
+                        <p className="text-sm">{integrityResult.analysisSummary}</p>
                         {integrityResult.findings.map((f, i) => (
-                          <Card key={i} className="border-destructive/20">
-                            <CardContent className="p-4 space-y-2">
-                              <p className="text-xs font-bold text-destructive italic">"{f.problematicText}"</p>
-                              <div className="bg-muted p-2 rounded text-[10px] font-serif border">{f.citationSuggestion}</div>
-                              <Button variant="outline" size="sm" className="w-full h-7 text-[10px]" onClick={() => handleSaveToBiblio(f.citationSuggestion, "Scholar Integrity Match")}>Add to Biblio</Button>
-                            </CardContent>
-                          </Card>
+                          <div key={i} className="p-3 bg-muted rounded border text-xs space-y-1">
+                            <p className="font-bold text-destructive">Potential Plagiarism: "{f.problematicText}"</p>
+                            <p className="italic">Suggestion: {f.citationSuggestion}</p>
+                          </div>
                         ))}
-                      </div>
-                    ) : <Card className="h-full flex items-center justify-center p-8 text-center border-dashed"><p className="text-muted-foreground text-sm">Scan your draft for missing citations and uncredited scholarly phrasing.</p></Card>}
-                  </ScrollArea>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               </div>
             )}
+
           </main>
         </SidebarInset>
 
-        <Dialog open={!!activeCitation} onOpenChange={() => setActiveCitation(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="font-headline">{activeCitation?.type === 'footnote' ? 'Footnote' : 'Inline Citation'} Generated</DialogTitle>
-              <DialogDescription>Formatted in {biblioStyle} standard.</DialogDescription>
-            </DialogHeader>
-            <div className="bg-muted p-4 rounded border font-serif text-lg leading-relaxed select-all">
-              {activeCitation?.text}
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => { navigator.clipboard.writeText(activeCitation?.text || ''); toast({ title: "Copied" }); }}>Copy to Clipboard</Button>
-              <Button onClick={() => { handleSaveNote(activeCitation?.text || '', `Citation (${activeCitation?.type})`); setActiveCitation(null); }}>Save to Notes</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <div className="fixed bottom-8 right-8 z-50">
+          <Button variant="secondary" className="shadow-lg h-10 border" onClick={captureSelectionToNotes}>
+            <Highlighter className="h-4 w-4 mr-2" /> Capture Highlight
+          </Button>
+        </div>
       </div>
     </SidebarProvider>
   );
-}
-
-async function exportToGoogleDocs(title: string, content: string) {
-  // Simulating export functionality - in a real app this would call Google Docs API via server action
-  navigator.clipboard.writeText(content);
-  window.open('https://docs.google.com/', '_blank');
 }
