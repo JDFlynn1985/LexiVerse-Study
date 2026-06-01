@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useId, useRef, useMemo } from 'react';
@@ -242,7 +243,6 @@ export default function Home() {
   const [integrityInput, setIntegrityInput] = useState('');
   const [integrityResult, setIntegrityResult] = useState<AcademicIntegrityOutput | null>(null);
 
-  // New Analytical Tool States
   const [theoConcept, setTheoConcept] = useState('');
   const [theoResult, setTheoResult] = useState<TheologicalConceptOutput | null>(null);
   const [timelineTopic, setTimelineTopic] = useState('');
@@ -460,13 +460,13 @@ export default function Home() {
     if (!strongsTerm.trim()) return;
     setIsLoading(true);
     try {
-      const result = await defineAndAnalyzeTerm({ strongsNumber: strongsTerm });
+      const result = await defineAndAnalyzeTerm({ strongsNumber: strongsTerm, model: aiPrefs.selectedModel });
       setLexiconResult(result);
       const newHistory = [{id: Date.now().toString(), type: 'Lexicon', term: strongsTerm, date: new Date().toLocaleString()}, ...history];
       setHistory(newHistory.slice(0, 10));
       localStorage.setItem('lexiverse_history', JSON.stringify(newHistory));
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Lexicon search failed' });
+      toast({ variant: 'destructive', title: 'Lexicon search failed', description: 'Scholarly engine took too long or was unavailable. Please try again.' });
     } finally {
       setIsLoading(false);
     }
@@ -476,8 +476,7 @@ export default function Home() {
     if (!dictTerm.trim()) return;
     setIsLoading(true);
     try {
-      // Re-using the analysis flow for dictionary lookups as it handles term definition well
-      const result = await defineAndAnalyzeTerm({ strongsNumber: dictTerm });
+      const result = await defineAndAnalyzeTerm({ strongsNumber: dictTerm, model: aiPrefs.selectedModel });
       setDictResult(result);
       const newHistory = [{id: Date.now().toString(), type: 'Dictionary', term: dictTerm, date: new Date().toLocaleString()}, ...history];
       setHistory(newHistory.slice(0, 10));
@@ -493,7 +492,7 @@ export default function Home() {
     if (!commWord.trim()) return;
     setIsLoading(true);
     try {
-      const result = await searchCommentariesForContext({ word: commWord, language: commLanguage });
+      const result = await searchCommentariesForContext({ word: commWord, language: commLanguage, model: aiPrefs.selectedModel });
       setCommResult(result);
       const newHistory = [{id: Date.now().toString(), type: 'Commentary', term: commWord, date: new Date().toLocaleString()}, ...history];
       setHistory(newHistory.slice(0, 10));
@@ -827,7 +826,6 @@ export default function Home() {
               </SidebarMenu>
             </SidebarGroup>
 
-            {/* Support/Sponsorship Placeholder */}
             <SidebarGroup className="mt-4 border-t pt-4">
               <SidebarGroupLabel>Support LexiVerse</SidebarGroupLabel>
               <div className="px-2 py-1">
@@ -937,7 +935,6 @@ export default function Home() {
                   </Card>
                 </div>
 
-                {/* Dashboard Ad Placeholder Banner */}
                 <Card 
                   className="bg-muted/10 border-dashed border-2 flex flex-col items-center justify-center p-6 transition-all hover:bg-muted/20 cursor-pointer group"
                   onClick={() => handleAdClick('theological_resource_spotlight', 'dashboard_spotlight')}
@@ -1039,7 +1036,6 @@ export default function Home() {
                     </CardHeader>
                     <CardContent className="space-y-6">
                       <div className="grid gap-4 md:grid-cols-2">
-                        {/* Default / Free Model */}
                         <div 
                           className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${aiPrefs.selectedModel === 'googleai/gemini-2.5-flash' ? 'border-primary bg-primary/5' : 'border-muted hover:border-muted-foreground/30'}`}
                           onClick={() => setAiPrefs({ ...aiPrefs, selectedModel: 'googleai/gemini-2.5-flash' })}
@@ -1054,7 +1050,6 @@ export default function Home() {
                           <p className="text-xs text-muted-foreground leading-relaxed">The standard Genkit-optimized engine. High-speed, efficient, and offers the most generous free usage limits. Best for rapid definitions and OCR transcription.</p>
                         </div>
 
-                        {/* Advanced / Paid Tier */}
                         <div 
                           className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${aiPrefs.selectedModel === 'googleai/gemini-2.5-pro-001' ? 'border-primary bg-primary/5' : 'border-muted hover:border-muted-foreground/30'}`}
                           onClick={() => setAiPrefs({ ...aiPrefs, selectedModel: 'googleai/gemini-2.5-pro-001' })}
@@ -1062,7 +1057,7 @@ export default function Home() {
                           <div className="flex justify-between items-start mb-2">
                             <div className="flex flex-col">
                               <span className="font-bold">Gemini 2.5 Pro</span>
-                              <Badge variant="outline" className="w-fit text-[10px] px-1 py-0 mt-1">Advanced / Paid Tier</Badge>
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 mt-1">Advanced / Paid Tier</Badge>
                             </div>
                             {aiPrefs.selectedModel === 'googleai/gemini-2.5-pro-001' && <Check className="h-4 w-4 text-primary" />}
                           </div>
@@ -1855,7 +1850,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Banner Ad Placeholder */}
             <div className="mt-12 pt-8 border-t">
               <div 
                 className="w-full h-24 bg-muted/20 border-2 border-dashed rounded-xl flex items-center justify-center group cursor-pointer hover:bg-muted/30 transition-colors"
