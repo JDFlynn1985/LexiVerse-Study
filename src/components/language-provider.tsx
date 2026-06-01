@@ -16,8 +16,30 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const savedLang = localStorage.getItem('lexiverse_lang') as LocaleType;
+    
     if (savedLang && locales[savedLang]) {
       setLanguageState(savedLang);
+    } else {
+      // Automatic detection logic
+      const systemLang = navigator.language; // e.g., 'en-US', 'es-AR', 'fr-FR'
+      const supportedLocales = Object.keys(locales) as LocaleType[];
+      
+      // 1. Try exact match (e.g., 'en-GB' -> 'en-GB')
+      if (locales[systemLang as LocaleType]) {
+        setLanguageState(systemLang as LocaleType);
+      } 
+      else {
+        // 2. Try matching the primary language code (e.g., 'es-AR' -> 'es-MX' or 'es-ES')
+        const primaryCode = systemLang.split('-')[0]; // 'es', 'en', 'fr'
+        const dialectMatch = supportedLocales.find(l => l.startsWith(primaryCode));
+        
+        if (dialectMatch) {
+          setLanguageState(dialectMatch);
+        } else {
+          // 3. Final default
+          setLanguageState('en-US');
+        }
+      }
     }
   }, []);
 
