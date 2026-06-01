@@ -70,7 +70,10 @@ import {
   Sparkles,
   LayoutDashboard,
   FileCheck,
-  ChevronRight
+  ChevronRight,
+  ShieldCheck,
+  ShieldAlert,
+  Info
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -79,6 +82,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Progress } from '@/components/ui/progress';
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -108,9 +112,10 @@ import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/
 import { interactiveVerseExplorationAI } from '@/ai/flows/interactive-verse-exploration-ai';
 import { refineWriting, type WritingAssistantOutput } from '@/ai/flows/writing-assistant-ai';
 import { formatBibliography, type FormatBibliographyOutput } from '@/ai/flows/format-bibliography-ai';
+import { checkIntegrity, type AcademicIntegrityOutput } from '@/ai/flows/academic-integrity-ai';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 
-type ViewMode = 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers' | 'writing-assistant';
+type ViewMode = 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers' | 'writing-assistant' | 'integrity';
 
 interface Note {
   id: string;
@@ -160,6 +165,7 @@ export default function Home() {
   const verseRefId = useId();
   const chatInputId = useId();
   const writingInputId = useId();
+  const integrityInputId = useId();
 
   const [history, setHistory] = useState<{id: string, type: string, term: string, date: string}[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -190,6 +196,10 @@ export default function Home() {
   // Bibliography States
   const [biblioStyle, setBiblioStyle] = useState<'SBL' | 'Turabian' | 'Chicago' | 'APA' | 'MLA'>('SBL');
   const [formattedBiblioResult, setFormattedBiblioResult] = useState<FormatBibliographyOutput | null>(null);
+
+  // Integrity States
+  const [integrityInput, setIntegrityInput] = useState('');
+  const [integrityResult, setIntegrityResult] = useState<AcademicIntegrityOutput | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -719,6 +729,25 @@ export default function Home() {
     }
   }
 
+  async function handleIntegrityScan(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    if (!integrityInput.trim()) return;
+    setIsLoading(true);
+    try {
+      const data = await checkIntegrity({ 
+        text: integrityInput, 
+        style: biblioStyle,
+        researchContext: researchPapers.map(p => p.content)
+      });
+      setIntegrityResult(data);
+      toast({ title: "Scan Complete", description: "Scholarly echo analysis finalized." });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Scan Failed', description: 'Integrity engine encountered an error.' });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   async function handleBiblioFormatting() {
     if (biblioItems.length === 0) {
       toast({ variant: 'destructive', title: 'Bibliography Empty', description: 'Add sources to your bibliography before formatting.' });
@@ -787,6 +816,7 @@ export default function Home() {
                     { id: 'translations', label: 'Comparisons', icon: Scale },
                     { id: 'verse-explorer', label: 'Verse Explorer', icon: Quote },
                     { id: 'writing-assistant', label: 'Writing AI', icon: SpellCheck },
+                    { id: 'integrity', label: 'Scholar Integrity', icon: ShieldCheck },
                   ].map((item) => (
                     <SidebarMenuItem key={item.id}>
                       <SidebarMenuButton 
@@ -981,6 +1011,130 @@ export default function Home() {
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'integrity' && (
+              <div className="space-y-8 animate-in fade-in">
+                <header className="text-center">
+                  <h1 className="text-3xl font-bold font-headline">Scholar Integrity & Citation Assistant</h1>
+                  <p className="text-muted-foreground">Scan your drafts for scholarly phrasing and receive proper attribution suggestions.</p>
+                </header>
+
+                <div className="grid gap-6 md:grid-cols-[1fr,400px]">
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor={integrityInputId}>Research Draft</Label>
+                      <Select value={biblioStyle} onValueChange={(v: any) => setBiblioStyle(v)}>
+                        <SelectTrigger className="w-32 h-8 text-xs">
+                          <SelectValue placeholder="Style" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="SBL">SBL</SelectItem>
+                          <SelectItem value="Chicago">Chicago</SelectItem>
+                          <SelectItem value="Turabian">Turabian</SelectItem>
+                          <SelectItem value="APA">APA</SelectItem>
+                          <SelectItem value="MLA">MLA</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Textarea 
+                      id={integrityInputId}
+                      placeholder="Paste your paper draft or research summary here to check for uncredited sources..." 
+                      className="min-h-[450px] leading-relaxed shadow-inner"
+                      value={integrityInput}
+                      onChange={(e) => setIntegrityInput(e.target.value)}
+                    />
+                    <Button 
+                      className="w-full h-12 shadow-md bg-primary" 
+                      onClick={handleIntegrityScan}
+                      disabled={isLoading || !integrityInput.trim()}
+                    >
+                      {isLoading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <ShieldCheck className="h-5 w-5 mr-2" />}
+                      Scan for Scholarly Integrity
+                    </Button>
+                  </div>
+
+                  <aside className="space-y-6">
+                    {integrityResult ? (
+                      <div className="space-y-6">
+                        <Card className="border-primary/20 shadow-lg">
+                          <CardHeader className="pb-3 bg-muted/30">
+                            <CardTitle className="text-sm font-bold flex items-center justify-between">
+                              Integrity Report
+                              <Badge variant={integrityResult.integrityScore > 80 ? "default" : "destructive"}>
+                                Score: {integrityResult.integrityScore}%
+                              </Badge>
+                            </CardTitle>
+                            <Progress value={integrityResult.integrityScore} className="h-2 mt-2" />
+                          </CardHeader>
+                          <CardContent className="pt-4">
+                            <p className="text-xs text-muted-foreground leading-relaxed">{integrityResult.analysisSummary}</p>
+                          </CardContent>
+                        </Card>
+
+                        <div className="space-y-4">
+                          <h3 className="text-sm font-bold flex items-center gap-2 px-2">
+                            <ShieldAlert className="h-4 w-4 text-destructive" /> Missing Attributions ({integrityResult.findings.length})
+                          </h3>
+                          <ScrollArea className="h-[400px] pr-4">
+                            <div className="space-y-4">
+                              {integrityResult.findings.map((f, i) => (
+                                <Card key={i} className="bg-card hover:border-destructive/30 transition-colors">
+                                  <CardContent className="p-4 space-y-3">
+                                    <div>
+                                      <p className="text-[10px] text-muted-foreground font-bold uppercase mb-1">Uncredited Fragment:</p>
+                                      <p className="text-sm italic text-foreground border-l-2 border-primary pl-2">"{f.problematicText}"</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[10px] text-muted-foreground font-bold uppercase mb-1">Likely Source:</p>
+                                      <p className="text-sm font-medium">{f.potentialSource}</p>
+                                    </div>
+                                    <div className="bg-muted p-2 rounded text-[11px] font-serif leading-normal border">
+                                      <p className="text-[9px] text-muted-foreground uppercase mb-1 flex items-center gap-1">
+                                        <Copy className="h-2.5 w-2.5" /> Suggestion ({biblioStyle}):
+                                      </p>
+                                      {f.citationSuggestion}
+                                    </div>
+                                    <div className="flex gap-2">
+                                      <Button variant="outline" size="sm" className="h-7 text-[10px] flex-1" onClick={() => handleSaveToBiblio(f.citationSuggestion, "Integrity Match")}>
+                                        Add to Biblio
+                                      </Button>
+                                      <Button variant="ghost" size="sm" className="h-7 text-[10px] flex-1" onClick={() => handleSaveNote(f.citationSuggestion, "Integrity Suggestion")}>
+                                        Save Note
+                                      </Button>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        </div>
+                        
+                        <Card className="bg-primary/5 border-none">
+                          <CardContent className="p-4">
+                            <h4 className="text-xs font-bold mb-2 flex items-center gap-2">
+                              <Check className="h-3 w-3" /> Recommended Steps
+                            </h4>
+                            <ul className="space-y-1">
+                              {integrityResult.improvementSteps.map((s, i) => (
+                                <li key={i} className="text-[10px] text-muted-foreground flex items-start gap-1">
+                                  <ChevronRight className="h-3 w-3 shrink-0" /> {s}
+                                </li>
+                              ))}
+                            </ul>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    ) : (
+                      <div className="h-[600px] flex flex-col items-center justify-center text-center p-8 bg-muted/20 border-2 border-dashed rounded-xl">
+                        <ShieldCheck className="h-16 w-16 mb-4 opacity-10" />
+                        <h3 className="font-headline text-lg mb-2">Integrity Scan Ready</h3>
+                        <p className="text-xs text-muted-foreground">Paste your draft on the left. We'll identify scholarly phrasing that requires attribution and suggest perfect citations.</p>
+                      </div>
+                    )}
+                  </aside>
                 </div>
               </div>
             )}
