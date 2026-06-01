@@ -28,5 +28,14 @@ export const appConfig = {
       'https://www.googleapis.com/auth/spreadsheets',
       'https://www.googleapis.com/auth/drive.file',
     ],
+  },
+  analytics: {
+    google: {
+      measurementId: process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || '', // e.g. 'G-XXXXXXXXXX'
+    },
+    matomo: {
+      siteId: process.env.NEXT_PUBLIC_MATOMO_SITE_ID || '', // e.g. '1'
+      url: process.env.NEXT_PUBLIC_MATOMO_URL || '', // e.g. 'https://your-matomo-domain.com'
+    }
   }
 };

@@ -4,6 +4,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { FirebaseErrorListener } from '@/components/firebase-error-listener';
 import { Toaster } from '@/components/ui/toaster';
+import { Analytics } from '@/components/analytics';
 
 export const metadata: Metadata = {
   title: 'LexiVerse Explorer',
@@ -24,6 +25,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased">
+        <Analytics />
         <FirebaseClientProvider>
           <ThemeProvider
             attribute="class"
