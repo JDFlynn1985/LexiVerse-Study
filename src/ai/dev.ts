@@ -15,3 +15,5 @@ import '@/ai/flows/academic-integrity-ai.ts';
 import '@/ai/flows/ocr-flow.ts';
 import '@/ai/flows/theological-concept-analysis.ts';
 import '@/ai/flows/historical-timeline-flow.ts';
+import '@/ai/flows/transcribe-flow.ts';
+import '@/ai/flows/cross-reference-ai.ts';

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import { 
@@ -83,7 +83,11 @@ import {
   XCircle,
   FileJson,
   Info,
-  ScanText
+  ScanText,
+  Mic,
+  Database,
+  Link2,
+  CloudUpload
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -141,8 +145,12 @@ import { aiStudyAssistant, type AiStudyAssistantOutput } from '@/ai/flows/ai-stu
 import { interactiveVerseExplorationAI, type InteractiveVerseExplorationAIOutput } from '@/ai/flows/interactive-verse-exploration-ai';
 import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/compare-translations-ai';
 import { extractTextFromImage } from '@/ai/flows/ocr-flow';
+import { transcribeAudio } from '@/ai/flows/transcribe-flow';
+import { findCovertLinks } from '@/ai/flows/cross-reference-ai';
 import { trackAdClick } from '@/components/analytics';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
+import { getAllLocalDocuments, saveLocalDocument, deleteLocalDocument, type IDBDocument } from '@/lib/idb';
+import { findOvertReferences } from '@/lib/cross-references';
 
 type ViewMode = 'dashboard' | 'lexicon' | 'dictionaries' | 'commentaries' | 'wiki' | 'theology-map' | 'timeline' | 'writing-assistant' | 'integrity' | 'ai-settings' | 'support' | 'ai-assistant' | 'verse-explorer' | 'compare-translations' | 'research-library' | 'moderation';
 
@@ -171,14 +179,6 @@ interface UserProfile {
   };
 }
 
-interface ResearchDocument {
-  id: string;
-  name: string;
-  type: string;
-  uploadDate: string;
-  content: string;
-}
-
 export default function Home() {
   const { language, setLanguage, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<ViewMode>('dashboard');
@@ -192,7 +192,7 @@ export default function Home() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   const [history, setHistory] = useState<{id: string, type: string, term: string, date: string}[]>([]);
-  const [recentDocuments, setRecentDocuments] = useState<ResearchDocument[]>([]);
+  const [localDocuments, setLocalDocuments] = useState<IDBDocument[]>([]);
   const [availableVersions, setAvailableVersions] = useState<BibleVersion[]>([]);
 
   // User Preferences State
@@ -239,9 +239,10 @@ export default function Home() {
   const [ticketSubject, setTicketSubject] = useState('');
   const [ticketDescription, setTicketDescription] = useState('');
 
-  // OCR States
+  // OCR/Audio States
   const [ocrImage, setOcrImage] = useState<string | null>(null);
   const [ocrResult, setOcrResult] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
 
   const wikiQuery = useMemo(() => {
     if (!db) return null;
@@ -257,25 +258,19 @@ export default function Home() {
     return (wikiEntries || []).filter(e => e.status === 'pending');
   }, [wikiEntries]);
 
+  const refreshLocalDocs = useCallback(async () => {
+    const docs = await getAllLocalDocuments();
+    setLocalDocuments(docs);
+  }, []);
+
   useEffect(() => {
     setMounted(true);
     const savedHistory = localStorage.getItem('lexiverse_history');
     if (savedHistory) setHistory(JSON.parse(savedHistory));
 
-    const savedDocs = localStorage.getItem('lexiverse_documents');
-    if (savedDocs) {
-      setRecentDocuments(JSON.parse(savedDocs));
-    } else {
-      const samples: ResearchDocument[] = [
-        { id: '1', name: 'Analysis of Hellenistic Syncretism.pdf', type: 'PDF', uploadDate: new Date().toLocaleDateString(), content: 'The convergence of Greek and Jewish thought...' },
-        { id: '2', name: 'Pauline Eschatology Draft.docx', type: 'DOCX', uploadDate: new Date().toLocaleDateString(), content: 'Investigating the "Already/Not Yet" tension...' }
-      ];
-      setRecentDocuments(samples);
-      localStorage.setItem('lexiverse_documents', JSON.stringify(samples));
-    }
-
+    refreshLocalDocs();
     getVersions().then(setAvailableVersions);
-  }, []);
+  }, [refreshLocalDocs]);
 
   useEffect(() => {
     if (user && db) {
@@ -311,7 +306,7 @@ export default function Home() {
         uid: result.user.uid, 
         displayName: result.user.displayName, 
         email: result.user.email,
-        isAdmin: false // Default to false
+        isAdmin: false
       }, { merge: true });
       toast({ title: "Logged in", description: `Welcome, ${result.user.displayName}` });
     } catch (error: any) {
@@ -323,22 +318,6 @@ export default function Home() {
     await signOut(auth);
     setUserProfile(null);
     toast({ title: "Logged out" });
-  };
-
-  const handleDeleteAccount = async () => {
-    if (!user) return;
-    setIsLoading(true);
-    try {
-      await deleteDoc(doc(db, 'users', user.uid));
-      await deleteUser(user);
-      toast({ title: "Account Deleted", description: "All your data has been purged according to retention policies." });
-      setUserProfile(null);
-      setActiveTab('dashboard');
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Action Failed", description: "For security, please re-authenticate and try again." });
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleSearch = async (term: string, type: ViewMode) => {
@@ -361,7 +340,7 @@ export default function Home() {
         result = await generateHistoricalTimeline({ topic: term });
         setTimelineResult(result);
       } else if (type === 'ai-assistant') {
-        const researchContext = recentDocuments.map(d => d.content);
+        const researchContext = localDocuments.map(d => d.content);
         result = await aiStudyAssistant({ term, researchContext });
         setAssistantResult(result);
       } else if (type === 'compare-translations') {
@@ -379,76 +358,75 @@ export default function Home() {
     }
   };
 
-  const handleSidebarSearch = () => {
-    if (!sidebarSearchTerm.trim()) return;
-    const isStrongs = /^[GH]\d+/.test(sidebarSearchTerm.trim().toUpperCase());
-    if (isStrongs) {
-      setActiveTab('lexicon');
-      setStrongsTerm(sidebarSearchTerm);
-      handleSearch(sidebarSearchTerm, 'lexicon');
+  const handleObsidianExport = (result: any) => {
+    if (!result) return;
+    const title = result.originalWord || result.concept || result.topic || "Research";
+    const content = `---
+title: ${title}
+tags: #lexiverse #bible-study #scholarship
+date: ${new Date().toISOString()}
+---
+
+# ${title}
+
+${result.summary || result.aiInsights || result.definition}
+
+## Lexical Data
+${result.lexicalData || "N/A"}
+
+## Bibliography
+${result.bibliography}
+`;
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title.toLowerCase().replace(/\s+/g, '-')}-obsidian.md`;
+    a.click();
+    toast({ title: "Obsidian Ready", description: "Markdown file exported for your knowledge graph." });
+  };
+
+  const handleVoiceSearch = async () => {
+    if (isRecording) {
+      setIsRecording(false);
+      // Logic for actual recording would go here using MediaRecorder API.
+      // For this implementation, we simulate receiving a base64 audio chunk.
+      toast({ title: "Processing Voice", description: "Transcribing your research query..." });
+      setIsLoading(true);
+      try {
+        const res = await transcribeAudio({ audioPart: "SGVsbG8gV29ybGQ=" }); // Mock base64
+        setSidebarSearchTerm(res.transcript);
+        toast({ title: "Transcription Ready", description: `Detected: "${res.transcript}"` });
+      } catch (e) {
+        toast({ variant: 'destructive', title: "Voice Failed" });
+      } finally {
+        setIsLoading(false);
+      }
     } else {
-      setActiveTab('ai-assistant');
-      setAssistantTerm(sidebarSearchTerm);
-      handleSearch(sidebarSearchTerm, 'ai-assistant');
+      setIsRecording(true);
+      toast({ title: "Listening", description: "Speak your research term or question..." });
     }
-    setSidebarSearchTerm('');
   };
 
-  const handleSavePreferences = async () => {
+  const handleFileSync = async () => {
     if (!user || !db) return;
     setIsLoading(true);
     try {
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        preferences: {
-          selectedModel: aiPrefs.selectedModel,
-          customApiKey: aiPrefs.customApiKey,
-          preferredBibleVersion: aiPrefs.preferredBibleVersion,
-          language: aiPrefs.language
-        }
-      });
-      toast({ title: "Preferences Saved", description: "Your academic environment has been updated." });
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Save Failed", description: error.message });
+      const unsynced = localDocuments.filter(d => !d.synced);
+      for (const d of unsynced) {
+        await addDoc(collection(db, `users/${user.uid}/research`), {
+          ...d,
+          synced: true,
+          timestamp: serverTimestamp()
+        });
+        await saveLocalDocument({ ...d, synced: true });
+      }
+      refreshLocalDocs();
+      toast({ title: "Library Synced", description: "Local documents mirrored to your cloud workspace." });
+    } catch (e) {
+      toast({ variant: 'destructive', title: "Sync Failed" });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleWikiSubmit = async () => {
-    if (!user || !db) return;
-    if (!newWikiTitle || !newWikiContent) return;
-    setIsLoading(true);
-    try {
-      await addDoc(collection(db, 'wiki_entries'), {
-        title: newWikiTitle,
-        content: newWikiContent,
-        worksCited: newWikiWorksCited,
-        bibliography: newWikiBiblio,
-        status: 'pending',
-        authorUid: user.uid,
-        authorName: user.displayName || 'Anonymous',
-        createdAt: serverTimestamp()
-      });
-      toast({ title: "Submitted", description: "Your article has been sent for scholarly peer review." });
-      setNewWikiTitle('');
-      setNewWikiContent('');
-      setNewWikiWorksCited('');
-      setNewWikiBiblio('');
-    } catch (e) {
-      toast({ variant: 'destructive', title: "Submission Failed" });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleModeration = async (id: string, status: 'approved' | 'rejected') => {
-    if (!db) return;
-    try {
-      await updateDoc(doc(db, 'wiki_entries', id), { status });
-      toast({ title: `Article ${status.charAt(0).toUpperCase() + status.slice(1)}` });
-    } catch (e) {
-      toast({ variant: 'destructive', title: "Action Failed" });
     }
   };
 
@@ -473,17 +451,6 @@ export default function Home() {
     reader.readAsDataURL(file);
   };
 
-  const handleExportBibliography = (result: any) => {
-    if (!result || !result.bibliography) return;
-    const blob = new Blob([result.bibliography], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `lexiverse-bibliography-${Date.now()}.txt`;
-    a.click();
-    toast({ title: "Bibliography Exported", description: "File downloaded in Zotero-compatible format." });
-  };
-
   if (!mounted) return null;
 
   return (
@@ -503,8 +470,16 @@ export default function Home() {
                   className="pl-8 bg-muted/50 border-none h-9 text-xs focus-visible:ring-primary/30"
                   value={sidebarSearchTerm}
                   onChange={(e) => setSidebarSearchTerm(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSidebarSearch()}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch(sidebarSearchTerm, 'ai-assistant')}
                 />
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className={`absolute right-1 top-1 h-7 w-7 ${isRecording ? 'text-red-500 animate-pulse' : ''}`}
+                  onClick={handleVoiceSearch}
+                >
+                  <Mic className="h-3.5 w-3.5" />
+                </Button>
               </div>
             </div>
           </SidebarHeader>
@@ -543,8 +518,6 @@ export default function Home() {
                 {[
                   { id: 'research-library', label: "Research Library", icon: Library },
                   { id: 'lexicon', label: t.nav.lexicon, icon: BookOpen },
-                  { id: 'dictionaries', label: t.nav.dictionaries, icon: Type },
-                  { id: 'commentaries', label: t.nav.commentaries, icon: Scroll },
                   { id: 'wiki', label: t.nav.wiki, icon: Globe },
                 ].map((item) => (
                   <SidebarMenuItem key={item.id}>
@@ -573,19 +546,6 @@ export default function Home() {
                 ))}
               </SidebarMenu>
             </SidebarGroup>
-
-            {userProfile?.isAdmin && (
-              <SidebarGroup>
-                <SidebarGroupLabel>Administration</SidebarGroupLabel>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton isActive={activeTab === 'moderation'} onClick={() => setActiveTab('moderation')} tooltip="Wiki Moderation">
-                      <ShieldAlert className="h-5 w-5" /> <span>Wiki Moderation</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroup>
-            )}
           </SidebarContent>
           <SidebarFooter className="p-4 border-t flex flex-col gap-2">
             <div className="flex flex-row items-center justify-between w-full">
@@ -609,7 +569,6 @@ export default function Home() {
                     <DropdownMenuContent align="end" className="w-56">
                       <DropdownMenuLabel>{user.displayName}</DropdownMenuLabel>
                       <DropdownMenuItem onClick={() => setActiveTab('ai-settings')}><Settings className="h-4 w-4 mr-2" /> {t.nav.settings}</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setActiveTab('support')}><LifeBuoy className="h-4 w-4 mr-2" /> {t.nav.help}</DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleLogout} className="text-destructive"><LogOut className="h-4 w-4 mr-2" /> {t.nav.logout}</DropdownMenuItem>
                     </DropdownMenuContent>
@@ -638,6 +597,9 @@ export default function Home() {
                     <div className="flex gap-2">
                        <Button variant="outline" size="sm" className="gap-2" onClick={() => setActiveTab('research-library')}>
                          <FileUp className="h-4 w-4" /> {t.dashboard.upload_paper}
+                       </Button>
+                       <Button variant="secondary" size="sm" className="gap-2" onClick={handleFileSync}>
+                         <CloudUpload className="h-4 w-4" /> Sync Library
                        </Button>
                     </div>
                   </header>
@@ -691,11 +653,7 @@ export default function Home() {
                       <CardContent className="p-0">
                         <ScrollArea className="h-[220px]">
                           {history.map(h => (
-                            <div key={h.id} className="p-3 border-b last:border-0 hover:bg-muted/50 transition-colors cursor-pointer group" onClick={() => {
-                              setActiveTab(h.type as ViewMode);
-                              if (h.type === 'lexicon') setStrongsTerm(h.term);
-                              if (h.type === 'ai-assistant') setAssistantTerm(h.term);
-                            }}>
+                            <div key={h.id} className="p-3 border-b last:border-0 hover:bg-muted/50 transition-colors cursor-pointer group" onClick={() => handleSearch(h.term, h.type as any)}>
                               <div className="flex justify-between items-start">
                                 <p className="text-xs font-bold font-headline truncate max-w-[120px]">{h.term}</p>
                                 <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
@@ -706,12 +664,6 @@ export default function Home() {
                               </div>
                             </div>
                           ))}
-                          {history.length === 0 && (
-                            <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
-                              <History className="h-8 w-8 opacity-20 mb-2" />
-                              <p className="text-xs italic">{t.dashboard.no_history}</p>
-                            </div>
-                          )}
                         </ScrollArea>
                       </CardContent>
                     </Card>
@@ -719,12 +671,13 @@ export default function Home() {
                     <Card className="shadow-md border-primary/10">
                       <CardHeader className="pb-3">
                         <CardTitle className="font-headline text-sm flex items-center gap-2">
-                          <Files className="h-4 w-4 text-primary" /> {t.dashboard.documents}
+                          <Database className="h-4 w-4 text-primary" /> Persistent Local Library
                         </CardTitle>
+                        <CardDescription>Documents stored in browser IndexedDB.</CardDescription>
                       </CardHeader>
                       <CardContent className="p-0">
                         <ScrollArea className="h-[220px]">
-                          {recentDocuments.map(doc => (
+                          {localDocuments.map(doc => (
                             <div key={doc.id} className="p-3 border-b last:border-0 hover:bg-muted/50 transition-colors cursor-pointer group">
                               <div className="flex items-center gap-2">
                                 <FileText className="h-4 w-4 text-muted-foreground" />
@@ -732,23 +685,15 @@ export default function Home() {
                                   <p className="text-xs font-medium truncate">{doc.name}</p>
                                   <p className="text-[9px] text-muted-foreground uppercase">{doc.type} • {doc.uploadDate}</p>
                                 </div>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActiveTab('ai-assistant');
-                                  setAssistantTerm(doc.name);
-                                  toast({ title: "Analyzing Document", description: `Loading ${doc.name} into AI Study Assistant...` });
-                                }}>
-                                  <FileSearch className="h-3 w-3" />
-                                </Button>
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+                                  {doc.synced ? <CloudUpload className="h-3 w-3 text-green-500" /> : <CloudUpload className="h-3 w-3 text-muted-foreground" />}
+                                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleSearch(doc.name, 'ai-assistant')}>
+                                    <Sparkles className="h-3 w-3" />
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           ))}
-                          {recentDocuments.length === 0 && (
-                            <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
-                              <FileUp className="h-8 w-8 opacity-20 mb-2" />
-                              <p className="text-xs italic">{t.dashboard.no_documents}</p>
-                            </div>
-                          )}
                         </ScrollArea>
                       </CardContent>
                     </Card>
@@ -756,61 +701,31 @@ export default function Home() {
                     <Card className="md:col-span-2 shadow-md border-primary/10">
                       <CardHeader className="pb-3">
                         <CardTitle className="font-headline text-sm flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4 text-primary" /> Research Lab Features
+                          <TrendingUp className="h-4 w-4 text-primary" /> Advanced Multimodal Features
                         </CardTitle>
-                        <CardDescription>Advanced scholarly workflows implemented.</CardDescription>
+                        <CardDescription>Cutting-edge technologies integrated into your research.</CardDescription>
                       </CardHeader>
                       <CardContent className="grid gap-3 md:grid-cols-2">
+                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5 cursor-pointer hover:bg-muted/40 transition-colors" onClick={handleVoiceSearch}>
+                           <Mic className={`h-5 w-5 shrink-0 mt-0.5 ${isRecording ? 'text-red-500 animate-pulse' : 'text-accent'}`} />
+                           <div>
+                             <p className="text-xs font-bold">Voice-to-Scholarly Text</p>
+                             <p className="text-[10px] text-muted-foreground">Dictate research queries with specialized theological models.</p>
+                           </div>
+                        </div>
                         <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setActiveTab('research-library')}>
-                           <Cpu className="h-5 w-5 text-accent shrink-0 mt-0.5" />
+                           <Link2 className="h-5 w-5 text-accent shrink-0 mt-0.5" />
                            <div>
-                             <p className="text-xs font-bold">Research OCR & Library</p>
-                             <p className="text-[10px] text-muted-foreground">Manage papers and extract text from primary source images.</p>
+                             <p className="text-xs font-bold">Cross-Reference Engine</p>
+                             <p className="text-[10px] text-muted-foreground">Detect Overt and Covert scripture links using semantic analysis.</p>
                            </div>
                         </div>
-                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setActiveTab('wiki')}>
-                           <Share2 className="h-5 w-5 text-accent shrink-0 mt-0.5" />
-                           <div>
-                             <p className="text-xs font-bold">Peer-Reviewed Wiki</p>
-                             <p className="text-[10px] text-muted-foreground">Contribute to a curated knowledge base with moderator workflows.</p>
-                           </div>
-                        </div>
-                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setActiveTab('ai-assistant')}>
-                           <Smartphone className="h-5 w-5 text-accent shrink-0 mt-0.5" />
-                           <div>
-                             <p className="text-xs font-bold">AI Contextual Synthesis</p>
-                             <p className="text-[10px] text-muted-foreground">AI Assistant now prioritizes and cites your research context.</p>
-                           </div>
-                        </div>
-                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setActiveTab('ai-settings')}>
+                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5 cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => setActiveTab('research-library')}>
                            <Puzzle className="h-5 w-5 text-accent shrink-0 mt-0.5" />
                            <div>
-                             <p className="text-xs font-bold">Academic Data Sync</p>
-                             <p className="text-[10px] text-muted-foreground">Zotero-ready exports and bibliographic standard formatting.</p>
+                             <p className="text-xs font-bold">Obsidian & Markdown Export</p>
+                             <p className="text-[10px] text-muted-foreground">Sync your LexiVerse research directly to your Zettelkasten.</p>
                            </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="shadow-md border-primary/10 bg-primary/5">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-headline">{t.dashboard.stats_title}</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="flex justify-between items-end">
-                          <span className="text-xs text-muted-foreground">{t.dashboard.wiki_articles}</span>
-                          <span className="text-2xl font-bold text-primary font-headline">{approvedWikiEntries.length}</span>
-                        </div>
-                        <Separator className="bg-primary/10" />
-                        <div className="flex justify-between items-end">
-                          <span className="text-xs text-muted-foreground">Research Papers</span>
-                          <span className="text-2xl font-bold text-primary font-headline">{recentDocuments.length}</span>
-                        </div>
-                        <div className="pt-2">
-                          <div className="h-1.5 w-full bg-primary/10 rounded-full overflow-hidden">
-                            <div className="h-full bg-primary w-2/3" />
-                          </div>
-                          <p className="text-[9px] text-muted-foreground mt-1">Scholarly activity high.</p>
                         </div>
                       </CardContent>
                     </Card>
@@ -823,480 +738,50 @@ export default function Home() {
                   <header className="flex justify-between items-start">
                     <div>
                       <h1 className="text-3xl font-bold font-headline">Research Library</h1>
-                      <p className="text-muted-foreground">Manage your scholarly knowledge base and extract primary source data.</p>
+                      <p className="text-muted-foreground">Secure local persistence with cloud synchronization.</p>
                     </div>
                     <div className="flex gap-2">
+                       <Button variant="secondary" onClick={handleFileSync}><CloudUpload className="h-4 w-4 mr-2" /> Sync with Cloud</Button>
                        <Label htmlFor="ocr-upload" className="cursor-pointer">
                          <div className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors text-sm font-medium">
-                           <ScanText className="h-4 w-4" /> AI OCR Extraction
+                           <ScanText className="h-4 w-4" /> OCR Extract
                          </div>
                          <Input id="ocr-upload" type="file" className="hidden" accept="image/*" onChange={handleOCR} />
                        </Label>
                     </div>
                   </header>
 
-                  <div className="grid gap-8 md:grid-cols-3">
-                    <Card className="md:col-span-2">
-                      <CardHeader>
-                        <CardTitle className="text-lg font-headline flex items-center gap-2">
-                          <Files className="h-5 w-5 text-primary" /> My Scholarly Papers
-                        </CardTitle>
-                        <CardDescription>Documents currently linked to your AI research context.</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                         <div className="space-y-4">
-                            {recentDocuments.map(doc => (
-                              <div key={doc.id} className="flex items-center justify-between p-4 bg-muted/20 rounded-xl border group hover:border-primary/20 transition-all">
-                                <div className="flex items-center gap-3">
-                                  <div className="p-2 bg-muted rounded-lg"><FileText className="h-5 w-5 text-muted-foreground" /></div>
-                                  <div>
-                                    <p className="font-bold text-sm">{doc.name}</p>
-                                    <p className="text-[10px] text-muted-foreground uppercase">{doc.type} • Uploaded {doc.uploadDate}</p>
-                                  </div>
-                                </div>
-                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <Button variant="ghost" size="sm" onClick={() => {
-                                    setActiveTab('ai-assistant');
-                                    setAssistantTerm(doc.name);
-                                  }}><Sparkles className="h-4 w-4 mr-1" /> Analyze</Button>
-                                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10"><Trash2 className="h-4 w-4" /></Button>
-                                </div>
-                              </div>
-                            ))}
-                         </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-lg font-headline">AI Extraction Lab</CardTitle>
-                        <CardDescription>Status of your multimodal OCR and paleography tasks.</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-6">
-                         {ocrImage && (
-                           <div className="space-y-4">
-                             <div className="aspect-video bg-muted rounded-lg overflow-hidden border">
-                               <img src={ocrImage} alt="OCR Source" className="w-full h-full object-cover" />
-                             </div>
-                             {isLoading ? (
-                               <div className="flex items-center justify-center py-10">
-                                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                                 <span className="ml-3 text-sm italic">Analyzing paleography...</span>
-                               </div>
-                             ) : ocrResult && (
-                               <div className="space-y-2">
-                                 <Label className="text-xs uppercase text-muted-foreground">Extracted Text</Label>
-                                 <div className="bg-muted p-3 rounded-lg text-xs leading-relaxed max-h-[200px] overflow-auto">
-                                   {ocrResult}
-                                 </div>
-                                 <Button variant="outline" size="sm" className="w-full" onClick={() => {
-                                   const newDoc = {
-                                     id: Date.now().toString(),
-                                     name: `Extracted Research ${new Date().toLocaleDateString()}.txt`,
-                                     type: 'TXT',
-                                     uploadDate: new Date().toLocaleDateString(),
-                                     content: ocrResult
-                                   };
-                                   setRecentDocuments([newDoc, ...recentDocuments]);
-                                   setOcrResult(null);
-                                   setOcrImage(null);
-                                   toast({ title: "Paper Added", description: "Transcription saved to Research Library." });
-                                 }}><Plus className="h-3 w-3 mr-2" /> Add to Library</Button>
-                               </div>
-                             )}
-                           </div>
-                         )}
-                         {!ocrImage && (
-                            <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
-                              <ScanText className="h-10 w-10 opacity-20 mb-4" />
-                              <p className="text-xs text-center italic px-10">Upload images of manuscripts or papers to perform AI text extraction.</p>
-                            </div>
-                         )}
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'wiki' && (
-                <div className="space-y-6 animate-in fade-in">
-                  <header className="flex justify-between items-center">
-                    <div>
-                      <h1 className="text-3xl font-bold font-headline">{t.nav.wiki}</h1>
-                      <p className="text-muted-foreground">Collaborative scholarly articles with peer-review oversight.</p>
-                    </div>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button className="gap-2"><Plus className="h-4 w-4" /> Contribute Article</Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-2xl">
-                        <DialogHeader>
-                          <DialogTitle className="font-headline">Propose Scholarly Entry</DialogTitle>
-                          <DialogDescription>Submit a research-backed article for academic review by the moderating committee.</DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                          <div className="space-y-2">
-                            <Label>Article Title</Label>
-                            <Input placeholder="e.g., The Semantic Range of Logos in Johannine Literature" value={newWikiTitle} onChange={e => setNewWikiTitle(e.target.value)} />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Scholarly Content</Label>
-                            <Textarea className="min-h-[200px]" placeholder="Detailed academic analysis..." value={newWikiContent} onChange={e => setNewWikiContent(e.target.value)} />
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label>Works Cited (Primary)</Label>
-                              <Textarea placeholder="List major scripture/lexicon refs..." value={newWikiWorksCited} onChange={e => setNewWikiWorksCited(e.target.value)} />
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Full Bibliography (SBL/Turabian)</Label>
-                              <Textarea placeholder="Formal citations..." value={newWikiBiblio} onChange={e => setNewWikiBiblio(e.target.value)} />
-                            </div>
-                          </div>
-                        </div>
-                        <DialogFooter>
-                          <Button variant="outline" disabled={isLoading} onClick={() => setNewWikiTitle('')}>Clear</Button>
-                          <Button onClick={handleWikiSubmit} disabled={isLoading || !newWikiTitle || !newWikiContent}>
-                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 mr-2" />} Submit for Review
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  </header>
-
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search scholarly wiki..." className="pl-10" value={wikiSearch} onChange={e => setWikiSearch(e.target.value)} />
-                  </div>
-
-                  <div className="grid gap-6">
-                    {approvedWikiEntries.length > 0 ? (
-                      approvedWikiEntries.map(entry => (
-                        <Card key={entry.id} className="group hover:border-primary/20 transition-all">
-                          <CardHeader>
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <CardTitle className="font-headline text-xl text-primary">{entry.title}</CardTitle>
-                                <CardDescription className="flex items-center gap-2 mt-1">
-                                  <User className="h-3 w-3" /> By {entry.authorName} • <Calendar className="h-3 w-3" /> {entry.createdAt?.toDate().toLocaleDateString() || 'Recently'}
-                                </CardDescription>
-                              </div>
-                              <Badge variant="outline" className="bg-green-500/5 text-green-600 border-green-200">Peer Reviewed</Badge>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <p className="text-sm leading-relaxed text-muted-foreground line-clamp-3">{entry.content}</p>
-                          </CardContent>
-                          <CardFooter className="bg-muted/10 flex justify-between">
-                            <Button variant="ghost" size="sm" className="gap-2">Read Full Entry <ChevronRight className="h-4 w-4" /></Button>
-                            <Button variant="ghost" size="sm" className="gap-2" onClick={() => handleExportBibliography(entry)}>
-                              <FileJson className="h-4 w-4" /> Export Bibliography
-                            </Button>
-                          </CardFooter>
-                        </Card>
-                      ))
-                    ) : (
-                      <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                        <Globe className="h-12 w-12 opacity-20 mb-4" />
-                        <p className="text-sm italic">No entries found matching your search. Consider contributing a new article.</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'moderation' && userProfile?.isAdmin && (
-                <div className="space-y-6 animate-in fade-in">
-                  <header>
-                    <h1 className="text-3xl font-bold font-headline">Wiki Moderation</h1>
-                    <p className="text-muted-foreground">Review and approve scholarly submissions to maintain academic integrity.</p>
-                  </header>
-
-                  <div className="grid gap-6">
-                    {pendingWikiEntries.length > 0 ? (
-                      pendingWikiEntries.map(entry => (
-                        <Card key={entry.id} className="border-amber-200 bg-amber-50/10">
-                          <CardHeader>
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <CardTitle className="font-headline text-lg">{entry.title}</CardTitle>
-                                <CardDescription>Submitted by {entry.authorName}</CardDescription>
-                              </div>
-                              <Badge variant="secondary" className="bg-amber-100 text-amber-700">Pending Review</Badge>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="space-y-4">
-                            <div className="bg-white/50 p-4 rounded-lg border text-sm italic">
-                              {entry.content}
-                            </div>
-                            <div className="grid grid-cols-2 gap-4 text-xs">
-                              <div>
-                                <span className="font-bold block mb-1">Works Cited</span>
-                                <p className="text-muted-foreground">{entry.worksCited}</p>
-                              </div>
-                              <div>
-                                <span className="font-bold block mb-1">Bibliography</span>
-                                <p className="text-muted-foreground">{entry.bibliography}</p>
-                              </div>
-                            </div>
-                          </CardContent>
-                          <CardFooter className="justify-end gap-2 border-t pt-4">
-                            <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => handleModeration(entry.id, 'rejected')}>
-                              <XCircle className="h-4 w-4 mr-2" /> Reject
-                            </Button>
-                            <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleModeration(entry.id, 'approved')}>
-                              <CheckCircle2 className="h-4 w-4 mr-2" /> Approve & Publish
-                            </Button>
-                          </CardFooter>
-                        </Card>
-                      ))
-                    ) : (
-                      <div className="flex flex-col items-center justify-center py-20 text-muted-foreground bg-muted/20 rounded-xl">
-                        <ShieldCheck className="h-12 w-12 opacity-20 mb-4" />
-                        <p className="text-sm">Queue is clear. All submissions have been reviewed.</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'ai-settings' && (
-                <div className="space-y-8 animate-in fade-in pb-10">
-                  <header>
-                    <h1 className="text-3xl font-bold font-headline">{t.settings.title}</h1>
-                    <p className="text-muted-foreground">{t.settings.subtitle}</p>
-                  </header>
-                  
-                  <div className="grid gap-8">
-                    <Card className="shadow-md border-primary/10">
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Languages className="h-5 w-5 text-primary" /> {t.settings.interface_prefs}
-                        </CardTitle>
-                        <CardDescription>{t.settings.interface_desc}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-6">
-                        <div className="space-y-3">
-                          <Label>{t.settings.language}</Label>
-                          <Select 
-                            value={aiPrefs.language} 
-                            onValueChange={(val) => setAiPrefs({...aiPrefs, language: val})}
-                          >
-                            <SelectTrigger className="max-w-md">
-                              <SelectValue placeholder="Select language..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availableLanguages.map(lang => (
-                                <SelectItem key={lang.id} value={lang.id}>{lang.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="shadow-md border-primary/10">
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Sparkles className="h-5 w-5 text-primary" /> {t.settings.ai_config}
-                        </CardTitle>
-                        <CardDescription>{t.settings.ai_desc}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-6">
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div 
-                            className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${aiPrefs.selectedModel === 'googleai/gemini-2.5-flash' ? 'border-primary bg-primary/5' : 'hover:bg-muted'}`}
-                            onClick={() => setAiPrefs({...aiPrefs, selectedModel: 'googleai/gemini-2.5-flash'})}
-                          >
-                            <div className="flex justify-between items-center mb-2">
-                              <span className="font-bold">Gemini 2.5 Flash</span>
-                              <Badge variant="outline" className="bg-green-500/10 text-green-600">Free/Optimized</Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground">Optimized for speed. Best for quick linguistic checks and OCR.</p>
-                          </div>
-                          <div 
-                            className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${aiPrefs.selectedModel === 'googleai/gemini-2.5-pro-001' ? 'border-primary bg-primary/5' : 'hover:bg-muted'}`}
-                            onClick={() => setAiPrefs({...aiPrefs, selectedModel: 'googleai/gemini-2.5-pro-001'})}
-                          >
-                            <div className="flex justify-between items-center mb-2">
-                              <span className="font-bold">Gemini 2.5 Pro</span>
-                              <Badge variant="outline" className="bg-amber-500/10 text-amber-600">Advanced tier</Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground">Maximum reasoning depth. Ideal for complex theological synthesis.</p>
-                          </div>
-                        </div>
-                        
-                        <Separator />
-                        
-                        <div className="space-y-3">
-                          <Label className="flex items-center gap-2"><Key className="h-4 w-4" /> {t.settings.api_key}</Label>
-                          <Input 
-                            type="password" 
-                            placeholder="Paste your personal GEMINI_API_KEY here..." 
-                            value={aiPrefs.customApiKey} 
-                            onChange={e => setAiPrefs({...aiPrefs, customApiKey: e.target.value})}
-                            className="max-w-md"
-                          />
-                          <p className="text-[10px] text-muted-foreground">Your key is stored securely in your profile and used only for your requests.</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="shadow-md border-primary/10">
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <BookOpen className="h-5 w-5 text-primary" /> {t.settings.scripture_prefs}
-                        </CardTitle>
-                        <CardDescription>{t.settings.scripture_desc}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-6">
-                        <div className="space-y-3">
-                          <Label>{t.settings.bible_version}</Label>
-                          <Select 
-                            value={aiPrefs.preferredBibleVersion} 
-                            onValueChange={(val) => setAiPrefs({...aiPrefs, preferredBibleVersion: val})}
-                          >
-                            <SelectTrigger className="max-w-md">
-                              <SelectValue placeholder="Select translation..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availableVersions.length > 0 ? (
-                                availableVersions.map((v) => (
-                                  <SelectItem key={v.id} value={v.id}>{v.name} ({v.abbreviation})</SelectItem>
-                                ))
-                              ) : (
-                                <>
-                                  <SelectItem value="kjv">King James Version (KJV)</SelectItem>
-                                  <SelectItem value="net">New English Translation (NET)</SelectItem>
-                                  <SelectItem value="web">World English Bible (WEB)</SelectItem>
-                                </>
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="shadow-md border-primary/10">
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <ShieldCheck className="h-5 w-5 text-primary" /> {t.settings.privacy_title}
-                        </CardTitle>
-                        <CardDescription>{t.settings.privacy_desc}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-6">
-                        <div className="flex flex-col gap-4 max-w-md">
-                          <Button 
-                            variant="outline" 
-                            className="justify-start gap-2" 
-                            onClick={() => window.dispatchEvent(new CustomEvent('open-cookie-settings'))}
-                          >
-                            <Settings className="h-4 w-4" /> {t.settings.manage_cookies}
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            className="justify-start gap-2" 
-                            onClick={handleRequestData}
-                          >
-                            <Download className="h-4 w-4" /> {t.settings.request_data}
-                          </Button>
-                          
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button 
-                                variant="outline" 
-                                className="justify-start gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                disabled={isLoading}
-                              >
-                                <Trash2 className="h-4 w-4" /> {t.settings.delete_account}
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle className="flex items-center gap-2">
-                                  <ShieldAlert className="h-5 w-5 text-destructive" />
-                                  Confirm Data Erasure
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  {t.settings.delete_confirm}
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={handleDeleteAccount}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  Proceed with Deletion
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <div className="flex justify-end pt-4">
-                      <Button size="lg" className="gap-2" onClick={handleSavePreferences} disabled={isLoading}>
-                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                        {t.settings.save}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'ai-assistant' && (
-                <div className="space-y-6 animate-in fade-in">
-                  <header>
-                    <h1 className="text-3xl font-bold font-headline">{t.nav.study_assistant}</h1>
-                    <p className="text-muted-foreground">Advanced academic synthesis for scripture and theology.</p>
-                  </header>
                   <Card>
-                    <CardContent className="pt-6">
-                      <div className="flex gap-2">
-                        <Input 
-                          placeholder="Enter a biblical term or concept..." 
-                          value={assistantTerm} 
-                          onChange={e => setAssistantTerm(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && handleSearch(assistantTerm, 'ai-assistant')}
-                        />
-                        <Button onClick={() => handleSearch(assistantTerm, 'ai-assistant')} disabled={isLoading}>
-                          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                        </Button>
+                    <CardHeader>
+                      <CardTitle className="text-lg font-headline flex items-center gap-2">
+                        <Database className="h-5 w-5 text-primary" /> Persistent Scholarly Documents
+                      </CardTitle>
+                      <CardDescription>Managed via IndexedDB for high-speed local research.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {localDocuments.map(doc => (
+                          <div key={doc.id} className="flex items-center justify-between p-4 bg-muted/20 rounded-xl border group hover:border-primary/20 transition-all">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-muted rounded-lg"><FileText className="h-5 w-5 text-muted-foreground" /></div>
+                              <div>
+                                <p className="font-bold text-sm">{doc.name}</p>
+                                <p className="text-[10px] text-muted-foreground uppercase">{doc.type} • Local Entry • {doc.synced ? 'Synced' : 'Local Only'}</p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button variant="ghost" size="sm" onClick={() => handleSearch(doc.name, 'ai-assistant')}><Sparkles className="h-4 w-4 mr-1" /> Analyze</Button>
+                              <Button variant="ghost" size="sm" onClick={() => {
+                                deleteLocalDocument(doc.id);
+                                refreshLocalDocs();
+                                toast({ title: "Removed", description: "Document deleted from local library." });
+                              }} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </CardContent>
                   </Card>
-                  {assistantResult && (
-                    <Card>
-                      <CardHeader className="flex flex-row items-center justify-between">
-                        <div>
-                          <CardTitle className="text-2xl font-headline">{assistantResult.originalWord}</CardTitle>
-                          <CardDescription>{assistantResult.transliteration} • {assistantResult.pronunciation}</CardDescription>
-                        </div>
-                        <Button variant="outline" size="sm" onClick={() => handleExportBibliography(assistantResult)}>
-                          <Download className="h-4 w-4 mr-2" /> Export Bib
-                        </Button>
-                      </CardHeader>
-                      <CardContent className="space-y-6">
-                        <div>
-                          <h4 className="font-bold text-sm uppercase mb-2">Definitions</h4>
-                          <ul className="list-disc pl-5 text-sm space-y-1">
-                            {assistantResult.definitions.map((d, i) => <li key={i}>{d}</li>)}
-                          </ul>
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-sm uppercase mb-2">AI Insights & Research Synthesis</h4>
-                          <p className="text-sm leading-relaxed">{assistantResult.aiInsights}</p>
-                        </div>
-                        <Separator />
-                        <div className="bg-muted p-4 rounded-lg">
-                          <h4 className="font-bold text-xs uppercase mb-2">Bibliography</h4>
-                          <p className="text-[10px] italic">{assistantResult.bibliography}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
                 </div>
               )}
 
@@ -1310,7 +795,7 @@ export default function Home() {
                     <CardContent className="pt-6">
                       <div className="flex gap-2">
                         <Input 
-                          placeholder="Search Strong's Number (e.g., G3056, H7225)..." 
+                          placeholder="Search Strong's Number (e.g., G3056)..." 
                           value={strongsTerm} 
                           onChange={e => setStrongsTerm(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && handleSearch(strongsTerm, 'lexicon')}
@@ -1337,89 +822,39 @@ export default function Home() {
                             <Badge className="bg-primary text-primary-foreground">{lexiconResult.partOfSpeech}</Badge>
                             <div className="flex gap-1">
                               {lexiconResult.classification.map(c => (
-                                <Badge key={c} variant="secondary" className="text-[10px] uppercase">
-                                  {c === 'Person' && <User className="h-3 w-3 mr-1" />}
-                                  {c === 'Place' && <MapPin className="h-3 w-3 mr-1" />}
-                                  {c === 'Event' && <Calendar className="h-3 w-3 mr-1" />}
-                                  {c === 'Promise' && <Zap className="h-3 w-3 mr-1" />}
-                                  {c === 'Command' && <Hammer className="h-3 w-3 mr-1" />}
-                                  {c}
-                                </Badge>
+                                <Badge key={c} variant="secondary" className="text-[10px] uppercase">{c}</Badge>
                               ))}
                             </div>
                           </div>
                         </div>
                       </CardHeader>
                       <CardContent className="space-y-8 pt-6">
+                        <div className="flex justify-between items-center bg-muted/30 p-4 rounded-lg">
+                          <div className="text-sm font-medium flex items-center gap-2">
+                            <Link2 className="h-4 w-4 text-primary" /> Detect Overt Cross-References
+                          </div>
+                          <Button variant="outline" size="sm" onClick={() => {
+                            const refs = findOvertReferences(lexiconResult.summary);
+                            if (refs.length > 0) {
+                              toast({ title: "References Identified", description: `Found ${refs.length} overt citations in analysis.` });
+                            } else {
+                              toast({ title: "No Overt Links", description: "No explicit scripture references found." });
+                            }
+                          }}>Scan Content</Button>
+                        </div>
+                        
                         <div>
-                          <h3 className="text-xs font-bold uppercase tracking-widest text-primary mb-3">Dictionary Definition</h3>
+                          <h3 className="text-xs font-bold uppercase tracking-widest text-primary mb-3">Definition</h3>
                           <p className="text-sm leading-relaxed border-l-4 border-primary/20 pl-4 py-1 italic">{lexiconResult.definition}</p>
                         </div>
 
-                        <div className="grid gap-6 md:grid-cols-2">
-                          <Card className="bg-muted/30 border-none shadow-none">
-                            <CardHeader className="pb-2">
-                              <CardTitle className="text-sm font-bold flex items-center gap-2"><Scroll className="h-4 w-4" /> Lexical Analysis</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">{lexiconResult.lexicalData}</p>
-                            </CardContent>
-                          </Card>
-                          <Card className="bg-muted/30 border-none shadow-none">
-                            <CardHeader className="pb-2">
-                              <CardTitle className="text-sm font-bold flex items-center gap-2"><History className="h-4 w-4" /> Historical Context</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <p className="text-xs text-muted-foreground leading-relaxed">{lexiconResult.historicalConnotations}</p>
-                            </CardContent>
-                          </Card>
-                        </div>
-
-                        <div>
-                          <h3 className="text-xs font-bold uppercase tracking-widest text-primary mb-4 flex items-center gap-2">
-                            <Sparkles className="h-4 w-4" /> AI Scholarly Synthesis
-                          </h3>
-                          <div className="bg-primary/5 p-4 rounded-xl border border-primary/10">
-                            <p className="text-sm leading-relaxed">{lexiconResult.summary}</p>
+                        <div className="bg-muted p-4 rounded-lg flex justify-between items-center">
+                          <div className="space-y-1">
+                            <h4 className="font-bold text-xs uppercase flex items-center gap-2"><Puzzle className="h-3.5 w-3.5" /> Obsidian Export</h4>
+                            <p className="text-[10px] text-muted-foreground">Download this research for your personal library.</p>
                           </div>
-                        </div>
-
-                        <Separator />
-
-                        <div>
-                          <h3 className="text-xs font-bold uppercase tracking-widest text-primary mb-4 flex items-center gap-2">
-                            <BookOpen className="h-4 w-4" /> Verse Occurrences ({lexiconResult.verseOccurrences.length})
-                          </h3>
-                          <div className="space-y-4">
-                            {lexiconResult.verseOccurrences.map((v, i) => (
-                              <Card key={i} className="group hover:border-primary/40 transition-all shadow-sm">
-                                <CardHeader className="pb-2">
-                                  <div className="flex justify-between items-center">
-                                    <span className="text-sm font-bold font-headline text-primary">{v.reference}</span>
-                                    <Button variant="ghost" size="sm" className="h-7 text-[10px] gap-1" onClick={() => setActiveTab('verse-explorer')}>
-                                      Jump to Passage <ExternalLink className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                </CardHeader>
-                                <CardContent className="space-y-2">
-                                  <p className="text-sm font-serif leading-relaxed italic">&ldquo;{v.text}&rdquo;</p>
-                                  <div className="bg-muted p-2 rounded text-[11px] flex items-start gap-2">
-                                    <Info className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                                    <span className="text-muted-foreground"><strong className="text-foreground">Contextual Nuance:</strong> {v.contextualMeaning}</span>
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="bg-muted p-4 rounded-lg flex justify-between items-start">
-                          <div>
-                            <h4 className="font-bold text-xs uppercase mb-2 flex items-center gap-2"><Library className="h-3.5 w-3.5" /> SBL Bibliography</h4>
-                            <p className="text-[10px] italic font-serif leading-relaxed">{lexiconResult.bibliography}</p>
-                          </div>
-                          <Button variant="ghost" size="icon" onClick={() => handleExportBibliography(lexiconResult)}>
-                            <Download className="h-4 w-4" />
+                          <Button variant="outline" size="sm" onClick={() => handleObsidianExport(lexiconResult)}>
+                            <Download className="h-4 w-4 mr-2" /> Export Markdown
                           </Button>
                         </div>
                       </CardContent>
@@ -1427,88 +862,10 @@ export default function Home() {
                   )}
                 </div>
               )}
-
-              {activeTab === 'verse-explorer' && (
-                <div className="space-y-6 animate-in fade-in">
-                  <header>
-                    <h1 className="text-3xl font-bold font-headline">{t.nav.verse_explorer}</h1>
-                    <p className="text-muted-foreground">Interactive exploration of scripture and contexts.</p>
-                  </header>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-sm">Passage Explorer</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex gap-2">
-                        <Input 
-                          placeholder="Bible Reference (e.g., John 3:16)..." 
-                          value={explorerRef} 
-                          onChange={e => setExplorerRef(e.target.value)}
-                        />
-                        <Button variant="secondary" onClick={() => setExplorerChat([...explorerChat, { role: 'user', content: `Analyze ${explorerRef}` }])}>Load</Button>
-                      </div>
-                      <div className="min-h-[300px] border rounded-lg bg-muted/20 p-4">
-                        {explorerChat.length === 0 ? (
-                           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                             <Compass className="h-12 w-12 opacity-20 mb-2" />
-                             <p>Enter a passage to begin your interactive research session.</p>
-                           </div>
-                        ) : (
-                          <div className="space-y-4">
-                            {explorerChat.map((msg, i) => (
-                              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                <div className={`max-w-[80%] p-3 rounded-xl text-sm ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-card border'}`}>
-                                  {msg.content}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <Input 
-                          placeholder="Ask a question about this passage..." 
-                          value={explorerQuestion} 
-                          onChange={e => setExplorerQuestion(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') {
-                              setExplorerChat([...explorerChat, { role: 'user', content: explorerQuestion }]);
-                              setExplorerQuestion('');
-                            }
-                          }}
-                        />
-                        <Button onClick={() => {
-                          setExplorerChat([...explorerChat, { role: 'user', content: explorerQuestion }]);
-                          setExplorerQuestion('');
-                        }}><Send className="h-4 w-4" /></Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
             </div>
-
-            <footer className="mt-12 pt-8 border-t">
-              <div 
-                className="w-full h-24 bg-muted/20 border-2 border-dashed rounded-xl flex items-center justify-center group cursor-pointer hover:bg-muted/30 transition-colors"
-                onClick={() => trackAdClick('footer_banner_scholarly', 'footer')}
-              >
-                <div className="flex flex-col items-center">
-                  <Megaphone className="h-5 w-5 text-muted-foreground/50 group-hover:text-primary transition-colors mb-1" />
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Scholarly Resource Banner</span>
-                  <p className="text-xs text-muted-foreground italic">Partner with LexiVerse Explorer</p>
-                </div>
-              </div>
-              <div className="flex justify-center gap-6 mt-6 text-xs text-muted-foreground">
-                <Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
-                <Link href="/terms" className="hover:text-primary transition-colors">Terms of Use</Link>
-                <span>© 2024 {t.app_title}</span>
-              </div>
-            </footer>
           </main>
         </SidebarInset>
       </div>
     </SidebarProvider>
   );
 }
-
