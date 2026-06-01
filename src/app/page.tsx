@@ -137,6 +137,7 @@ import { formatBibliography, type FormatBibliographyOutput } from '@/ai/flows/fo
 import { checkIntegrity, type AcademicIntegrityOutput } from '@/ai/flows/academic-integrity-ai';
 import { extractTextFromImage } from '@/ai/flows/ocr-flow';
 import { getVersions, getChapterContent, parseReference, type BibleVersion, type BibleChapter } from '@/lib/bible-api';
+import { trackAdClick } from '@/components/analytics';
 
 type ViewMode = 'dashboard' | 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers' | 'gallery' | 'writing-assistant' | 'integrity' | 'ai-settings';
 
@@ -626,6 +627,10 @@ export default function Home() {
     else toast({ variant: "destructive", title: "No Text Selected" });
   };
 
+  const handleAdClick = (id: string, position: string) => {
+    trackAdClick(id, position);
+  };
+
   if (!mounted) return null;
 
   return (
@@ -731,7 +736,10 @@ export default function Home() {
               <div className="px-2 py-1">
                 <div className="bg-muted/30 border-2 border-dashed rounded-lg p-3 text-center">
                   <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest block mb-1">Scholar Support</span>
-                  <div className="w-full aspect-[3/1] bg-muted/20 rounded flex items-center justify-center border border-muted-foreground/10 hover:bg-muted/40 transition-colors cursor-pointer group">
+                  <div 
+                    className="w-full aspect-[3/1] bg-muted/20 rounded flex items-center justify-center border border-muted-foreground/10 hover:bg-muted/40 transition-colors cursor-pointer group"
+                    onClick={() => handleAdClick('scholar_support_widget', 'sidebar')}
+                  >
                     <div className="flex flex-col items-center">
                       <Megaphone className="h-3 w-3 text-muted-foreground/50 group-hover:text-primary transition-colors mb-1" />
                       <p className="text-[8px] text-muted-foreground italic font-medium">Highlight your resource</p>
@@ -833,7 +841,10 @@ export default function Home() {
                 </div>
 
                 {/* Dashboard Ad Placeholder Banner */}
-                <Card className="bg-muted/10 border-dashed border-2 flex flex-col items-center justify-center p-6 transition-all hover:bg-muted/20 cursor-pointer group">
+                <Card 
+                  className="bg-muted/10 border-dashed border-2 flex flex-col items-center justify-center p-6 transition-all hover:bg-muted/20 cursor-pointer group"
+                  onClick={() => handleAdClick('theological_resource_spotlight', 'dashboard_spotlight')}
+                >
                   <div className="flex items-center gap-3">
                     <Megaphone className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                     <div className="text-left space-y-0.5">
@@ -1491,7 +1502,10 @@ export default function Home() {
 
             {/* Banner Ad Placeholder */}
             <div className="mt-12 pt-8 border-t">
-              <div className="w-full h-24 bg-muted/20 border-2 border-dashed rounded-xl flex items-center justify-center group cursor-pointer hover:bg-muted/30 transition-colors">
+              <div 
+                className="w-full h-24 bg-muted/20 border-2 border-dashed rounded-xl flex items-center justify-center group cursor-pointer hover:bg-muted/30 transition-colors"
+                onClick={() => handleAdClick('scholarly_resource_banner_main', 'footer_banner')}
+              >
                 <div className="flex flex-col items-center">
                   <Megaphone className="h-5 w-5 text-muted-foreground/50 group-hover:text-primary transition-colors mb-1" />
                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Scholarly Resource Banner</span>

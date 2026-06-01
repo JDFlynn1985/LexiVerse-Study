@@ -4,8 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Scale, Megaphone } from 'lucide-react';
 import Link from 'next/link';
+import { trackAdClick } from '@/components/analytics';
 
 export default function TermsOfUse() {
+  const handleAdClick = (id: string, position: string) => {
+    trackAdClick(id, position);
+  };
+
   return (
     <div className="min-h-screen bg-background p-6 md:p-12">
       <div className="max-w-4xl mx-auto space-y-8">
@@ -86,7 +91,10 @@ export default function TermsOfUse() {
 
         {/* Banner Ad Placeholder */}
         <div className="mt-12 pt-8 border-t">
-          <div className="w-full h-24 bg-muted/20 border-2 border-dashed rounded-xl flex items-center justify-center group cursor-pointer hover:bg-muted/30 transition-colors">
+          <div 
+            className="w-full h-24 bg-muted/20 border-2 border-dashed rounded-xl flex items-center justify-center group cursor-pointer hover:bg-muted/30 transition-colors"
+            onClick={() => handleAdClick('scholarly_resource_banner_terms', 'footer_banner')}
+          >
             <div className="flex flex-col items-center">
               <Megaphone className="h-5 w-5 text-muted-foreground/50 group-hover:text-primary transition-colors mb-1" />
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Scholarly Resource Banner</span>

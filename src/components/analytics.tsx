@@ -2,10 +2,43 @@
 
 /**
  * @fileOverview Analytics component for Google and Matomo tracking.
+ * Includes helper methods for tracking specific scholarly engagement events like ad clicks.
  */
 
 import Script from 'next/script';
 import { appConfig } from '@/app-config';
+
+// Global declaration for TypeScript to recognize analytics objects
+declare global {
+  interface Window {
+    gtag?: (...args: any[]) => void;
+    _paq?: any[];
+    dataLayer?: any[];
+  }
+}
+
+/**
+ * Tracks a click on a scholarly sponsorship or advertisement link.
+ * @param adId Unique identifier for the advertisement or resource.
+ * @param adPosition Where the ad is located (e.g., 'sidebar', 'footer', 'dashboard').
+ */
+export function trackAdClick(adId: string, adPosition: string) {
+  if (typeof window === 'undefined') return;
+
+  // Track in Google Analytics (GA4)
+  if (window.gtag) {
+    window.gtag('event', 'ad_click', {
+      ad_id: adId,
+      ad_position: adPosition,
+      event_category: 'sponsorship',
+    });
+  }
+
+  // Track in Matomo
+  if (window._paq) {
+    window._paq.push(['trackEvent', 'Sponsorship', 'Click', `${adId} - ${adPosition}`]);
+  }
+}
 
 export function Analytics() {
   const { google, matomo } = appConfig.analytics;
@@ -22,7 +55,7 @@ export function Analytics() {
           <Script id="google-analytics" strategy="afterInteractive">
             {`
               window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
+              function gtag(){window.dataLayer.push(arguments);}
               gtag('js', new Date());
               gtag('config', '${google.measurementId}');
             `}
