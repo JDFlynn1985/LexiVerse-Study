@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "UserStudyProfile": {
@@ -23,6 +22,10 @@
             "preferredBibleVersion": {
               "type": "string",
               "description": "The user's preferred Bible translation (e.g., kjv, net)."
+            },
+            "language": {
+              "type": "string",
+              "description": "The user's preferred interface language and dialect."
             }
           }
         }

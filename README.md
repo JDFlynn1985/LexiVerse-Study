@@ -2,70 +2,62 @@
 
 LexiVerse Explorer is an advanced, AI-powered Bible study platform designed for seminary students and biblical scholars. It integrates scripture modules, original language lexicons, and scholarly research tools into a single cohesive environment.
 
-## 🌟 Features
+## 🌟 Current Features
 
-- **Digital Library**: Access multiple Bible versions via the Free Use Bible API.
-- **Semantic Lexicon**: Deep analysis of Greek and Hebrew terms using Strong's numbers and morphological data.
-- **Scholar AI Engine**: A Genkit-powered assistant that synthesizes scripture, commentaries, and your own research.
-- **Research Paper Integration**: Upload PDF, Word, and Text documents to create a custom knowledge base for the AI.
-- **Google Workspace Sync**: Export notes to Google Keep, research logs to Google Docs, and bibliographies to Google Sheets.
-- **Personal Study Suite**: Highlight-to-note capture and academic bibliography management.
-- **Privacy First**: Granular cookie consent, GDPR/CCPA compliant data erasure, and multi-dialect localization.
-- **Dark Mode Support**: A scholarly aesthetic that respects your environment.
+### 📖 Digital Library & Lexicon
+- **Scripture Access**: Integration with the Free Use Bible API for multiple versions (KJV, NET, WEB, etc.).
+- **Semantic Lexicon**: Deep analysis of Greek and Hebrew terms using Strong's numbers, providing morphology, part of speech, and theological classification (Person, Place, Event, Promise, Command).
+- **Interactive Verse Explorer**: Real-time passage analysis and contextual AI chat.
+
+### 🤖 Scholar AI Engine
+- **AI Study Assistant**: Synthesizes scripture, commentaries, and user-uploaded research into professional academic reports.
+- **Multimodal Research Library**: Upload papers and use AI-powered OCR to extract text from primary source images or manuscripts.
+- **Translation Comparison**: Compare translational philosophies and nuances across major Bible versions.
+- **Custom AI Configuration**: Support for Gemini 2.5 Flash and Pro models, with secure storage for personal API keys.
+
+### ✍️ Scholarly Synthesis
+- **Peer-Reviewed Wiki**: A collaborative knowledge base with a formal submission and moderation workflow for scholarly articles.
+- **Academic Writing Assistant**: Refine theological drafts for tone, grammar, and academic rigor.
+- **Bibliography Management**: Export citations in SBL or Turabian formats, ready for academic submission.
+
+### 🌍 Global & Private
+- **Multi-Dialect Localization**: Full support for English (US/UK) and Spanish (Spain/Mexico) with automatic system detection.
+- **Privacy First**: Granular cookie consent management and full GDPR/CCPA compliance for data portability and account erasure.
+- **Dark Mode**: A scholarly aesthetic designed for long hours of research in any environment.
 
 ## 🚀 Tech Stack
 
 - **Framework**: [Next.js 15 (App Router)](https://nextjs.org/)
-- **UI Components**: [ShadCN UI](https://ui.shadcn.com/)
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
-- **AI Engine**: [Genkit](https://firebase.google.com/docs/genkit) with Gemini 2.5
-- **Backend**: [Firebase](https://firebase.google.com/) (Auth, Firestore)
+- **UI Components**: [ShadCN UI](https://ui.shadcn.com/) with [Tailwind CSS](https://tailwindcss.com/)
+- **AI Engine**: [Genkit](https://firebase.google.com/docs/genkit) with Gemini 2.5 (Flash/Pro)
+- **Backend**: [Firebase](https://firebase.google.com/) (Authentication, Firestore)
 - **APIs**: Free Use Bible API (bible.helloao.org)
 
 ## 🛠️ Getting Started
 
 ### Prerequisites
-
 - Node.js 20+
 - A Firebase Project
-- A Google Cloud Project (for Gemini API and Google Workspace scopes)
+- A Google AI Studio API Key
 
 ### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-username/lexiverse-explorer.git
-   cd lexiverse-explorer
-   ```
-
-2. Install dependencies:
+1. Clone the repository and install dependencies:
    ```bash
    npm install
    ```
-
-3. Set up environment variables:
-   Create a `.env` file in the root directory based on the template in `src/app-config.ts`.
-
-4. Run the development server:
+2. Set up environment variables in `.env`:
+   - `NEXT_PUBLIC_FIREBASE_API_KEY`, etc.
+   - `GEMINI_API_KEY` (Optional if using personal keys via app settings)
+3. Run the development server:
    ```bash
    npm run dev
    ```
 
 ## 🗺️ Future Roadmap
-
-- **Vector Research Assistant**: Implement RAG (Retrieval-Augmented Generation) so the AI Assistant can semantically search and cite your uploaded research papers.
-- **Peer-Reviewed Wiki**: Add a formal approval workflow for Wiki entries, allowing faculty admins to curate scholarly content.
-- **Offline Mode (PWA)**: Service worker support for accessing lexicons and saved notes in areas with poor connectivity.
-- **Zotero Integration**: Direct API sync with standard bibliographic managers for advanced citation management.
+- **RAG Implementation**: Full vector search across the entire research library for semantically cited AI responses.
+- **Google Workspace Integration**: Direct sync of research logs to Google Docs and bibliographic metadata to Sheets.
+- **Offline Mode**: PWA support for accessing lexicons and saved notes without an active connection.
+- **Zotero API Sync**: Automated bibliographic syncing with standard academic citation managers.
 
 ## 📄 License
-
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🤝 Contributing
-
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
-
-## 🌍 Accessibility
-
-LexiVerse is committed to WCAG 2.1 AAA standards, ensuring a robust experience for scholars using assistive technologies.

@@ -1,32 +1,33 @@
 # Contributing to LexiVerse Explorer
 
-First off, thank you for considering contributing to LexiVerse! It's people like you that make LexiVerse such a great tool for the scholarly community.
+Thank you for contributing to the scholarly advancement of LexiVerse! We welcome contributions from both developers and biblical scholars.
 
-## Code of Conduct
+## 🎓 Scholarly Contributions
 
-By participating in this project, you agree to abide by the terms of our Code of Conduct.
+If you are a student or scholar, you can contribute directly through the **Scholarly Wiki** within the app. Propose new articles or improvements to existing ones. All entries undergo a peer-review process managed by our moderation committee.
 
-## How Can I Contribute?
+## 💻 Technical Contributions
 
-### Reporting Bugs
-- Use the GitHub issue tracker.
-- Describe the bug in detail and provide steps to reproduce.
+### Code of Conduct
+By participating, you agree to maintain a professional and respectful environment suitable for academic collaboration.
 
-### Suggesting Enhancements
-- Check the issues to see if it has been suggested before.
-- Explain why the enhancement would be useful to biblical scholars.
+### How to Contribute
+1. **Report Bugs**: Use the GitHub issue tracker with detailed reproduction steps.
+2. **Suggest Features**: We are particularly interested in tools that enhance theological synthesis or linguistic precision.
+3. **Pull Requests**:
+   - Create a feature branch from `main`.
+   - Ensure all code is typed with TypeScript.
+   - Follow the established UI patterns using ShadCN and Tailwind.
+   - If adding a new AI Flow, ensure it follows the expert-to-seminary-student persona.
 
-### Pull Requests
-1. Fork the repo and create your branch from `main`.
-2. If you've added code that should be tested, add tests.
-3. Ensure the test suite passes.
-4. Format your code with Prettier.
+### Style Guide
+- **Tone**: Formal, academic, and rigorous.
+- **Components**: Use Radix-based ShadCN components.
+- **Icons**: Use `lucide-react` (verify availability before use).
+- **Localization**: All UI text must be added to the dialect-specific files in `src/lib/locales/`.
 
-## Style Guide
-- We use TypeScript for all scripts.
-- We prefer functional components and React Hooks.
-- UI components should use ShadCN and Tailwind CSS.
-- Keep accessibility (A11y) at the forefront of UI changes.
+## 🌍 Accessibility
+LexiVerse is committed to WCAG 2.1 AAA standards. Please ensure all UI changes include proper ARIA labels and maintain high contrast ratios.
 
-## License
-By contributing, you agree that your contributions will be licensed under its MIT License.
+## 📄 License
+By contributing, you agree that your contributions will be licensed under the project's MIT License.
