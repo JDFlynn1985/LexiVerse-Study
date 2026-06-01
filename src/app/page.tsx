@@ -68,7 +68,9 @@ import {
   SpellCheck,
   AlertCircle,
   Sparkles,
-  LayoutDashboard
+  LayoutDashboard,
+  FileCheck,
+  ChevronRight
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -93,11 +95,19 @@ import {
   DialogTitle,
   DialogFooter
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
 import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/compare-translations-ai';
 import { interactiveVerseExplorationAI } from '@/ai/flows/interactive-verse-exploration-ai';
 import { refineWriting, type WritingAssistantOutput } from '@/ai/flows/writing-assistant-ai';
+import { formatBibliography, type FormatBibliographyOutput } from '@/ai/flows/format-bibliography-ai';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 
 type ViewMode = 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers' | 'writing-assistant';
@@ -176,6 +186,10 @@ export default function Home() {
   // Writing Assistant States
   const [writingInput, setWritingInput] = useState('');
   const [writingResult, setWritingResult] = useState<WritingAssistantOutput | null>(null);
+
+  // Bibliography States
+  const [biblioStyle, setBiblioStyle] = useState<'SBL' | 'Turabian' | 'Chicago' | 'APA' | 'MLA'>('SBL');
+  const [formattedBiblioResult, setFormattedBiblioResult] = useState<FormatBibliographyOutput | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -705,6 +719,26 @@ export default function Home() {
     }
   }
 
+  async function handleBiblioFormatting() {
+    if (biblioItems.length === 0) {
+      toast({ variant: 'destructive', title: 'Bibliography Empty', description: 'Add sources to your bibliography before formatting.' });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const data = await formatBibliography({ 
+        items: biblioItems.map(item => item.citation), 
+        style: biblioStyle 
+      });
+      setFormattedBiblioResult(data);
+      toast({ title: "Formatting Complete", description: `Applied ${biblioStyle} formatting to your research log.` });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Formatting Failed', description: 'AI could not process the bibliography.' });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   if (!mounted) return null;
 
   return (
@@ -951,6 +985,148 @@ export default function Home() {
               </div>
             )}
 
+            {activeTab === 'bibliography' && (
+              <div className="space-y-8 animate-in fade-in">
+                <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 border-b pb-6">
+                  <div>
+                    <h1 className="text-3xl font-bold font-headline">Bibliography Manager</h1>
+                    <p className="text-muted-foreground">Manage and format citations according to academic standards.</p>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <Select value={biblioStyle} onValueChange={(val: any) => setBiblioStyle(val)}>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Select Style" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="SBL">SBL (Society of Biblical Lit)</SelectItem>
+                        <SelectItem value="Chicago">Chicago (Author-Date)</SelectItem>
+                        <SelectItem value="Turabian">Turabian (Notes-Biblio)</SelectItem>
+                        <SelectItem value="APA">APA 7th Edition</SelectItem>
+                        <SelectItem value="MLA">MLA 9th Edition</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button onClick={handleBiblioFormatting} disabled={isLoading || biblioItems.length === 0} className="shadow-md">
+                      {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileCheck className="h-4 w-4 mr-2" />}
+                      Generate Formatted
+                    </Button>
+                  </div>
+                </header>
+
+                <div className="grid gap-8 lg:grid-cols-[1fr,350px]">
+                  <div className="space-y-6">
+                    {formattedBiblioResult ? (
+                      <Card className="shadow-lg border-primary/20">
+                        <CardHeader className="bg-primary/5 border-b flex flex-row justify-between items-center">
+                          <div>
+                            <CardTitle className="text-lg font-headline">Formatted Bibliography</CardTitle>
+                            <CardDescription>Generated in {formattedBiblioResult.styleApplied} Style</CardDescription>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={() => {
+                              navigator.clipboard.writeText(formattedBiblioResult.formattedBibliography);
+                              toast({ title: "Copied to Clipboard" });
+                            }}>
+                              <Copy className="h-4 w-4 mr-2" /> Copy
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => exportToGoogleDocs(`Bibliography (${biblioStyle})`, formattedBiblioResult.formattedBibliography)}>
+                              <ExternalLink className="h-4 w-4 mr-2" /> Export Doc
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-8">
+                          <div className="prose dark:prose-invert max-w-none">
+                            <p className="whitespace-pre-wrap leading-loose font-serif text-lg">{formattedBiblioResult.formattedBibliography}</p>
+                          </div>
+                          
+                          {formattedBiblioResult.formattingNotes.length > 0 && (
+                            <div className="mt-8 pt-6 border-t">
+                              <h4 className="text-sm font-bold flex items-center gap-2 mb-3">
+                                <Info className="h-4 w-4" /> Formatting Nuances
+                              </h4>
+                              <ul className="space-y-2">
+                                {formattedBiblioResult.formattingNotes.map((note, i) => (
+                                  <li key={i} className="text-xs text-muted-foreground flex gap-2">
+                                    <ChevronRight className="h-3 w-3 shrink-0 text-primary" /> {note}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </CardContent>
+                        <CardFooter className="bg-muted/30 p-4 justify-between border-t">
+                          <p className="text-[10px] text-muted-foreground">Standard applied: {biblioStyle === 'SBL' ? 'SBL 2nd Edition' : biblioStyle}</p>
+                          <Button variant="ghost" size="sm" onClick={() => setFormattedBiblioResult(null)}>Reset View</Button>
+                        </CardFooter>
+                      </Card>
+                    ) : (
+                      <div className="space-y-4">
+                        <h2 className="text-xl font-bold font-headline">Study Resource Log</h2>
+                        {biblioItems.length === 0 ? (
+                          <div className="text-center py-20 bg-muted/20 border-dashed border-2 rounded-xl">
+                            <ClipboardList className="h-12 w-12 mx-auto mb-4 opacity-10" />
+                            <p className="text-muted-foreground">Your bibliography is empty. Add sources from the Lexicon or Dictionary.</p>
+                          </div>
+                        ) : (
+                          <div className="grid gap-3">
+                            {biblioItems.map(item => (
+                              <Card key={item.id} className="group">
+                                <CardContent className="p-4 flex justify-between items-center">
+                                  <div className="space-y-1">
+                                    <div className="flex gap-2 items-center">
+                                      <Badge variant="secondary" className="text-[10px] uppercase">{item.sourceType}</Badge>
+                                      <span className="text-[10px] text-muted-foreground">{item.date}</span>
+                                    </div>
+                                    <p className="text-sm font-medium">{item.citation}</p>
+                                  </div>
+                                  <Button variant="ghost" size="icon" className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => {
+                                    const updated = biblioItems.filter(i => i.id !== item.id);
+                                    setBiblioItems(updated);
+                                    localStorage.setItem('lexiverse_biblio', JSON.stringify(updated));
+                                  }}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <aside className="space-y-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-sm font-bold">Bibliography Actions</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <Button variant="outline" className="w-full justify-start gap-2" onClick={() => exportToGoogleSheets("My Study Bibliography", biblioItems)} disabled={biblioItems.length === 0}>
+                          <TableIcon className="h-4 w-4" /> Export to Google Sheets
+                        </Button>
+                        <Button variant="outline" className="w-full justify-start gap-2 text-destructive hover:bg-destructive/10" onClick={() => {
+                          setBiblioItems([]);
+                          localStorage.removeItem('lexiverse_biblio');
+                          setFormattedBiblioResult(null);
+                        }} disabled={biblioItems.length === 0}>
+                          <Trash2 className="h-4 w-4" /> Clear Bibliography
+                        </Button>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="bg-muted/20">
+                      <CardHeader>
+                        <CardTitle className="text-xs uppercase text-muted-foreground">Style Guides</CardTitle>
+                      </CardHeader>
+                      <CardContent className="text-xs space-y-3 leading-relaxed">
+                        <p><strong>SBL Style</strong> is the standard for Biblical Studies, based on Chicago 17th with specific adaptations for theological journals.</p>
+                        <p><strong>Turabian</strong> is commonly required for seminary graduate papers and focuses on clear note-taking.</p>
+                      </CardContent>
+                    </Card>
+                  </aside>
+                </div>
+              </div>
+            )}
+
             {activeTab === 'writing-assistant' && (
               <div className="space-y-8 animate-in fade-in">
                 <header className="text-center">
@@ -1043,7 +1219,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Rest of the Tab Views (lexicon, papers, etc.) remain as defined in previous iterations but with added ARIA labels where helpful */}
             {activeTab === 'lexicon' && (
               <div className="space-y-8 animate-in fade-in">
                 <div className="text-center py-10">
@@ -1214,8 +1389,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Other views (dictionaries, translations, verse-explorer, notes, bibliography, scholar-ai, history) continue here... */}
-            {/* For brevity, I'll ensure the existing UI logic remains integrated */}
             {activeTab === 'dictionaries' && (
               <div className="space-y-8 animate-in fade-in">
                 <header className="text-center">
@@ -1364,7 +1537,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Default remaining tabs logic... */}
             {activeTab === 'notes' && (
               <div className="space-y-6 animate-in fade-in">
                 <header className="flex justify-between items-center">
@@ -1425,8 +1597,6 @@ export default function Home() {
                 )}
               </div>
             )}
-
-            {/* Rest of the functional components remain exactly as needed to power the app */}
           </main>
         </SidebarInset>
       </div>
