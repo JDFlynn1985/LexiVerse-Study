@@ -1,6 +1,7 @@
 'use server';
 /**
  * @fileOverview This flow defines and analyzes Greek or Hebrew terms based on Strong's numbers.
+ * Enhanced to provide full verse text and contextual nuances.
  *
  * - defineAndAnalyzeTerm - A function that takes a Strong's number and retrieves detailed information about the term.
  * - DefineAndAnalyzeTermInput - The input type for the defineAndAnalyzeTerm function.
@@ -28,40 +29,48 @@ const CommentaryInsightSchema = z.object({
   relevantVerse: z.string().optional().describe('The Bible verse reference the insight relates to.'),
 });
 
+const VerseOccurrenceSchema = z.object({
+  reference: z.string().describe('The Bible reference (e.g., "John 3:16").'),
+  text: z.string().describe('The full text of the verse.'),
+  contextualMeaning: z.string().describe('Specific nuance or meaning of the term in this specific context.'),
+  link: z.string().describe('An internal routing link parameter for Verse Explorer.'),
+});
+
 const DefineAndAnalyzeTermOutputSchema = z.object({
   searchStrongNumber: z.string().describe("The Strong's number that was searched for."),
   originalWord: z.string().describe('The original Greek, Hebrew, or Aramaic word.'),
   transliteration: z.string().describe('The transliteration of the original word.'),
   pronunciation: z.string().describe('The pronunciation guide for the original word.'),
-  definition: z.string().describe('The primary definition of the term.'),
-  lexicalData: z.string().optional().describe('Lexical data associated with the term.'),
+  definition: z.string().describe('The primary dictionary-style definition of the term.'),
+  lexicalData: z.string().optional().describe('Deep lexical data (morphology, usage) associated with the term.'),
+  historicalConnotations: z.string().describe('Analysis of historical and cultural connotations of the term.'),
   roots: z.array(RootInfoSchema).optional().describe('Information about the root words, if available.'),
   commentaryInsights: z.array(CommentaryInsightSchema).describe('Detailed insights extracted from commentaries.'),
-  scriptureReferences: z.array(z.string()).describe('References where the term is used in scripture.'),
+  verseOccurrences: z.array(VerseOccurrenceSchema).describe('List of verses where the word is used, including full text and contextual meanings.'),
   blueLetterBibleData: z.string().optional().describe('Data fetched from BlueLetterBible.com.'),
-  summary: z.string().describe('A synthesized overview of historical and linguistic context from commentaries and word analysis.'),
-  bibliography: z.string().describe('A formatted bibliography of all sources used.'),
+  summary: z.string().describe('A synthesized overview (AI Overview) of historical and linguistic context.'),
+  bibliography: z.string().describe('A formatted SBL bibliography of all sources used.'),
 });
 export type DefineAndAnalyzeTermOutput = z.infer<typeof DefineAndAnalyzeTermOutputSchema>;
 
 export async function defineAndAnalyzeTerm(input: DefineAndAnalyzeTermInput): Promise<DefineAndAnalyzeTermOutput> {
-  // Use the requested model or fall back to the app default
   const selectedModel = input.model || 'googleai/gemini-2.5-flash';
   
   const { output } = await ai.generate({
     model: selectedModel,
-    prompt: `You are an expert biblical scholar specializing in ancient languages (Greek, Hebrew, and Aramaic). Your task is to perform a comprehensive analysis of a given Strong's number.
+    prompt: `You are an expert biblical scholar specializing in ancient languages. Perform a comprehensive analysis of the Strong's number: ${input.strongsNumber}.
 
-Strong's Number: ${input.strongsNumber}
-
-Simulate searching BlueLetterBible.com and tracing roots. Provide:
-1. The original word, transliteration, and pronunciation.
-2. The definition and lexical data.
-3. Word roots and their meanings.
-4. Historical and linguistic context from classic commentaries (JFB, Matthew Henry, Keil & Delitzsch, etc.).
-5. A list of scripture references.
-6. A summary synthesizing the data.
-7. A properly formatted SBL bibliography.
+Requirements:
+1. Provide a detailed dictionary entry and lexical breakdown.
+2. Synthesize an "AI Overview" summary of the term's theological significance.
+3. Deeply explore the historical and cultural connotations (how it was understood in its original time).
+4. Find EVERY major verse where this term is used. For each verse:
+   - Provide the full text of the verse.
+   - Provide the specific nuance of the term in that context.
+   - Provide a simulated reference link for our "Verse Explorer".
+5. Trace etymological roots.
+6. Provide insights from classical scholarly commentaries.
+7. Format an SBL bibliography.
 
 Format your response strictly as JSON adhering to the DefineAndAnalyzeTermOutputSchema.`,
     output: {

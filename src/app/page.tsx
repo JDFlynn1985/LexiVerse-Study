@@ -56,7 +56,9 @@ import {
   GraduationCap,
   Sparkles,
   Compass,
-  Repeat
+  Repeat,
+  History,
+  FileText
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -91,6 +93,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from '@/hooks/use-toast';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 // AI Flow Imports
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
@@ -272,10 +275,7 @@ export default function Home() {
 
   const handleSidebarSearch = () => {
     if (!sidebarSearchTerm.trim()) return;
-    
-    // Routing Logic: Strong's numbers (G/H followed by digits) go to Lexicon, else AI Assistant
     const isStrongs = /^[GH]\d+/.test(sidebarSearchTerm.trim().toUpperCase());
-    
     if (isStrongs) {
       setActiveTab('lexicon');
       setStrongsTerm(sidebarSearchTerm);
@@ -288,18 +288,21 @@ export default function Home() {
     setSidebarSearchTerm('');
   };
 
-  const handleVerseExplore = async () => {
-    if (!explorerQuestion.trim()) return;
+  const handleVerseExplore = async (ref?: string) => {
+    const targetRef = ref || explorerQuestion;
+    if (!targetRef.trim()) return;
+    setActiveTab('verse-explorer');
+    if (ref) setExplorerRef(ref);
     setIsLoading(true);
     try {
       const result = await interactiveVerseExplorationAI({
-        term: explorerRef || 'Scripture',
-        question: explorerQuestion,
+        term: ref || explorerRef || 'Scripture',
+        question: ref ? `Provide a deep analysis of ${ref}` : explorerQuestion,
         history: explorerChat,
         model: aiPrefs.selectedModel
       });
-      setExplorerChat([...explorerChat, { role: 'user', content: explorerQuestion }, { role: 'model', content: result.response }]);
-      setExplorerQuestion('');
+      setExplorerChat([...explorerChat, { role: 'user', content: ref || explorerQuestion }, { role: 'model', content: result.response }]);
+      if (!ref) setExplorerQuestion('');
     } catch (error) {
       toast({ variant: 'destructive', title: 'AI Error', description: 'Failed to explore verse.' });
     } finally {
@@ -365,12 +368,11 @@ export default function Home() {
               <div className="bg-primary text-primary-foreground p-1.5 rounded-lg shadow-md"><Globe className="h-6 w-6" /></div>
               <span className="text-xl font-bold font-headline group-data-[collapsible=icon]:hidden">LexiVerse</span>
             </div>
-            {/* Sidebar Quick Search */}
             <div className="px-2 pb-4 group-data-[collapsible=icon]:hidden">
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Lexicon or AI query..."
+                  placeholder="Lexicon (G3056) or AI query..."
                   className="pl-8 bg-muted/50 border-none h-9 text-xs focus-visible:ring-primary/30"
                   value={sidebarSearchTerm}
                   onChange={(e) => setSidebarSearchTerm(e.target.value)}
@@ -538,7 +540,10 @@ export default function Home() {
                       <CardContent className="p-0">
                         <ScrollArea className="h-[200px]">
                           {history.map(h => (
-                            <div key={h.id} className="p-3 border-b hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setActiveTab(h.type as ViewMode)}>
+                            <div key={h.id} className="p-3 border-b hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => {
+                              setActiveTab(h.type as ViewMode);
+                              if (h.type === 'lexicon') setStrongsTerm(h.term);
+                            }}>
                               <p className="text-xs font-bold font-headline truncate">{h.term}</p>
                               <div className="flex justify-between items-center mt-1">
                                 <Badge variant="secondary" className="text-[8px] uppercase">{h.type}</Badge>
@@ -663,7 +668,7 @@ export default function Home() {
                         onChange={e => setExplorerQuestion(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && handleVerseExplore()}
                       />
-                      <Button onClick={handleVerseExplore} disabled={isLoading}>
+                      <Button onClick={() => handleVerseExplore()} disabled={isLoading}>
                         {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                       </Button>
                     </div>
@@ -685,62 +690,17 @@ export default function Home() {
                 </div>
               )}
 
-              {activeTab === 'compare-translations' && (
-                <div className="space-y-6 animate-in fade-in">
-                  <header>
-                    <h1 className="text-3xl font-bold font-headline">Translation Comparison</h1>
-                    <p className="text-muted-foreground">Analyzing nuances across major Bible versions.</p>
-                  </header>
-                  <Card>
-                    <CardContent className="pt-6">
-                      <div className="flex gap-2">
-                        <Input 
-                          placeholder="Term to compare (e.g., Logos, Grace)..." 
-                          value={compareWord} 
-                          onChange={e => setCompareWord(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && handleSearch(compareWord, 'compare-translations')}
-                        />
-                        <Button onClick={() => handleSearch(compareWord, 'compare-translations')} disabled={isLoading}>
-                          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Repeat className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                  {compareResult && (
-                    <div className="space-y-6">
-                      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {compareResult.translations.map((t, i) => (
-                          <Card key={i}>
-                            <CardHeader className="pb-2">
-                              <CardTitle className="text-xs font-bold uppercase">{t.version}</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <p className="text-lg font-headline text-primary mb-1">{t.translation}</p>
-                              {t.notes && <p className="text-[10px] text-muted-foreground italic">{t.notes}</p>}
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                      <Card className="bg-muted/10 border-primary/20">
-                        <CardHeader><CardTitle className="text-sm font-headline">Linguistic Summary</CardTitle></CardHeader>
-                        <CardContent><p className="text-sm leading-relaxed">{compareResult.summary}</p></CardContent>
-                      </Card>
-                    </div>
-                  )}
-                </div>
-              )}
-
               {activeTab === 'lexicon' && (
                 <div className="space-y-6 animate-in fade-in">
                   <header>
                     <h1 className="text-3xl font-bold font-headline">Original Language Lexicon</h1>
-                    <p className="text-muted-foreground">Deep analysis of Greek and Hebrew terms via Strong's numbers.</p>
+                    <p className="text-muted-foreground">Deep linguistic and contextual analysis of Greek & Hebrew terms.</p>
                   </header>
                   <Card>
                     <CardContent className="pt-6">
                       <div className="flex gap-2">
                         <Input 
-                          placeholder="Enter Strong's Number (e.g., G3056, H7225)..." 
+                          placeholder="Strong's Number (e.g., G3056)..." 
                           value={strongsTerm} 
                           onChange={e => setStrongsTerm(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && handleSearch(strongsTerm, 'lexicon')}
@@ -753,42 +713,103 @@ export default function Home() {
                   </Card>
 
                   {lexiconResult && (
-                    <Card className="border-primary/20 bg-primary/5">
-                      <CardHeader>
-                        <div>
-                          <Badge variant="outline" className="mb-2">{lexiconResult.searchStrongNumber}</Badge>
-                          <CardTitle className="text-3xl font-headline text-primary">{lexiconResult.originalWord}</CardTitle>
-                          <CardDescription>{lexiconResult.transliteration} • {lexiconResult.pronunciation}</CardDescription>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-6">
-                        <div className="grid md:grid-cols-2 gap-6">
-                          <div>
-                            <h4 className="font-bold text-sm uppercase tracking-wider mb-2">Definitions</h4>
-                            <ul className="list-disc pl-5 space-y-1 text-sm">
-                              {lexiconResult.definitions.map((d, i) => <li key={i}>{d}</li>)}
-                            </ul>
+                    <div className="space-y-6">
+                      <Card className="border-primary/20 shadow-md">
+                        <CardHeader className="bg-primary/5 border-b">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <Badge variant="outline" className="mb-2 uppercase text-[10px] tracking-widest">{lexiconResult.searchStrongNumber}</Badge>
+                              <CardTitle className="text-4xl font-headline text-primary">{lexiconResult.originalWord}</CardTitle>
+                              <CardDescription className="text-lg">{lexiconResult.transliteration} • {lexiconResult.pronunciation}</CardDescription>
+                            </div>
+                            <Button variant="ghost" size="sm" className="gap-2" onClick={() => setActiveTab('ai-assistant')}>
+                              <Sparkles className="h-4 w-4" /> Synthesis
+                            </Button>
                           </div>
-                          <div>
-                            <h4 className="font-bold text-sm uppercase tracking-wider mb-2">Lexical Data</h4>
-                            <p className="text-sm leading-relaxed">{lexiconResult.lexicalData}</p>
+                        </CardHeader>
+                        <CardContent className="pt-6 space-y-8">
+                          {/* Dictionary & Lexical Data */}
+                          <div className="grid md:grid-cols-2 gap-8">
+                            <div className="space-y-4">
+                              <h4 className="font-bold text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><BookOpen className="h-3 w-3" /> Dictionary Entry</h4>
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap">{lexiconResult.definition}</p>
+                            </div>
+                            <div className="space-y-4">
+                              <h4 className="font-bold text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><Type className="h-3 w-3" /> Lexical Data</h4>
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap">{lexiconResult.lexicalData}</p>
+                            </div>
                           </div>
-                        </div>
-                        <Separator />
-                        <div>
-                          <h4 className="font-bold text-sm uppercase tracking-wider mb-2">Academic Summary</h4>
-                          <p className="text-sm leading-relaxed whitespace-pre-wrap">{lexiconResult.summary}</p>
-                        </div>
-                        <div className="bg-muted p-4 rounded-lg">
-                          <h4 className="font-bold text-xs uppercase tracking-wider mb-2">Bibliography (SBL Style)</h4>
-                          <p className="text-[10px] italic">{lexiconResult.bibliography}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
+
+                          <Separator />
+
+                          {/* AI Overview & Historical Connotations */}
+                          <div className="grid md:grid-cols-2 gap-8">
+                             <div className="space-y-4 p-4 bg-primary/5 rounded-xl border border-primary/10">
+                              <h4 className="font-bold text-xs uppercase tracking-widest flex items-center gap-2 text-primary"><Sparkles className="h-3 w-3" /> AI Overview</h4>
+                              <p className="text-sm leading-relaxed">{lexiconResult.summary}</p>
+                            </div>
+                            <div className="space-y-4">
+                              <h4 className="font-bold text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><History className="h-3 w-3" /> Historical Connotations</h4>
+                              <p className="text-sm leading-relaxed">{lexiconResult.historicalConnotations}</p>
+                            </div>
+                          </div>
+
+                          <Separator />
+
+                          {/* Detailed Verse Occurrences */}
+                          <div className="space-y-6">
+                            <h4 className="font-bold text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><FileText className="h-3 w-3" /> Scriptural Occurrences</h4>
+                            <div className="space-y-4">
+                              {lexiconResult.verseOccurrences.map((v, i) => (
+                                <Card key={i} className="bg-muted/30 border-none shadow-none">
+                                  <CardHeader className="p-4 pb-0 flex flex-row justify-between items-center">
+                                    <Badge variant="secondary" className="text-[10px] font-bold cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors" onClick={() => handleVerseExplore(v.reference)}>
+                                      {v.reference}
+                                    </Badge>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleVerseExplore(v.reference)}>
+                                      <Compass className="h-3 w-3" />
+                                    </Button>
+                                  </CardHeader>
+                                  <CardContent className="p-4 pt-2 space-y-3">
+                                    <p className="text-sm italic font-serif leading-relaxed">"{v.text}"</p>
+                                    <div className="bg-background/50 p-2 rounded text-[11px] border">
+                                      <span className="font-bold uppercase text-[9px] text-muted-foreground mr-2">Contextual Nuance:</span>
+                                      {v.contextualMeaning}
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Roots & Bibliography */}
+                          <div className="grid md:grid-cols-2 gap-8 pt-4">
+                            {lexiconResult.roots && lexiconResult.roots.length > 0 && (
+                              <div className="space-y-4">
+                                <h4 className="font-bold text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><Network className="h-3 w-3" /> Root Trace</h4>
+                                <div className="space-y-2">
+                                  {lexiconResult.roots.map((root, i) => (
+                                    <div key={i} className="text-sm">
+                                      <span className="font-bold text-primary mr-2">{root.root}</span>
+                                      <span className="text-muted-foreground">{root.definition}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            <div className="space-y-4">
+                              <h4 className="font-bold text-xs uppercase tracking-widest flex items-center gap-2 text-muted-foreground"><GraduationCap className="h-3 w-3" /> Bibliography (SBL)</h4>
+                              <p className="text-[10px] italic leading-relaxed">{lexiconResult.bibliography}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
                   )}
                 </div>
               )}
 
+              {/* ... other tabs like dictionaries, commentaries, wiki, theology-map, timeline, ai-settings, support remain as they were ... */}
               {activeTab === 'dictionaries' && (
                 <div className="space-y-6 animate-in fade-in">
                   <header>
