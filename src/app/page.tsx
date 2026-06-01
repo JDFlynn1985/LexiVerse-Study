@@ -1,10 +1,10 @@
-
 'use client';
 
 import { useState, useEffect, useId, useRef, useMemo } from 'react';
 import { useTheme } from 'next-themes';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
+import Link from 'next/link';
 import { 
   signInWithPopup, 
   GoogleAuthProvider, 
@@ -91,7 +91,8 @@ import {
   ScanText,
   Settings,
   Cpu,
-  Key
+  Key,
+  Shield
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -719,6 +720,26 @@ export default function Home() {
                   <SidebarMenuButton isActive={activeTab === 'ai-settings'} onClick={() => setActiveTab('ai-settings')} tooltip="AI Engine Settings">
                     <Cpu className="h-5 w-5" /> <span>AI Engine</span>
                   </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
+
+            <SidebarGroup className="mt-auto">
+              <SidebarGroupLabel>Legal</SidebarGroupLabel>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <Link href="/privacy" passHref>
+                    <SidebarMenuButton tooltip="Privacy Policy">
+                      <Shield className="h-5 w-5" /> <span>Privacy Policy</span>
+                    </SidebarMenuButton>
+                  </Link>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <Link href="/terms" passHref>
+                    <SidebarMenuButton tooltip="Terms of Use">
+                      <FileText className="h-5 w-5" /> <span>Terms of Use</span>
+                    </SidebarMenuButton>
+                  </Link>
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
