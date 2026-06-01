@@ -196,40 +196,32 @@ export default function Home() {
   const [researchPapers, setResearchPapers] = useState<ResearchPaper[]>([]);
   const [sessionRecentItems, setSessionRecentItems] = useState<SessionItem[]>([]);
   
-  // AI Preferences
   const [aiPrefs, setAiPrefs] = useState<AiPreferences>({
-    selectedModel: 'googleai/gemini-2.5-pro-001',
+    selectedModel: 'googleai/gemini-2.5-flash',
     customApiKey: ''
   });
 
-  // Lexicon Search
   const [strongsTerm, setStrongsTerm] = useState('');
   const [lexiconResult, setLexiconResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
 
-  // Translation Comparison
   const [transWord, setTransWord] = useState('');
   const [transResult, setTransResult] = useState<CompareTranslationsOutput | null>(null);
   const [selectedVersions, setSelectedVersions] = useState<string[]>(['kjv', 'net']);
 
-  // Bible Reading
   const [currentPassage, setCurrentPassage] = useState<BibleChapter | null>(null);
   const [passageRef, setPassageRef] = useState('John 1');
   const [readingVersion, setReadingVersion] = useState('kjv');
 
-  // Scholar AI
   const [chatInput, setChatInput] = useState('');
   const [chatHistory, setChatHistory] = useState<{role: 'user' | 'model', content: string}[]>([]);
   const [versions, setVersions] = useState<BibleVersion[]>([]);
 
-  // Writing Assistant States
   const [writingInput, setWritingInput] = useState('');
   const [writingResult, setWritingResult] = useState<WritingAssistantOutput | null>(null);
 
-  // Bibliography States
   const [biblioStyle, setBiblioStyle] = useState<'SBL' | 'Turabian' | 'Chicago' | 'APA' | 'MLA'>('SBL');
   const [formattedBiblioResult, setFormattedBiblioResult] = useState<FormatBibliographyOutput | null>(null);
 
-  // Integrity States
   const [integrityInput, setIntegrityInput] = useState('');
   const [integrityResult, setIntegrityResult] = useState<AcademicIntegrityOutput | null>(null);
 
@@ -884,29 +876,38 @@ export default function Home() {
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2"><Cpu className="h-5 w-5 text-primary" /> Model Selection</CardTitle>
-                      <CardDescription>Choose the core model for your theological analysis and OCR tasks.</CardDescription>
+                      <CardDescription>Choose the core model for your theological analysis. Free-tier models are prioritized for accessibility.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                       <div className="grid gap-4 md:grid-cols-2">
-                        <div 
-                          className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${aiPrefs.selectedModel === 'googleai/gemini-2.5-pro-001' ? 'border-primary bg-primary/5' : 'border-muted hover:border-muted-foreground/30'}`}
-                          onClick={() => setAiPrefs({ ...aiPrefs, selectedModel: 'googleai/gemini-2.5-pro-001' })}
-                        >
-                          <div className="flex justify-between items-start mb-2">
-                            <span className="font-bold">Gemini 2.5 Pro</span>
-                            {aiPrefs.selectedModel === 'googleai/gemini-2.5-pro-001' && <Check className="h-4 w-4 text-primary" />}
-                          </div>
-                          <p className="text-xs text-muted-foreground leading-relaxed">Advanced reasoning engine. Best for complex eschatological synthesis and deep semantic analysis. Supports 1M+ context window.</p>
-                        </div>
+                        {/* Default / Free Model */}
                         <div 
                           className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${aiPrefs.selectedModel === 'googleai/gemini-2.5-flash' ? 'border-primary bg-primary/5' : 'border-muted hover:border-muted-foreground/30'}`}
                           onClick={() => setAiPrefs({ ...aiPrefs, selectedModel: 'googleai/gemini-2.5-flash' })}
                         >
                           <div className="flex justify-between items-start mb-2">
-                            <span className="font-bold">Gemini 2.5 Flash</span>
+                            <div className="flex flex-col">
+                              <span className="font-bold">Gemini 2.5 Flash</span>
+                              <Badge variant="secondary" className="w-fit text-[10px] px-1 py-0 mt-1">Default / Free Tier</Badge>
+                            </div>
                             {aiPrefs.selectedModel === 'googleai/gemini-2.5-flash' && <Check className="h-4 w-4 text-primary" />}
                           </div>
-                          <p className="text-xs text-muted-foreground leading-relaxed">High-speed optimized model. Best for quick definitions, rapid OCR transcription, and simple scriptural queries.</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">The standard Genkit-optimized engine. High-speed, efficient, and offers the most generous free usage limits. Best for rapid definitions and OCR transcription.</p>
+                        </div>
+
+                        {/* Advanced / Paid Tier */}
+                        <div 
+                          className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${aiPrefs.selectedModel === 'googleai/gemini-2.5-pro-001' ? 'border-primary bg-primary/5' : 'border-muted hover:border-muted-foreground/30'}`}
+                          onClick={() => setAiPrefs({ ...aiPrefs, selectedModel: 'googleai/gemini-2.5-pro-001' })}
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex flex-col">
+                              <span className="font-bold">Gemini 2.5 Pro</span>
+                              <Badge variant="outline" className="w-fit text-[10px] px-1 py-0 mt-1">Advanced / Paid Tier</Badge>
+                            </div>
+                            {aiPrefs.selectedModel === 'googleai/gemini-2.5-pro-001' && <Check className="h-4 w-4 text-primary" />}
+                          </div>
+                          <p className="text-xs text-muted-foreground leading-relaxed">Advanced reasoning engine for complex synthesis. Best for deep eschatological analysis. May require a personal API key with billing for high-volume research.</p>
                         </div>
                       </div>
                     </CardContent>

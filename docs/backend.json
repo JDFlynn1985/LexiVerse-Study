@@ -13,7 +13,11 @@
         "aiPreferences": {
           "type": "object",
           "properties": {
-            "selectedModel": { "type": "string", "enum": ["googleai/gemini-2.5-pro-001", "googleai/gemini-2.5-flash"] },
+            "selectedModel": { 
+              "type": "string", 
+              "enum": ["googleai/gemini-2.5-flash", "googleai/gemini-2.5-pro-001"],
+              "description": "The selected AI engine. Default is the optimized Flash model."
+            },
             "customApiKey": { "type": "string" }
           }
         }
