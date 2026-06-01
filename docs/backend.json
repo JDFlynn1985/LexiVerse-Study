@@ -1,0 +1,26 @@
+
+{
+  "entities": {
+    "UserStudyProfile": {
+      "title": "User Study Profile",
+      "description": "Metadata about the user's study preferences and linked external accounts.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" }
+      },
+      "required": ["uid"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "#/backend/entities/UserStudyProfile",
+      "description": "User's study profile and settings."
+    }
+  }
+}

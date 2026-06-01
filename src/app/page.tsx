@@ -5,6 +5,14 @@ import { useState, useEffect, useId, useRef } from 'react';
 import { useTheme } from 'next-themes';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
+import { 
+  getAuth, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signOut, 
+  onAuthStateChanged,
+  type User
+} from 'firebase/auth';
 
 // Set up PDF.js worker
 if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
@@ -64,7 +72,10 @@ import {
   FileUp,
   FileSearch,
   Check,
-  FileCode
+  FileCode,
+  LogOut,
+  FileJson,
+  Table as TableIcon
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -79,13 +90,16 @@ import {
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
-  DropdownMenuTrigger 
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
 import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/compare-translations-ai';
 import { interactiveVerseExplorationAI } from '@/ai/flows/interactive-verse-exploration-ai';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
+import { initializeFirebase } from '@/firebase';
 
 type ViewMode = 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers';
 
@@ -121,6 +135,10 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   
+  // Auth State
+  const [user, setUser] = useState<User | null>(null);
+  const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null);
+
   // Accessibility IDs
   const wordSearchId = useId();
   const dictSearchId = useId();
@@ -150,6 +168,12 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true);
+    const { auth } = initializeFirebase();
+    
+    onAuthStateChanged(auth, (u) => {
+      setUser(u);
+    });
+
     const savedHistory = localStorage.getItem('lexiverse_history');
     if (savedHistory) setHistory(JSON.parse(savedHistory));
 
@@ -170,6 +194,170 @@ export default function Home() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [chatHistory]);
+
+  const handleLogin = async () => {
+    const { auth } = initializeFirebase();
+    const provider = new GoogleAuthProvider();
+    // Request scopes for Docs, Sheets, and Drive
+    provider.addScope('https://www.googleapis.com/auth/documents');
+    provider.addScope('https://www.googleapis.com/auth/spreadsheets');
+    provider.addScope('https://www.googleapis.com/auth/drive.file');
+    
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      setGoogleAccessToken(credential?.accessToken || null);
+      toast({
+        title: "Logged in",
+        description: `Welcome back, ${result.user.displayName}`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Login Failed",
+        description: error.message,
+      });
+    }
+  };
+
+  const handleLogout = async () => {
+    const { auth } = initializeFirebase();
+    await signOut(auth);
+    setGoogleAccessToken(null);
+    toast({ title: "Logged out" });
+  };
+
+  const exportToGoogleKeep = (content: string, title: string) => {
+    navigator.clipboard.writeText(content);
+    toast({
+      title: "Copied for Google Keep",
+      description: "Content is on your clipboard. Opening Google Keep...",
+    });
+    window.open('https://keep.google.com/', '_blank');
+  };
+
+  const exportToGoogleDocs = async (title: string, content: string) => {
+    if (!googleAccessToken) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "Please login with Google to export directly to Docs.",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch('https://docs.googleapis.com/v1/documents', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${googleAccessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ title }),
+      });
+
+      if (!response.ok) throw new Error('Failed to create document');
+      const doc = await response.json();
+      
+      // Update the document with content
+      await fetch(`https://docs.googleapis.com/v1/documents/${doc.documentId}:batchUpdate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${googleAccessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          requests: [{
+            insertText: {
+              location: { index: 1 },
+              text: content
+            }
+          }]
+        }),
+      });
+
+      toast({
+        title: "Exported to Google Docs",
+        description: `"${title}" has been created in your Drive.`,
+        action: (
+          <Button variant="outline" size="sm" onClick={() => window.open(`https://docs.google.com/document/d/${doc.documentId}/edit`, '_blank')}>
+            Open Doc
+          </Button>
+        ),
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Export Failed",
+        description: error.message,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const exportToGoogleSheets = async (title: string, data: BiblioItem[]) => {
+    if (!googleAccessToken) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "Please login with Google to export directly to Sheets.",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${googleAccessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          properties: { title }
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to create spreadsheet');
+      const sheet = await response.json();
+      const spreadsheetId = sheet.spreadsheetId;
+
+      // Prepare values: Header + Data
+      const values = [
+        ['Citation', 'Source Type', 'Date Captured'],
+        ...data.map(item => [item.citation, item.sourceType, item.date])
+      ];
+
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Sheet1!A1:append?valueInputOption=USER_ENTERED`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${googleAccessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ values }),
+      });
+
+      toast({
+        title: "Exported to Google Sheets",
+        description: `"${title}" created in your Drive.`,
+        action: (
+          <Button variant="outline" size="sm" onClick={() => window.open(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`, '_blank')}>
+            Open Sheet
+          </Button>
+        ),
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Export Failed",
+        description: error.message,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const addToHistory = (type: string, term: string) => {
     if (!term.trim()) return;
@@ -522,9 +710,40 @@ export default function Home() {
               </SidebarGroup>
             </SidebarContent>
           </ScrollArea>
-          <SidebarFooter className="p-4 border-t">
+          <SidebarFooter className="p-4 border-t gap-4">
+             {user ? (
+               <DropdownMenu>
+                 <DropdownMenuTrigger asChild>
+                   <Button variant="ghost" className="w-full justify-start px-2 py-6">
+                     <div className="flex items-center gap-3">
+                       <img src={user.photoURL || ''} className="h-8 w-8 rounded-full border" alt="Avatar" />
+                       <div className="flex flex-col items-start overflow-hidden text-left group-data-[collapsible=icon]:hidden">
+                         <span className="text-sm font-semibold truncate w-full">{user.displayName}</span>
+                         <span className="text-xs text-muted-foreground truncate w-full">Academic Account</span>
+                       </div>
+                     </div>
+                   </Button>
+                 </DropdownMenuTrigger>
+                 <DropdownMenuContent align="end" className="w-56">
+                   <DropdownMenuLabel>Google Integration</DropdownMenuLabel>
+                   <DropdownMenuSeparator />
+                   <DropdownMenuItem onClick={() => setActiveTab('notes')}>Manage Notes</DropdownMenuItem>
+                   <DropdownMenuItem onClick={() => setActiveTab('bibliography')}>Study Bibliography</DropdownMenuItem>
+                   <DropdownMenuSeparator />
+                   <DropdownMenuItem className="text-destructive" onClick={handleLogout}>
+                     <LogOut className="h-4 w-4 mr-2" /> Logout
+                   </DropdownMenuItem>
+                 </DropdownMenuContent>
+               </DropdownMenu>
+             ) : (
+               <Button variant="outline" className="w-full justify-start gap-2 group-data-[collapsible=icon]:p-2" onClick={handleLogin}>
+                 <Globe className="h-4 w-4" />
+                 <span className="group-data-[collapsible=icon]:hidden">Link Google Account</span>
+               </Button>
+             )}
+             
              <div className="flex justify-between items-center group-data-[collapsible=icon]:hidden">
-                <span className="text-[10px] text-muted-foreground uppercase">LexiVerse v2.6</span>
+                <span className="text-[10px] text-muted-foreground uppercase">LexiVerse v2.8</span>
                 <Button variant="ghost" size="icon" className="rounded-full h-8 w-8" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle theme">
                   {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
                 </Button>
@@ -897,9 +1116,26 @@ export default function Home() {
                     <h1 className="text-3xl font-bold font-headline">My Research Notes</h1>
                     <p className="text-muted-foreground">Captured fragments and study reflections.</p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => { setNotes([]); localStorage.removeItem('lexiverse_notes'); }}>
-                    Clear All <Trash2 className="h-4 w-4 ml-2" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Share2 className="h-4 w-4 mr-2" /> Export Notes
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem onClick={() => exportToGoogleKeep(notes.map(n => n.content).join('\n\n'), "My Research Notes")}>
+                          <MessageSquare className="h-4 w-4 mr-2" /> Copy to Google Keep
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => exportToGoogleDocs("LexiVerse Study Notes", notes.map(n => `${n.source} (${n.date}):\n${n.content}\n\n`).join(''))}>
+                          <FileText className="h-4 w-4 mr-2" /> Export to Google Docs
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Button variant="ghost" size="sm" onClick={() => { setNotes([]); localStorage.removeItem('lexiverse_notes'); }}>
+                      Clear All <Trash2 className="h-4 w-4 ml-2" />
+                    </Button>
+                  </div>
                 </header>
                 
                 {notes.length === 0 ? (
@@ -942,13 +1178,28 @@ export default function Home() {
                     <p className="text-muted-foreground">Academic citations for your research project.</p>
                   </div>
                   <div className="flex gap-2">
-                     <Button variant="outline" size="sm" onClick={() => {
-                       const text = biblioItems.map(b => `${b.citation} [${b.sourceType}] - Accessed: ${b.date}`).join('\n\n');
-                       navigator.clipboard.writeText(text);
-                       toast({ title: "Copied to Clipboard", description: "All citations copied in academic format." });
-                     }}>
-                      <Copy className="h-4 w-4 mr-2" /> Export
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Download className="h-4 w-4 mr-2" /> Export
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem onClick={() => {
+                          const text = biblioItems.map(b => `${b.citation} [${b.sourceType}] - Accessed: ${b.date}`).join('\n\n');
+                          navigator.clipboard.writeText(text);
+                          toast({ title: "Copied to Clipboard" });
+                        }}>
+                          <Copy className="h-4 w-4 mr-2" /> Copy Text
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => exportToGoogleSheets("LexiVerse Study Bibliography", biblioItems)}>
+                          <TableIcon className="h-4 w-4 mr-2" /> Export to Google Sheets
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => exportToGoogleDocs("LexiVerse Bibliography", biblioItems.map(b => `- ${b.citation} (${b.sourceType})\n`).join(''))}>
+                          <FileText className="h-4 w-4 mr-2" /> Export to Google Docs
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { setBiblioItems([]); localStorage.removeItem('lexiverse_biblio'); }}>
                       Reset
                     </Button>
@@ -995,14 +1246,21 @@ export default function Home() {
                     <p className="text-sm text-muted-foreground">Context: <span className="text-primary font-medium">{currentContext || 'General Research'}</span></p>
                   </div>
                   <div className="flex gap-2">
-                    {researchPapers.length > 0 && (
-                      <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 flex gap-1">
-                        <Puzzle className="h-3 w-3" /> {researchPapers.length} Papers Active
-                      </Badge>
-                    )}
-                    <Button variant="outline" size="sm" onClick={() => handleSaveToBiblio(`AI Academic Session: ${currentContext || 'General'}`, "AI Dialogue")}>
-                      Cite <ClipboardList className="h-4 w-4 ml-2" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Share2 className="h-4 w-4 mr-2" /> Export Log
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem onClick={() => exportToGoogleDocs(`Scholar AI Session: ${currentContext}`, chatHistory.map(m => `${m.role.toUpperCase()}:\n${m.content}\n\n`).join(''))}>
+                          <FileText className="h-4 w-4 mr-2" /> Send to Google Docs
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => exportToGoogleKeep(chatHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n'), "AI Chat Log")}>
+                          <MessageSquare className="h-4 w-4 mr-2" /> Copy to Keep
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     <Button variant="ghost" size="sm" onClick={() => {setChatHistory([]); setCurrentContext(null);}} className="text-destructive">
                       Clear Session <Trash2 className="h-4 w-4 ml-2" />
                     </Button>
@@ -1016,7 +1274,7 @@ export default function Home() {
                         <div className="text-center py-32 text-muted-foreground animate-in zoom-in-95">
                           <MessageSquare className="h-16 w-16 mx-auto mb-6 opacity-10" />
                           <h3 className="text-xl font-headline mb-2">How can I assist your research?</h3>
-                          <p className="text-sm">Ask about passages, translation nuances, or historical context. {researchPapers.length > 0 ? "Your uploaded papers are being referenced." : ""}</p>
+                          <p className="text-sm">Ask about passages, translation nuances, or historical context.</p>
                         </div>
                       )}
                       {chatHistory.map((m, i) => (
