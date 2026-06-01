@@ -81,7 +81,9 @@ import {
   ArrowRight,
   Clock,
   File,
-  StickyNote
+  StickyNote,
+  Image as ImageIcon,
+  Eye
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -106,7 +108,8 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogFooter
+  DialogFooter,
+  DialogTrigger
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -144,7 +147,7 @@ interface ResearchPaper {
   id: string;
   title: string;
   content: string;
-  format: 'txt' | 'pdf' | 'docx' | 'gdoc' | 'gsheet';
+  format: 'txt' | 'pdf' | 'docx' | 'gdoc' | 'gsheet' | 'png' | 'jpg' | 'jpeg' | 'webp';
   author?: string;
   date: string;
 }
@@ -400,9 +403,12 @@ export default function Home() {
     if (!file) return;
     setIsLoading(true);
     try {
-      const format = file.name.endsWith('.pdf') ? 'pdf' : file.name.endsWith('.docx') ? 'docx' : 'txt';
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      let format: ResearchPaper['format'] = 'txt';
       let content = "";
-      if (format === 'pdf') {
+
+      if (ext === 'pdf') {
+        format = 'pdf';
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         let text = "";
@@ -412,15 +418,26 @@ export default function Home() {
           text += textContent.items.map((item: any) => item.str).join(' ');
         }
         content = text;
-      } else if (format === 'docx') {
+      } else if (ext === 'docx') {
+        format = 'docx';
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.extractRawText({ arrayBuffer });
         content = result.value;
+      } else if (['png', 'jpg', 'jpeg', 'webp'].includes(ext || '')) {
+        format = ext as any;
+        const reader = new FileReader();
+        content = await new Promise((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
       } else {
+        format = 'txt';
         content = await file.text();
       }
+
       const paperId = Date.now().toString();
-      const newPaper: ResearchPaper = { id: paperId, title: file.name, content, format: format as any, date: new Date().toLocaleDateString() };
+      const newPaper: ResearchPaper = { id: paperId, title: file.name, content, format, date: new Date().toLocaleDateString() };
       const updated = [newPaper, ...researchPapers];
       setResearchPapers(updated);
       localStorage.setItem('lexiverse_papers', JSON.stringify(updated));
@@ -605,7 +622,7 @@ export default function Home() {
                           {researchPapers.slice(0, 4).map(paper => (
                             <div key={paper.id} className="flex items-center p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer group" onClick={() => { setActiveTab('papers'); }}>
                               <div className={`p-2 rounded bg-muted group-hover:bg-background transition-colors mr-3`}>
-                                <FileCode className="h-4 w-4" />
+                                {['png', 'jpg', 'jpeg', 'webp'].includes(paper.format) ? <ImageIcon className="h-4 w-4" /> : <FileCode className="h-4 w-4" />}
                               </div>
                               <div className="flex-1 overflow-hidden">
                                 <p className="text-sm font-semibold truncate">{paper.title}</p>
@@ -939,14 +956,24 @@ export default function Home() {
                     <p className="text-muted-foreground">Your custom knowledge base for the Scholar AI.</p>
                   </div>
                   <div className="flex gap-2">
-                    <input type="file" className="hidden" ref={fileInputRef} onChange={handleFileUpload} accept=".pdf,.docx,.txt" />
-                    <Button onClick={() => fileInputRef.current?.click()} disabled={isLoading}><Plus className="h-4 w-4 mr-2" /> Add Paper</Button>
+                    <input type="file" className="hidden" ref={fileInputRef} onChange={handleFileUpload} accept=".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp" />
+                    <Button onClick={() => fileInputRef.current?.click()} disabled={isLoading}><Plus className="h-4 w-4 mr-2" /> Add Paper or Image</Button>
                   </div>
                 </header>
                 <div className="grid gap-4 md:grid-cols-3">
                   {researchPapers.map(paper => (
                     <Card key={paper.id} className="group overflow-hidden">
-                      <div className={`h-1 w-full ${paper.format === 'pdf' ? 'bg-red-500' : paper.format === 'docx' ? 'bg-blue-500' : 'bg-gray-500'}`} />
+                      <div className={`h-1 w-full ${
+                        paper.format === 'pdf' ? 'bg-red-500' : 
+                        paper.format === 'docx' ? 'bg-blue-500' : 
+                        ['png', 'jpg', 'jpeg', 'webp'].includes(paper.format) ? 'bg-emerald-500' : 
+                        'bg-gray-500'
+                      }`} />
+                      {['png', 'jpg', 'jpeg', 'webp'].includes(paper.format) && (
+                        <div className="aspect-video w-full bg-muted overflow-hidden">
+                          <img src={paper.content} alt={paper.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        </div>
+                      )}
                       <CardHeader className="pb-2">
                         <div className="flex justify-between items-start">
                           <CardTitle className="text-sm font-bold line-clamp-1">{paper.title}</CardTitle>
@@ -955,6 +982,22 @@ export default function Home() {
                       </CardHeader>
                       <CardContent><p className="text-[10px] text-muted-foreground line-clamp-3 italic">Uploaded on {paper.date}</p></CardContent>
                       <CardFooter className="justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {['png', 'jpg', 'jpeg', 'webp'].includes(paper.format) && (
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7"><Eye className="h-3 w-3" /></Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-4xl">
+                              <DialogHeader>
+                                <DialogTitle>{paper.title}</DialogTitle>
+                                <DialogDescription>Academic Reference Image</DialogDescription>
+                              </DialogHeader>
+                              <div className="mt-4 flex justify-center">
+                                <img src={paper.content} alt={paper.title} className="max-h-[70vh] rounded-lg shadow-xl" />
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        )}
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => {
                           const updated = researchPapers.filter(p => p.id !== paper.id);
                           setResearchPapers(updated);
