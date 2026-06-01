@@ -1,7 +1,8 @@
 'use server';
 /**
- * @fileOverview AI Bibliography Formatter for scholarly and academic research.
- * Converts raw citations into specific academic styles like SBL, Turabian, APA, and MLA.
+ * @fileOverview AI Bibliography and Citation Formatter for scholarly research.
+ * Converts raw citations into specific academic styles like SBL, Turabian, APA, and MLA,
+ * supporting full bibliography entries, footnotes, and inline citations.
  */
 
 import { ai } from '@/ai/genkit';
@@ -10,12 +11,13 @@ import { z } from 'genkit';
 const FormatBibliographyInputSchema = z.object({
   items: z.array(z.string()).describe('The list of raw citations or source descriptions to format.'),
   style: z.enum(['SBL', 'Turabian', 'Chicago', 'APA', 'MLA']).default('SBL').describe('The desired bibliography style.'),
+  formatType: z.enum(['bibliography', 'footnote', 'inline']).default('bibliography').describe('The specific formatting type required.'),
 });
 
 export type FormatBibliographyInput = z.infer<typeof FormatBibliographyInputSchema>;
 
 const FormatBibliographyOutputSchema = z.object({
-  formattedBibliography: z.string().describe('The complete, professionally formatted bibliography string.'),
+  formattedOutput: z.string().describe('The complete, professionally formatted output string.'),
   styleApplied: z.string(),
   formattingNotes: z.array(z.string()).describe('Specific notes about the formatting applied for the chosen style.'),
 });
@@ -31,9 +33,10 @@ const formatBibliographyPrompt = ai.definePrompt({
     schema: FormatBibliographyOutputSchema,
   },
   prompt: `You are an expert academic librarian and bibliography specialist. 
-Your task is to take a list of raw citations and format them perfectly according to the requested style.
+Your task is to take source information and format it perfectly according to the requested style and format type.
 
 Style: {{style}}
+Format Type: {{formatType}} (Note: bibliography is full entry, footnote is for bottom of page, inline is parenthetical)
 Raw Items:
 ---
 {{#each items}}
@@ -42,11 +45,11 @@ Raw Items:
 ---
 
 Requirements:
-1. Apply the strict rules of the {{style}} style (e.g., SBL 2nd Edition for Biblical Studies, Turabian 9th, etc.).
-2. Ensure proper alphabetization by author last name.
-3. Handle original language titles (Greek/Hebrew) correctly if present.
-4. If a raw item is missing information (like a publisher or year), use the most academically appropriate placeholder (e.g., "n.p." or "n.d.") or infer it if obvious from the context.
-5. Provide a list of any specific formatting nuances you applied for this style.
+1. Apply the strict rules of the {{style}} style (e.g., SBL 2nd Edition, Turabian 9th).
+2. If Format Type is 'footnote', use the specific note format for that style (e.g., First name Last name, Title...).
+3. If Format Type is 'inline', use the parenthetical format (e.g., Author Year, Page or Author, Title...).
+4. If Format Type is 'bibliography', ensure proper alphabetization and full publication details.
+5. Handle multiple items by returning a concatenated list with appropriate spacing.
 
 Format your response strictly as JSON adhering to the FormatBibliographyOutputSchema.`,
 });
@@ -64,7 +67,7 @@ const formatBibliographyFlow = ai.defineFlow(
 );
 
 /**
- * Formats a list of citations into a specific academic style.
+ * Formats citations into specific academic styles and types (Bib, Footnote, Inline).
  */
 export async function formatBibliography(input: FormatBibliographyInput): Promise<FormatBibliographyOutput> {
   return formatBibliographyFlow(input);
