@@ -46,7 +46,12 @@ import {
   Zap,
   Quote,
   Scale,
-  SpellCheck
+  SpellCheck,
+  ClipboardList,
+  Edit3,
+  Highlighter,
+  Plus,
+  Copy
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -63,12 +68,27 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
 import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/compare-translations-ai';
 import { interactiveVerseExplorationAI } from '@/ai/flows/interactive-verse-exploration-ai';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 
-type ViewMode = 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history';
+type ViewMode = 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography';
+
+interface Note {
+  id: string;
+  content: string;
+  source: string;
+  date: string;
+}
+
+interface BiblioItem {
+  id: string;
+  citation: string;
+  sourceType: string;
+  date: string;
+}
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<ViewMode>('bibles');
@@ -76,6 +96,7 @@ export default function Home() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
   
   // Accessibility IDs
   const wordSearchId = useId();
@@ -84,8 +105,10 @@ export default function Home() {
   const verseRefId = useId();
   const chatInputId = useId();
 
-  // History and Session
+  // State Management
   const [history, setHistory] = useState<{id: string, type: string, term: string, date: string}[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [biblioItems, setBiblioItems] = useState<BiblioItem[]>([]);
   const [currentContext, setCurrentContext] = useState<string | null>(null);
 
   // Content States
@@ -106,6 +129,12 @@ export default function Home() {
     const savedHistory = localStorage.getItem('lexiverse_history');
     if (savedHistory) setHistory(JSON.parse(savedHistory));
 
+    const savedNotes = localStorage.getItem('lexiverse_notes');
+    if (savedNotes) setNotes(JSON.parse(savedNotes));
+
+    const savedBiblio = localStorage.getItem('lexiverse_biblio');
+    if (savedBiblio) setBiblioItems(JSON.parse(savedBiblio));
+
     getVersions().then(setVersions);
   }, []);
 
@@ -121,6 +150,53 @@ export default function Home() {
     const updatedHistory = [newEntry, ...history.slice(0, 19)];
     setHistory(updatedHistory);
     localStorage.setItem('lexiverse_history', JSON.stringify(updatedHistory));
+  };
+
+  const handleSaveNote = (content: string, source: string = "Selection") => {
+    if (!content.trim()) return;
+    const newNote = {
+      id: Date.now().toString(),
+      content: content.trim(),
+      source,
+      date: new Date().toLocaleString()
+    };
+    const updated = [newNote, ...notes];
+    setNotes(updated);
+    localStorage.setItem('lexiverse_notes', JSON.stringify(updated));
+    toast({
+      title: "Note Saved",
+      description: "Text added to your personal research notes.",
+    });
+  };
+
+  const handleSaveToBiblio = (citation: string, type: string = "Research Source") => {
+    if (!citation.trim()) return;
+    const newItem = {
+      id: Date.now().toString(),
+      citation: citation.trim(),
+      sourceType: type,
+      date: new Date().toLocaleString()
+    };
+    const updated = [newItem, ...biblioItems];
+    setBiblioItems(updated);
+    localStorage.setItem('lexiverse_biblio', JSON.stringify(updated));
+    toast({
+      title: "Citation Added",
+      description: "Source added to your academic bibliography.",
+    });
+  };
+
+  const captureSelectionToNotes = () => {
+    const selection = window.getSelection()?.toString();
+    if (selection) {
+      handleSaveNote(selection, currentContext || "Active Study");
+    } else {
+      toast({
+        variant: "destructive",
+        title: "No Text Selected",
+        description: "Highlight text on the screen first to capture it as a note.",
+      });
+    }
   };
 
   const askScholarAboutContext = (content: string, type: string) => {
@@ -151,10 +227,9 @@ export default function Home() {
     if (!dictTerm.trim()) return;
     setIsLoading(true);
     try {
-      // Reusing scholar AI logic to perform a "Dictionary" lookup for thematic terms
       const data = await interactiveVerseExplorationAI({
         term: dictTerm,
-        question: `Define the biblical and theological term "${dictTerm}". Provide historical context and major dictionary references (like Easton's or Smith's).`,
+        question: `Define the biblical and theological term "${dictTerm}". Provide historical context and major dictionary references.`,
         history: []
       });
       setDictResult({
@@ -182,7 +257,7 @@ export default function Home() {
         versions: ['KJV', 'NIV', 'ESV', 'NASB'] 
       });
       setTransResult(data);
-      setCurrentContext(`Translation Comparison for "${transWord}"`);
+      setCurrentContext(`Translation Comparison: ${transWord}`);
       addToHistory('translations', transWord);
     } catch (error) {
       console.error(error);
@@ -295,6 +370,27 @@ export default function Home() {
               </SidebarGroup>
 
               <SidebarGroup>
+                <SidebarGroupLabel>Study Tools</SidebarGroupLabel>
+                <SidebarMenu>
+                  {[
+                    { id: 'notes', label: 'My Notes', icon: Edit3 },
+                    { id: 'bibliography', label: 'Bibliography', icon: ClipboardList },
+                  ].map((item) => (
+                    <SidebarMenuItem key={item.id}>
+                      <SidebarMenuButton 
+                        isActive={activeTab === item.id} 
+                        onClick={() => setActiveTab(item.id as ViewMode)}
+                        tooltip={item.label}
+                      >
+                        <item.icon className="mr-2 h-5 w-5" /> 
+                        {item.label}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroup>
+
+              <SidebarGroup>
                 <SidebarGroupLabel>AI Engine</SidebarGroupLabel>
                 <SidebarMenu>
                   {[
@@ -318,7 +414,7 @@ export default function Home() {
           </ScrollArea>
           <SidebarFooter className="p-4 border-t">
              <div className="flex justify-between items-center group-data-[collapsible=icon]:hidden">
-                <span className="text-[10px] text-muted-foreground uppercase">LexiVerse v2.2</span>
+                <span className="text-[10px] text-muted-foreground uppercase">LexiVerse v2.5</span>
                 <Button variant="ghost" size="icon" className="rounded-full h-8 w-8" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle theme">
                   {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
                 </Button>
@@ -327,6 +423,13 @@ export default function Home() {
         </Sidebar>
 
         <SidebarInset className="bg-background overflow-y-auto">
+          {/* Global Tool Overlay */}
+          <div className="fixed top-4 right-8 z-50 flex gap-2">
+            <Button variant="secondary" className="shadow-lg h-10 border" onClick={captureSelectionToNotes}>
+              <Highlighter className="h-4 w-4 mr-2" /> Capture Highlight
+            </Button>
+          </div>
+
           <main className="container max-w-5xl mx-auto py-10 px-6" id="main-content">
             
             {activeTab === 'bibles' && (
@@ -365,14 +468,14 @@ export default function Home() {
               <div className="space-y-6 animate-in fade-in">
                 <header>
                   <h1 className="text-3xl font-bold font-headline">Commentary Research</h1>
-                  <p className="text-muted-foreground">Synthesized historical and linguistic context for your study.</p>
+                  <p className="text-muted-foreground">Synthesized historical and linguistic context.</p>
                 </header>
                 <Card className="bg-muted/30 border-dashed">
                   <CardContent className="py-12 text-center">
                     <Feather className="h-12 w-12 mx-auto mb-4 opacity-20 text-primary" />
                     <h3 className="font-bold text-lg mb-2">Integrated Research Mode</h3>
                     <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6">
-                      Select a verse in the Explorer or use the Scholar AI to generate commentary-style insights from historical scholars.
+                      Use the Verse Explorer or Scholar AI to generate academic commentary insights.
                     </p>
                     <Button onClick={() => setActiveTab('verse-explorer')}>
                       Go to Verse Explorer
@@ -386,14 +489,14 @@ export default function Home() {
               <div className="space-y-8 animate-in fade-in">
                 <header className="text-center">
                   <h1 className="text-3xl font-bold font-headline">Theological Dictionaries</h1>
-                  <p className="text-muted-foreground">Search for thematic definitions and historical concepts.</p>
+                  <p className="text-muted-foreground">Thematic definitions and historical concepts.</p>
                 </header>
                 <Card className="max-w-2xl mx-auto shadow-md border-t-4 border-t-primary">
                   <CardContent className="pt-6">
                     <form onSubmit={handleDictionarySearch} className="flex gap-2">
                       <Input 
                         id={dictSearchId}
-                        placeholder="Search thematic term (e.g. Tabernacle, Grace, Covenant)" 
+                        placeholder="Search term (e.g. Tabernacle, Grace, Covenant)" 
                         value={dictTerm}
                         onChange={(e) => setDictTerm(e.target.value)}
                         className="h-12"
@@ -417,9 +520,14 @@ export default function Home() {
                             ))}
                           </div>
                         </div>
-                        <Button variant="outline" size="sm" onClick={() => askScholarAboutContext(dictResult.definition, `Theological definition of ${dictResult.term}`)}>
-                          Analyze Concept <Mic className="h-4 w-4 ml-2" />
-                        </Button>
+                        <div className="flex gap-2">
+                           <Button variant="outline" size="sm" onClick={() => handleSaveToBiblio(`Theological Dictionary Entry: ${dictResult.term}`, "Dictionary")}>
+                            Cite <ClipboardList className="h-4 w-4 ml-2" />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => askScholarAboutContext(dictResult.definition, `Dictionary entry for ${dictResult.term}`)}>
+                            Analyze <Mic className="h-4 w-4 ml-2" />
+                          </Button>
+                        </div>
                       </CardHeader>
                       <CardContent className="pt-8">
                         <div className="prose dark:prose-invert max-w-none">
@@ -440,12 +548,12 @@ export default function Home() {
                     <form onSubmit={handleWordSearch} className="flex gap-2">
                       <Input 
                         id={wordSearchId}
-                        placeholder="Search Strong's (e.g. G3056)" 
+                        placeholder="Strong's (e.g. G3056)" 
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="h-12 shadow-sm"
                       />
-                      <Button type="submit" size="lg" disabled={isLoading} className="shadow-md">
+                      <Button type="submit" size="lg" disabled={isLoading}>
                         {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                       </Button>
                     </form>
@@ -465,14 +573,24 @@ export default function Home() {
                         <Badge className="bg-accent text-accent-foreground px-4 py-1 text-md">
                           {wordResult.searchStrongNumber}
                         </Badge>
-                        <Button variant="outline" size="sm" onClick={() => askScholarAboutContext(`${wordResult.originalWord} (${wordResult.searchStrongNumber})`, 'Lexicon Term')}>
-                          Ask AI <Mic className="h-3 w-3 ml-2" />
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleSaveToBiblio(`Strong's ${wordResult.searchStrongNumber}: ${wordResult.originalWord}`, "Lexicon")}>
+                            Cite <ClipboardList className="h-3 w-3 ml-2" />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => askScholarAboutContext(`${wordResult.originalWord} (${wordResult.searchStrongNumber})`, 'Lexicon Term')}>
+                            Ask AI <Mic className="h-3 w-3 ml-2" />
+                          </Button>
+                        </div>
                       </div>
                     </header>
                     <div className="grid gap-6 md:grid-cols-2">
                       <Card className="shadow-lg border-primary/10">
-                        <CardHeader className="bg-primary/5"><CardTitle className="text-lg font-headline">Lexical Definition</CardTitle></CardHeader>
+                        <CardHeader className="bg-primary/5 flex flex-row justify-between items-center">
+                          <CardTitle className="text-lg font-headline">Lexical Definition</CardTitle>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleSaveNote(wordResult.definition, `Lexicon: ${wordResult.originalWord}`)}>
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </CardHeader>
                         <CardContent className="pt-6"><p className="leading-relaxed text-lg">{wordResult.definition}</p></CardContent>
                       </Card>
                       <Card className="shadow-lg border-primary/10">
@@ -491,14 +609,14 @@ export default function Home() {
               <div className="space-y-8 animate-in fade-in">
                 <header className="text-center">
                   <h1 className="text-3xl font-bold font-headline mb-2">Comparative Translations</h1>
-                  <p className="text-muted-foreground">Examine how specific terms differ across major versions.</p>
+                  <p className="text-muted-foreground">Examine term variations across major versions.</p>
                 </header>
                 <Card className="max-w-2xl mx-auto shadow-md border-t-4 border-t-accent">
                   <CardContent className="pt-6">
                     <form onSubmit={handleTranslationCompare} className="flex gap-2">
                       <Input 
                         id={transSearchId}
-                        placeholder="Enter word to compare (e.g. Logos, Love, Grace)" 
+                        placeholder="Word to compare (e.g. Logos, Love, Grace)" 
                         value={transWord}
                         onChange={(e) => setTransWord(e.target.value)}
                         className="h-12"
@@ -515,21 +633,29 @@ export default function Home() {
                     <Card className="bg-accent/5 border-accent/20">
                       <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="font-headline text-2xl">Linguistic Synthesis</CardTitle>
-                        <Button variant="ghost" size="sm" onClick={() => askScholarAboutContext(transResult.summary, 'Translation Comparison')}>
-                          Explain Synthesis <Mic className="h-4 w-4 ml-2" />
-                        </Button>
+                        <div className="flex gap-2">
+                           <Button variant="outline" size="sm" onClick={() => handleSaveToBiblio(`Comparative Analysis: ${transResult.originalWord}`, "Translation Study")}>
+                            Cite <ClipboardList className="h-4 w-4 ml-2" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => askScholarAboutContext(transResult.summary, 'Translation Comparison')}>
+                            Explain <Mic className="h-4 w-4 ml-2" />
+                          </Button>
+                        </div>
                       </CardHeader>
                       <CardContent><p className="text-muted-foreground leading-relaxed italic">{transResult.summary}</p></CardContent>
                     </Card>
                     <div className="grid gap-4 md:grid-cols-2">
                       {transResult.translations.map((t, i) => (
                         <Card key={i} className="hover:shadow-md transition-shadow">
-                          <CardHeader className="pb-2">
+                          <CardHeader className="pb-2 flex flex-row justify-between items-start">
                             <Badge variant="secondary" className="w-fit">{t.version}</Badge>
-                            <CardTitle className="text-2xl mt-2 font-headline">{t.translation}</CardTitle>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleSaveNote(`${t.version}: ${t.translation} (${t.notes})`, `Comparison: ${transResult.originalWord}`)}>
+                              <Plus className="h-4 w-4" />
+                            </Button>
                           </CardHeader>
                           <CardContent>
-                            <p className="text-sm font-medium text-primary mb-3">Original: {t.originalWord} ({t.transliteration})</p>
+                            <CardTitle className="text-2xl mt-2 font-headline">{t.translation}</CardTitle>
+                            <p className="text-sm font-medium text-primary mb-3 mt-2">Original: {t.originalWord} ({t.transliteration})</p>
                             <p className="text-sm text-muted-foreground leading-relaxed">{t.notes}</p>
                           </CardContent>
                         </Card>
@@ -544,7 +670,7 @@ export default function Home() {
               <div className="space-y-8 animate-in fade-in">
                 <header className="text-center">
                   <h1 className="text-3xl font-bold font-headline">Verse Analytics</h1>
-                  <p className="text-muted-foreground">Contextual passage analysis powered by live scripture data.</p>
+                  <p className="text-muted-foreground">Deep analysis powered by live scripture data.</p>
                 </header>
                 <Card className="max-w-2xl mx-auto shadow-md">
                   <CardContent className="pt-6">
@@ -571,12 +697,114 @@ export default function Home() {
                   <Card className="border-l-4 border-l-primary shadow-xl overflow-hidden">
                     <CardHeader className="bg-muted/50 border-b flex flex-row justify-between items-center">
                       <CardTitle className="font-headline text-xl">Scholarly Overview: {verseRef}</CardTitle>
-                      <Button variant="outline" size="sm" onClick={() => askScholarAboutContext(verseExploration, `Analysis of ${verseRef}`)}>
-                        Further Inquiry <Mic className="h-4 w-4 ml-2" />
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => handleSaveToBiblio(`Exegesis of ${verseRef}`, "Verse Study")}>
+                          Cite <ClipboardList className="h-4 w-4 ml-2" />
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => askScholarAboutContext(verseExploration, `Analysis of ${verseRef}`)}>
+                          Inquire <Mic className="h-4 w-4 ml-2" />
+                        </Button>
+                      </div>
                     </CardHeader>
                     <CardContent className="py-8">
                       <p className="whitespace-pre-wrap leading-relaxed text-muted-foreground text-lg">{verseExploration}</p>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'notes' && (
+              <div className="space-y-6 animate-in fade-in">
+                <header className="flex justify-between items-center">
+                  <div>
+                    <h1 className="text-3xl font-bold font-headline">My Research Notes</h1>
+                    <p className="text-muted-foreground">Captured fragments and study reflections.</p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => { setNotes([]); localStorage.removeItem('lexiverse_notes'); }}>
+                    Clear All <Trash2 className="h-4 w-4 ml-2" />
+                  </Button>
+                </header>
+                
+                {notes.length === 0 ? (
+                  <Card className="border-dashed py-20 text-center">
+                    <Edit3 className="h-12 w-12 mx-auto mb-4 opacity-10" />
+                    <p className="text-muted-foreground">No notes captured yet. Highlight text anywhere to save it.</p>
+                  </Card>
+                ) : (
+                  <div className="grid gap-4">
+                    {notes.map(note => (
+                      <Card key={note.id} className="group hover:border-primary transition-all">
+                        <CardHeader className="pb-2 flex flex-row justify-between items-start">
+                          <div>
+                            <Badge variant="outline" className="text-[10px] uppercase">{note.source}</Badge>
+                            <p className="text-[10px] text-muted-foreground mt-1">{note.date}</p>
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => {
+                            const updated = notes.filter(n => n.id !== note.id);
+                            setNotes(updated);
+                            localStorage.setItem('lexiverse_notes', JSON.stringify(updated));
+                          }}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-sm italic leading-relaxed text-muted-foreground whitespace-pre-wrap">"{note.content}"</p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'bibliography' && (
+              <div className="space-y-6 animate-in fade-in">
+                <header className="flex justify-between items-center">
+                  <div>
+                    <h1 className="text-3xl font-bold font-headline">Study Bibliography</h1>
+                    <p className="text-muted-foreground">Academic citations for your research project.</p>
+                  </div>
+                  <div className="flex gap-2">
+                     <Button variant="outline" size="sm" onClick={() => {
+                       const text = biblioItems.map(b => `${b.citation} [${b.sourceType}] - Accessed: ${b.date}`).join('\n\n');
+                       navigator.clipboard.writeText(text);
+                       toast({ title: "Copied to Clipboard", description: "All citations copied in academic format." });
+                     }}>
+                      <Copy className="h-4 w-4 mr-2" /> Export
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-destructive" onClick={() => { setBiblioItems([]); localStorage.removeItem('lexiverse_biblio'); }}>
+                      Reset
+                    </Button>
+                  </div>
+                </header>
+
+                {biblioItems.length === 0 ? (
+                  <Card className="border-dashed py-20 text-center">
+                    <ClipboardList className="h-12 w-12 mx-auto mb-4 opacity-10" />
+                    <p className="text-muted-foreground">Bibliography is empty. Click "Cite" on any study result.</p>
+                  </Card>
+                ) : (
+                  <Card className="shadow-lg">
+                    <CardContent className="p-0">
+                      <div className="divide-y">
+                        {biblioItems.map(item => (
+                          <div key={item.id} className="p-6 hover:bg-muted/30 transition-colors group flex justify-between items-center">
+                            <div className="space-y-2">
+                              <Badge variant="secondary" className="text-[9px] uppercase tracking-widest">{item.sourceType}</Badge>
+                              <p className="font-medium text-lg font-headline leading-tight">{item.citation}</p>
+                              <p className="text-[10px] text-muted-foreground italic">Captured: {item.date}</p>
+                            </div>
+                            <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 text-destructive" onClick={() => {
+                               const updated = biblioItems.filter(b => b.id !== item.id);
+                               setBiblioItems(updated);
+                               localStorage.setItem('lexiverse_biblio', JSON.stringify(updated));
+                            }}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
                     </CardContent>
                   </Card>
                 )}
@@ -588,11 +816,16 @@ export default function Home() {
                 <header className="flex justify-between items-center border-b pb-4">
                   <div>
                     <h1 className="text-2xl font-bold font-headline">Scholar AI Engine</h1>
-                    <p className="text-sm text-muted-foreground">Current Context: <span className="text-primary font-medium">{currentContext || 'Ready'}</span></p>
+                    <p className="text-sm text-muted-foreground">Context: <span className="text-primary font-medium">{currentContext || 'General Research'}</span></p>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => {setChatHistory([]); setCurrentContext(null);}} className="text-destructive">
-                    Clear Session <Trash2 className="h-4 w-4 ml-2" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => handleSaveToBiblio(`AI Academic Session: ${currentContext || 'General'}`, "AI Dialogue")}>
+                      Cite <ClipboardList className="h-4 w-4 ml-2" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => {setChatHistory([]); setCurrentContext(null);}} className="text-destructive">
+                      Clear Session <Trash2 className="h-4 w-4 ml-2" />
+                    </Button>
+                  </div>
                 </header>
                 
                 <Card className="flex-1 flex flex-col bg-muted/5 shadow-inner border-none overflow-hidden">
@@ -601,18 +834,28 @@ export default function Home() {
                       {chatHistory.length === 0 && (
                         <div className="text-center py-32 text-muted-foreground animate-in zoom-in-95">
                           <MessageSquare className="h-16 w-16 mx-auto mb-6 opacity-10" />
-                          <h3 className="text-xl font-headline mb-2">How can I assist your research today?</h3>
-                          <p className="text-sm">You can ask about current passages, translation nuances, or historical context.</p>
+                          <h3 className="text-xl font-headline mb-2">How can I assist your research?</h3>
+                          <p className="text-sm">Ask about passages, translation nuances, or historical context.</p>
                         </div>
                       )}
                       {chatHistory.map((m, i) => (
                         <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`max-w-[85%] p-4 rounded-2xl shadow-sm ${
+                          <div className={`max-w-[85%] p-4 rounded-2xl shadow-sm relative group ${
                             m.role === 'user' 
                               ? 'bg-primary text-primary-foreground rounded-tr-none' 
                               : 'bg-card border rounded-tl-none'
                           }`}>
                             <p className="text-md whitespace-pre-wrap leading-relaxed">{m.content}</p>
+                            {m.role === 'model' && (
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="absolute -right-10 top-0 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => handleSaveNote(m.content, `Scholar AI: ${currentContext || 'Response'}`)}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -653,14 +896,14 @@ export default function Home() {
               <div className="space-y-6 animate-in fade-in">
                 <header>
                   <h1 className="text-3xl font-bold font-headline">Research Logs</h1>
-                  <p className="text-muted-foreground">Session history and recently accessed resources.</p>
+                  <p className="text-muted-foreground">Session history and resources.</p>
                 </header>
                 <Card className="shadow-md">
                   <CardContent className="p-0">
                     {history.length === 0 ? (
                       <div className="p-20 text-center text-muted-foreground">
                         <History className="h-12 w-12 mx-auto mb-4 opacity-10" />
-                        <p>Your journey has just begun. Activity will appear here.</p>
+                        <p>No activity yet.</p>
                       </div>
                     ) : (
                       <div className="divide-y">
