@@ -1,44 +1,81 @@
-
 /**
  * @fileOverview Centralized service for exporting research results to various formats.
+ * Updated to support hyperlinked scriptures and bibliographic entries across all formats.
  */
 
 import { jsPDF } from 'jspdf';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, ExternalHyperlink } from 'docx';
 import { AiStudyAssistantOutput } from '@/ai/flows/ai-study-assistant';
 
 export type ExportFormat = 'pdf' | 'docx' | 'markdown';
 
 /**
  * Generates and triggers a browser download for a PDF report.
+ * Uses jsPDF's internal link mechanism for clickable resources.
  */
 export async function exportToPDF(data: AiStudyAssistantOutput) {
   const doc = new jsPDF();
   const title = data.originalWord || "Research Report";
   
   doc.setFontSize(22);
+  doc.setTextColor(48, 25, 52); // Deep Indigo
   doc.text(title, 20, 30);
   
   doc.setFontSize(14);
+  doc.setTextColor(100, 100, 100);
   doc.text(`${data.transliteration} | ${data.pronunciation}`, 20, 40);
   
   doc.setFontSize(12);
+  doc.setTextColor(0, 0, 0);
   doc.text("Definitions:", 20, 55);
   let y = 65;
   data.definitions.forEach(def => {
     doc.text(`- ${def}`, 25, y);
-    y += 10;
+    y += 8;
   });
 
-  doc.text("AI Insights:", 20, y + 10);
+  y += 10;
+  doc.setFontSize(14);
+  doc.setTextColor(48, 25, 52);
+  doc.text("Verse Occurrences:", 20, y);
+  y += 10;
+  doc.setFontSize(10);
+  data.verseUsages.forEach(v => {
+    doc.setTextColor(0, 0, 255); // Link blue
+    doc.text(v.text, 25, y);
+    doc.link(25, y - 5, doc.getTextWidth(v.text), 6, { url: v.url });
+    y += 8;
+  });
+
+  y += 10;
+  doc.setFontSize(14);
+  doc.setTextColor(48, 25, 52);
+  doc.text("AI Insights:", 20, y);
+  y += 10;
+  doc.setFontSize(10);
+  doc.setTextColor(0, 0, 0);
   const splitInsights = doc.splitTextToSize(data.aiInsights, 170);
-  doc.text(splitInsights, 20, y + 20);
+  doc.text(splitInsights, 20, y);
+  y += (splitInsights.length * 5) + 10;
+
+  doc.setFontSize(14);
+  doc.setTextColor(48, 25, 52);
+  doc.text("Bibliography:", 20, y);
+  y += 10;
+  doc.setFontSize(9);
+  data.bibliography.forEach(b => {
+    doc.setTextColor(0, 0, 255);
+    doc.text(b.text, 25, y);
+    doc.link(25, y - 5, doc.getTextWidth(b.text), 5, { url: b.url });
+    y += 8;
+  });
   
   doc.save(`${title.toLowerCase().replace(/\s+/g, '-')}.pdf`);
 }
 
 /**
  * Generates and triggers a browser download for a Word document.
+ * Uses ExternalHyperlink for scripture and bibliography links.
  */
 export async function exportToWord(data: AiStudyAssistantOutput) {
   const doc = new Document({
@@ -54,12 +91,28 @@ export async function exportToWord(data: AiStudyAssistantOutput) {
             new TextRun({ text: `${data.transliteration} | ${data.pronunciation}`, italic: true }),
           ],
         }),
-        new Paragraph({ text: "Definitions", heading: HeadingLevel.HEADING_2 }),
-        ...data.definitions.map(def => new Paragraph({ text: def, bullet: { level: 0 } })),
+        new Paragraph({ text: "Verse Occurrences", heading: HeadingLevel.HEADING_2 }),
+        ...data.verseUsages.map(v => new Paragraph({
+          children: [
+            new ExternalHyperlink({
+              children: [new TextRun({ text: v.text, color: "0000FF", underline: {} })],
+              link: v.url
+            })
+          ],
+          bullet: { level: 0 }
+        })),
         new Paragraph({ text: "AI Insights", heading: HeadingLevel.HEADING_2 }),
         new Paragraph({ text: data.aiInsights }),
         new Paragraph({ text: "Bibliography", heading: HeadingLevel.HEADING_2 }),
-        new Paragraph({ text: data.bibliography }),
+        ...data.bibliography.map(b => new Paragraph({
+          children: [
+            new ExternalHyperlink({
+              children: [new TextRun({ text: b.text, color: "0000FF", underline: {} })],
+              link: b.url
+            })
+          ],
+          bullet: { level: 0 }
+        })),
       ],
     }],
   });
@@ -74,6 +127,7 @@ export async function exportToWord(data: AiStudyAssistantOutput) {
 
 /**
  * Generates and triggers a browser download for a Markdown file.
+ * Uses standard Markdown [text](url) syntax for links.
  */
 export async function exportToMarkdown(data: AiStudyAssistantOutput) {
   const title = data.originalWord || "Research";
@@ -88,11 +142,11 @@ date: ${new Date().toISOString()}
 
 ${data.aiInsights}
 
-## Definitions
-${data.definitions.map(d => `- ${d}`).join('\n')}
+## Verse Occurrences
+${data.verseUsages.map(v => `- [${v.text}](${v.url})`).join('\n')}
 
 ## Bibliography
-${data.bibliography}
+${data.bibliography.map(b => `- [${b.text}](${b.url})`).join('\n')}
 `;
   const blob = new Blob([content], { type: 'text/markdown' });
   const url = window.URL.createObjectURL(blob);

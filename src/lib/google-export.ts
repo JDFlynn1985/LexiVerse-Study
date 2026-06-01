@@ -1,12 +1,13 @@
-
 /**
  * @fileOverview Integration with Google Drive and Google Docs APIs for research export.
+ * Updated to include direct clickable URLs for scripture and bibliography.
  */
 
 import { AiStudyAssistantOutput } from '@/ai/flows/ai-study-assistant';
 
 /**
  * Uploads a report to Google Drive as a text file.
+ * Includes URLs in text format for accessibility in plain text viewers.
  */
 export async function exportToGoogleDrive(accessToken: string, data: AiStudyAssistantOutput) {
   const metadata = {
@@ -14,7 +15,10 @@ export async function exportToGoogleDrive(accessToken: string, data: AiStudyAssi
     mimeType: 'text/plain',
   };
 
-  const content = `LexiVerse Research: ${data.originalWord}\n\n${data.aiInsights}\n\nBibliography:\n${data.bibliography}`;
+  const verseList = data.verseUsages.map(v => `- ${v.text} [${v.url}]`).join('\n');
+  const bibList = data.bibliography.map(b => `- ${b.text} [${b.url}]`).join('\n');
+
+  const content = `LexiVerse Research: ${data.originalWord}\n\n${data.aiInsights}\n\nVerses:\n${verseList}\n\nBibliography:\n${bibList}`;
   const file = new Blob([content], { type: 'text/plain' });
 
   const form = new FormData();
@@ -33,6 +37,7 @@ export async function exportToGoogleDrive(accessToken: string, data: AiStudyAssi
 
 /**
  * Creates a new Google Doc with the research report content.
+ * Links are embedded in the text content via clear URL markers.
  */
 export async function exportToGoogleDocs(accessToken: string, data: AiStudyAssistantOutput) {
   // 1. Create the Doc
@@ -48,6 +53,9 @@ export async function exportToGoogleDocs(accessToken: string, data: AiStudyAssis
   if (!createResponse.ok) throw new Error('Failed to create Google Doc');
   const doc = await createResponse.json();
 
+  const verseList = data.verseUsages.map(v => `- ${v.text} (Link: ${v.url})`).join('\n');
+  const bibList = data.bibliography.map(b => `- ${b.text} (Link: ${b.url})`).join('\n');
+
   // 2. Insert content
   const updateResponse = await fetch(`https://docs.googleapis.com/v1/documents/${doc.documentId}:batchUpdate`, {
     method: 'POST',
@@ -60,7 +68,7 @@ export async function exportToGoogleDocs(accessToken: string, data: AiStudyAssis
         {
           insertText: {
             location: { index: 1 },
-            text: `${data.originalWord}\n\n${data.aiInsights}\n\nBibliography:\n${data.bibliography}`
+            text: `${data.originalWord}\n\n${data.aiInsights}\n\nVERSES:\n${verseList}\n\nBIBLIOGRAPHY:\n${bibList}`
           }
         }
       ]
