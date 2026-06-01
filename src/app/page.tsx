@@ -13,6 +13,7 @@ import { appConfig } from '@/app-config';
 import { useAuth, useFirestore, useUser, useCollection } from '@/firebase';
 import { logSearch } from '@/lib/search-logging';
 import { useLanguage } from '@/components/language-provider';
+import { availableLanguages } from '@/lib/locales';
 
 import { 
   Sidebar, 
@@ -764,8 +765,9 @@ export default function Home() {
                               <SelectValue placeholder="Select language..." />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="en">English (US)</SelectItem>
-                              <SelectItem value="es">Español (ES)</SelectItem>
+                              {availableLanguages.map(lang => (
+                                <SelectItem key={lang.id} value={lang.id}>{lang.name}</SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         </div>
@@ -867,7 +869,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* ... (Other views like lexicon, assistant, etc. - ensure strings use t hook where applicable) */}
               {activeTab === 'ai-assistant' && (
                 <div className="space-y-6 animate-in fade-in">
                   <header>
@@ -916,8 +917,6 @@ export default function Home() {
                   )}
                 </div>
               )}
-              
-              {/* Additional views implementation follows same pattern... */}
             </div>
 
             <footer className="mt-12 pt-8 border-t">

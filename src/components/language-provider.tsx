@@ -6,24 +6,26 @@ import { locales, LocaleType } from '@/lib/locales';
 interface LanguageContextType {
   language: LocaleType;
   setLanguage: (lang: LocaleType) => void;
-  t: any; // Translation function or object
+  t: any; // Translation object for the active locale
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<LocaleType>('en');
+  const [language, setLanguageState] = useState<LocaleType>('en-US');
 
   useEffect(() => {
     const savedLang = localStorage.getItem('lexiverse_lang') as LocaleType;
-    if (savedLang && (savedLang === 'en' || savedLang === 'es')) {
+    if (savedLang && locales[savedLang]) {
       setLanguageState(savedLang);
     }
   }, []);
 
   const setLanguage = (lang: LocaleType) => {
-    setLanguageState(lang);
-    localStorage.setItem('lexiverse_lang', lang);
+    if (locales[lang]) {
+      setLanguageState(lang);
+      localStorage.setItem('lexiverse_lang', lang);
+    }
   };
 
   const t = locales[language];
