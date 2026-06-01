@@ -1,3 +1,4 @@
+
 import type {Config} from 'tailwindcss';
 
 export default {
@@ -9,61 +10,64 @@ export default {
   ],
   theme: {
     extend: {
+      // Font Pairing: 'Literata' for headlines, 'Inter' for body
       fontFamily: {
         body: ['Inter', 'sans-serif'],
-        headline: ['Inter', 'sans-serif'],
+        headline: ['Literata', 'serif'], // Use serif for headline font
         code: ['monospace'],
       },
+      // Color Scheme: Deep Indigo, Desaturated Parchment, Muted Gold
       colors: {
-        background: 'hsl(var(--background))',
-        foreground: 'hsl(var(--foreground))',
+        background: 'hsl(30 29% 94%)', // Desaturated Parchment
+        foreground: 'hsl(220 7% 12%)', // Darker text for readability
         card: {
-          DEFAULT: 'hsl(var(--card))',
-          foreground: 'hsl(var(--card-foreground))',
+          DEFAULT: 'hsl(30 29% 98%)', // Lighter parchment for cards
+          foreground: 'hsl(220 7% 12%)',
         },
         popover: {
-          DEFAULT: 'hsl(var(--popover))',
-          foreground: 'hsl(var(--popover-foreground))',
+          DEFAULT: 'hsl(30 29% 98%)',
+          foreground: 'hsl(220 7% 12%)',
         },
         primary: {
-          DEFAULT: 'hsl(var(--primary))',
-          foreground: 'hsl(var(--primary-foreground))',
+          DEFAULT: 'hsl(244 47% 20%)', // Deep Indigo
+          foreground: 'hsl(30 100% 98%)', // Light text on primary
         },
         secondary: {
-          DEFAULT: 'hsl(var(--secondary))',
-          foreground: 'hsl(var(--secondary-foreground))',
+          DEFAULT: 'hsl(40 58% 92%)', // Lighter parchment/cream
+          foreground: 'hsl(220 7% 12%)',
         },
         muted: {
-          DEFAULT: 'hsl(var(--muted))',
-          foreground: 'hsl(var(--muted-foreground))',
+          DEFAULT: 'hsl(30 29% 96%)', // Slightly off-white/parchment-like
+          foreground: 'hsl(220 7% 30%)', // Muted text color
         },
         accent: {
-          DEFAULT: 'hsl(var(--accent))',
-          foreground: 'hsl(var(--accent-foreground))',
+          DEFAULT: 'hsl(40 68% 62%)', // Muted Gold
+          foreground: 'hsl(30 100% 10%)', // Dark text on accent
         },
         destructive: {
-          DEFAULT: 'hsl(var(--destructive))',
-          foreground: 'hsl(var(--destructive-foreground))',
+          DEFAULT: 'hsl(10 80% 50%)',
+          foreground: 'hsl(0 0% 98%)',
         },
-        border: 'hsl(var(--border))',
-        input: 'hsl(var(--input))',
-        ring: 'hsl(var(--ring))',
+        border: 'hsl(30 29% 85%)', // Subtle border color
+        input: 'hsl(30 29% 85%)',
+        ring: 'hsl(244 47% 20%)', // Deep Indigo for rings
         chart: {
-          '1': 'hsl(var(--chart-1))',
-          '2': 'hsl(var(--chart-2))',
-          '3': 'hsl(var(--chart-3))',
-          '4': 'hsl(var(--chart-4))',
-          '5': 'hsl(var(--chart-5))',
+          '1': 'hsl(12 76% 61%)',
+          '2': 'hsl(173 58% 39%)',
+          '3': 'hsl(197 37% 24%)',
+          '4': 'hsl(43 74% 66%)',
+          '5': 'hsl(27 87% 67%)',
         },
+        // Sidebar colors are derived from the theme, but can be customized further if needed
         sidebar: {
-          DEFAULT: 'hsl(var(--sidebar-background))',
-          foreground: 'hsl(var(--sidebar-foreground))',
-          primary: 'hsl(var(--sidebar-primary))',
-          'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
-          accent: 'hsl(var(--sidebar-accent))',
-          'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
-          border: 'hsl(var(--sidebar-border))',
-          ring: 'hsl(var(--sidebar-ring))',
+          DEFAULT: 'hsl(30 29% 98%)', // Light parchment for sidebar background
+          foreground: 'hsl(220 7% 12%)', // Dark text for sidebar foreground
+          primary: 'hsl(244 47% 20%)', // Deep Indigo for sidebar primary actions
+          'primary-foreground': 'hsl(30 100% 98%)', // Light text on primary
+          accent: 'hsl(40 68% 62%)', // Muted Gold for sidebar accents
+          'accent-foreground': 'hsl(30 100% 10%)', // Dark text on accent
+          border: 'hsl(30 29% 85%)', // Subtle border for sidebar elements
+          ring: 'hsl(244 47% 20%)', // Deep Indigo for sidebar rings
         },
       },
       borderRadius: {

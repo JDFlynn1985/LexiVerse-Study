@@ -30,6 +30,12 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Add absolute paths for easier import
+  experimental: {
+    serverActions: {
+      allowedOrigins: ['localhost:3000'],
+    },
+  },
 };
 
 export default nextConfig;
