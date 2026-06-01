@@ -1,8 +1,8 @@
-
 'use server';
 /**
  * @fileOverview Comprehensive AI Study Assistant for in-depth biblical research.
- * Orchestrates scripture term analysis and generates structured academic reports.
+ * Orchestrates scripture term analysis and generates structured academic reports,
+ * incorporating user-uploaded research papers as additional context.
  */
 
 import { ai } from '@/ai/genkit';
@@ -28,6 +28,7 @@ const aggregateExternalData = async (term: string): Promise<string> => {
 
 const AiStudyAssistantInputSchema = z.object({
   term: z.string().describe('The scripture term or reference to research.'),
+  researchContext: z.array(z.string()).optional().describe('Context from uploaded research papers.'),
 });
 
 export type AiStudyAssistantInput = z.infer<typeof AiStudyAssistantInputSchema>;
@@ -53,7 +54,8 @@ const studyAssistantPrompt = ai.definePrompt({
     schema: z.object({
       term: z.string(),
       aggregatedData: z.string(),
-      brainJsInsight: z.string()
+      brainJsInsight: z.string(),
+      researchContext: z.string().optional()
     }),
   },
   output: {
@@ -66,6 +68,14 @@ Term: {{term}}
 Aggregated Data: {{{aggregatedData}}}
 Neuromorphic Insight: {{{brainJsInsight}}}
 
+{{#if researchContext}}
+User-Uploaded Research Context:
+---
+{{{researchContext}}}
+---
+Ensure you integrate insights from the uploaded research papers into the analysis where appropriate.
+{{/if}}
+
 Ensure the response follows the AiStudyAssistantOutputSchema exactly. Provide real scripture citations if relevant. Structure the report for high-level academic review.`,
 });
 
@@ -77,10 +87,13 @@ const aiStudyAssistantFlow = ai.defineFlow(
   },
   async input => {
     const aggregatedData = await aggregateExternalData(input.term);
+    const researchContextString = input.researchContext?.join('\n\n---\n\n');
+    
     const { output } = await studyAssistantPrompt({
       term: input.term,
       aggregatedData,
       brainJsInsight: brainJsSimulatedInsight,
+      researchContext: researchContextString
     });
     return output!;
   }

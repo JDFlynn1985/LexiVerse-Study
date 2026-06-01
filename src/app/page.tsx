@@ -51,7 +51,10 @@ import {
   Edit3,
   Highlighter,
   Plus,
-  Copy
+  Copy,
+  FileUp,
+  FileSearch,
+  Check
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -74,7 +77,7 @@ import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/
 import { interactiveVerseExplorationAI } from '@/ai/flows/interactive-verse-exploration-ai';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 
-type ViewMode = 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography';
+type ViewMode = 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers';
 
 interface Note {
   id: string;
@@ -90,12 +93,21 @@ interface BiblioItem {
   date: string;
 }
 
+interface ResearchPaper {
+  id: string;
+  title: string;
+  content: string;
+  author?: string;
+  date: string;
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<ViewMode>('bibles');
   const [isLoading, setIsLoading] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   
   // Accessibility IDs
@@ -109,6 +121,7 @@ export default function Home() {
   const [history, setHistory] = useState<{id: string, type: string, term: string, date: string}[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [biblioItems, setBiblioItems] = useState<BiblioItem[]>([]);
+  const [researchPapers, setResearchPapers] = useState<ResearchPaper[]>([]);
   const [currentContext, setCurrentContext] = useState<string | null>(null);
 
   // Content States
@@ -134,6 +147,9 @@ export default function Home() {
 
     const savedBiblio = localStorage.getItem('lexiverse_biblio');
     if (savedBiblio) setBiblioItems(JSON.parse(savedBiblio));
+
+    const savedPapers = localStorage.getItem('lexiverse_papers');
+    if (savedPapers) setResearchPapers(JSON.parse(savedPapers));
 
     getVersions().then(setVersions);
   }, []);
@@ -186,6 +202,30 @@ export default function Home() {
     });
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      const newPaper: ResearchPaper = {
+        id: Date.now().toString(),
+        title: file.name,
+        content: content,
+        date: new Date().toLocaleString()
+      };
+      const updated = [newPaper, ...researchPapers];
+      setResearchPapers(updated);
+      localStorage.setItem('lexiverse_papers', JSON.stringify(updated));
+      toast({
+        title: "Paper Uploaded",
+        description: `"${file.name}" has been added to your research library.`,
+      });
+    };
+    reader.readAsText(file);
+  };
+
   const captureSelectionToNotes = () => {
     const selection = window.getSelection()?.toString();
     if (selection) {
@@ -230,7 +270,8 @@ export default function Home() {
       const data = await interactiveVerseExplorationAI({
         term: dictTerm,
         question: `Define the biblical and theological term "${dictTerm}". Provide historical context and major dictionary references.`,
-        history: []
+        history: [],
+        researchContext: researchPapers.map(p => p.content)
       });
       setDictResult({
         term: dictTerm,
@@ -274,7 +315,8 @@ export default function Home() {
       const data = await interactiveVerseExplorationAI({
         term: verseRef,
         question: `Explain the theological significance of ${verseRef} in its original context.`,
-        history: []
+        history: [],
+        researchContext: researchPapers.map(p => p.content)
       });
       setVerseExploration(data.response);
       setCurrentContext(`Verse Analysis: ${verseRef}`);
@@ -299,7 +341,8 @@ export default function Home() {
       const data = await interactiveVerseExplorationAI({
         term: currentContext || 'General Biblical Research',
         question: userMsg,
-        history: chatHistory
+        history: chatHistory,
+        researchContext: researchPapers.map(p => p.content)
       });
       setChatHistory(prev => [...prev, { role: 'model', content: data.response }]);
     } catch (error) {
@@ -333,6 +376,7 @@ export default function Home() {
                     { id: 'commentaries', label: 'Commentaries', icon: Scroll },
                     { id: 'dictionaries', label: 'Dictionaries', icon: Library },
                     { id: 'lexicon', label: 'Lexicon', icon: BookOpen },
+                    { id: 'papers', label: 'Research Papers', icon: FileSearch },
                   ].map((item) => (
                     <SidebarMenuItem key={item.id}>
                       <SidebarMenuButton 
@@ -461,6 +505,64 @@ export default function Home() {
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'papers' && (
+              <div className="space-y-6 animate-in fade-in">
+                <header className="flex justify-between items-center">
+                  <div>
+                    <h1 className="text-3xl font-bold font-headline">Knowledge Base</h1>
+                    <p className="text-muted-foreground">Upload your research papers to include them in AI analysis.</p>
+                  </div>
+                  <div>
+                    <Input 
+                      type="file" 
+                      className="hidden" 
+                      ref={fileInputRef} 
+                      onChange={handleFileUpload}
+                      accept=".txt,.md"
+                    />
+                    <Button onClick={() => fileInputRef.current?.click()}>
+                      <FileUp className="h-4 w-4 mr-2" /> Upload Paper (.txt)
+                    </Button>
+                  </div>
+                </header>
+
+                {researchPapers.length === 0 ? (
+                  <Card className="border-dashed py-20 text-center">
+                    <FileSearch className="h-12 w-12 mx-auto mb-4 opacity-10" />
+                    <p className="text-muted-foreground">No papers uploaded. Add texts to enhance AI context.</p>
+                  </Card>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {researchPapers.map(paper => (
+                      <Card key={paper.id} className="hover:border-primary transition-colors">
+                        <CardHeader className="pb-2 flex flex-row justify-between items-start">
+                          <div className="flex-1">
+                            <CardTitle className="text-lg line-clamp-1">{paper.title}</CardTitle>
+                            <CardDescription>{paper.date}</CardDescription>
+                          </div>
+                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => {
+                            const updated = researchPapers.filter(p => p.id !== paper.id);
+                            setResearchPapers(updated);
+                            localStorage.setItem('lexiverse_papers', JSON.stringify(updated));
+                          }}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-xs text-muted-foreground line-clamp-3 italic">"{paper.content.substring(0, 200)}..."</p>
+                        </CardContent>
+                        <CardFooter className="pt-0 flex gap-2">
+                           <Badge variant="secondary" className="flex gap-1 items-center">
+                            <Check className="h-3 w-3" /> Scanned by AI
+                           </Badge>
+                        </CardFooter>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -819,6 +921,11 @@ export default function Home() {
                     <p className="text-sm text-muted-foreground">Context: <span className="text-primary font-medium">{currentContext || 'General Research'}</span></p>
                   </div>
                   <div className="flex gap-2">
+                    {researchPapers.length > 0 && (
+                      <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 flex gap-1">
+                        <Puzzle className="h-3 w-3" /> {researchPapers.length} Papers Active
+                      </Badge>
+                    )}
                     <Button variant="outline" size="sm" onClick={() => handleSaveToBiblio(`AI Academic Session: ${currentContext || 'General'}`, "AI Dialogue")}>
                       Cite <ClipboardList className="h-4 w-4 ml-2" />
                     </Button>
@@ -835,7 +942,7 @@ export default function Home() {
                         <div className="text-center py-32 text-muted-foreground animate-in zoom-in-95">
                           <MessageSquare className="h-16 w-16 mx-auto mb-6 opacity-10" />
                           <h3 className="text-xl font-headline mb-2">How can I assist your research?</h3>
-                          <p className="text-sm">Ask about passages, translation nuances, or historical context.</p>
+                          <p className="text-sm">Ask about passages, translation nuances, or historical context. {researchPapers.length > 0 ? "Your uploaded papers are being referenced." : ""}</p>
                         </div>
                       )}
                       {chatHistory.map((m, i) => (
