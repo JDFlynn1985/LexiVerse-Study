@@ -2,10 +2,6 @@
 'use server';
 /**
  * @fileOverview This flow compares the translation of a given word across various Bible versions.
- *
- * - compareTranslations - A function that retrieves and compares word translations.
- * - CompareTranslationsInput - The input type for the compareTranslations function.
- * - CompareTranslationsOutput - The return type for the compareTranslations function.
  */
 
 import { ai } from '@/ai/genkit';
@@ -13,8 +9,8 @@ import { z } from 'genkit';
 
 const CompareTranslationsInputSchema = z.object({
   word: z.string().describe('The word to search for translations (e.g., Greek/Hebrew word or its transliteration).'),
-  language: z.string().describe('The source language of the word (e.g., "Greek", "Hebrew", "Aramaic").'),
-  versions: z.array(z.string()).describe('A list of Bible versions to compare (e.g., ["KJV", "NIV", "ESV", "NASB"]).'),
+  language: z.string().describe('The source language of the word (e.g., "Greek", "Hebrew").'),
+  versions: z.array(z.string()).describe('A list of Bible versions to compare.'),
 });
 export type CompareTranslationsInput = z.infer<typeof CompareTranslationsInputSchema>;
 
@@ -23,56 +19,49 @@ const TranslationDetailSchema = z.object({
   translation: z.string().describe('How the word is translated in this version.'),
   originalWord: z.string().optional().describe('The original Greek/Hebrew word found in this version.'),
   transliteration: z.string().optional().describe('The transliteration of the original word.'),
-  notes: z.string().optional().describe('Any specific nuances or contextual notes about this translation.'),
+  notes: z.string().optional().describe('Nuances about this translation.'),
 });
 
 const CompareTranslationsOutputSchema = z.object({
   originalWord: z.string().describe('The original input word.'),
   language: z.string().describe('The source language of the word.'),
-  versionsCompared: z.array(z.string()).describe('The list of Bible versions that were compared.'),
+  versionsCompared: z.array(z.string()).describe('The list of versions compared.'),
   translations: z.array(TranslationDetailSchema).describe('Details of how the word is translated in each specified version.'),
-  summary: z.string().describe('An AI-generated summary comparing the translations, highlighting key differences and similarities.'),
-  bibliography: z.string().optional().describe('A list of simulated sources used for comparison.'),
+  summary: z.string().describe('AI summary comparing translations.'),
+  bibliography: z.string().optional().describe('Simulated sources used for comparison.'),
 });
 export type CompareTranslationsOutput = z.infer<typeof CompareTranslationsOutputSchema>;
-
-export async function compareTranslations(input: CompareTranslationsInput): Promise<CompareTranslationsOutput> {
-  return compareTranslationsFlow(input);
-}
-
-export async function compareTranslationsFlow(input: CompareTranslationsInput): Promise<CompareTranslationsOutput> {
-  // In a real implementation, this would involve API calls to YouVersion, Bible-get-node, or other translation data sources.
-  // For this example, we rely on the prompt to simulate the data and perform the comparison.
-  const { output } = await compareTranslationsPrompt(input);
-  return output!;
-}
 
 const compareTranslationsPrompt = ai.definePrompt({
   name: 'compareTranslationsPrompt',
   input: {
-    schema: z.object({
-      word: CompareTranslationsInputSchema.shape.word,
-      language: CompareTranslationsInputSchema.shape.language,
-      versions: CompareTranslationsInputSchema.shape.versions,
-    }),
+    schema: CompareTranslationsInputSchema,
   },
   output: {
     schema: CompareTranslationsOutputSchema,
   },
-  prompt: `You are an expert biblical linguist and translator. Your task is to compare the translation of a given word across various Bible versions.
+  prompt: `You are an expert biblical linguist. Compare the translation of '{{word}}' ({{language}}) across these versions: {{#each versions}}{{{this}}}, {{/each}}.
 
-You will be provided with:
-- The word: {{word}}
-- Its source language: {{language}}
-- A list of Bible versions to compare: {{versions}}
+Simulate fetching translations and providing original terms. Highlight theological nuances and differences in translation philosophy.
 
-Simulate fetching the translations of this word in each specified version. For each version, provide:
-1.  The translated word in that version.
-2.  The original Greek/Hebrew word used in that version (if identifiable).
-3.  The transliteration of that original word.
-4.  Any relevant contextual notes or nuances about that specific translation.
-
-After presenting the details for each version, provide a comprehensive summary that highlights the key similarities, differences, and potential theological implications of the various translations.
-
-Format your response as a JSON object adhering strictly to the CompareTranslationsOutputSchema. Include a simulated bibliography of sources typically used for such analysis (e.g., academic commentaries, lexicons, Bible version websites).`,
+Format strictly as JSON adhering to CompareTranslationsOutputSchema.`,
 });
+
+const compareTranslationsFlow = ai.defineFlow(
+  {
+    name: 'compareTranslationsFlow',
+    inputSchema: CompareTranslationsInputSchema,
+    outputSchema: CompareTranslationsOutputSchema,
+  },
+  async input => {
+    const { output } = await compareTranslationsPrompt(input);
+    return output!;
+  }
+);
+
+/**
+ * Retrieves and compares word translations across Bible versions.
+ */
+export async function compareTranslations(input: CompareTranslationsInput): Promise<CompareTranslationsOutput> {
+  return compareTranslationsFlow(input);
+}

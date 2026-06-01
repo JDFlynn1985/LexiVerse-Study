@@ -109,7 +109,7 @@ export default function Home() {
   const [chatHistory, setChatHistory] = useState<{role: 'user' | 'model', content: string}[]>([]);
   const [deepResearchResult, setDeepResearchResult] = useState<AiStudyAssistantOutput | null>(null);
 
-  // Sword Modules State (Now fetching from API)
+  // Modules State
   const [modules, setModules] = useState<Module[]>([]);
 
   useEffect(() => {
@@ -132,6 +132,7 @@ export default function Home() {
   }, []);
 
   const addToHistory = (type: string, term: string) => {
+    if (!term.trim()) return;
     const newEntry = { id: Date.now().toString(), type, term, date: new Date().toLocaleString() };
     const updatedHistory = [newEntry, ...history.slice(0, 19)];
     setHistory(updatedHistory);
@@ -148,15 +149,6 @@ export default function Home() {
     }
     setBookmarks(updated);
     localStorage.setItem('lexiverse_bookmarks', JSON.stringify(updated));
-  };
-
-  const handleShare = (text: string) => {
-    if (navigator.share) {
-      navigator.share({ title: 'LexiVerse Research', text }).catch(console.error);
-    } else {
-      navigator.clipboard.writeText(text);
-      alert('Copied to clipboard');
-    }
   };
 
   async function handleWordSearch(e?: React.FormEvent) {
@@ -201,26 +193,11 @@ export default function Home() {
     try {
       const data = await interactiveVerseExplorationAI({
         term: verseRef,
-        question: verseQuestion || `Explain the significance of ${verseRef} using the real passage text.`,
+        question: verseQuestion || `Explain the significance of ${verseRef} using the passage text.`,
         history: []
       });
       setVerseExploration(data.response);
       addToHistory('verse', verseRef);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handleDeepResearch(e?: React.FormEvent) {
-    if (e) e.preventDefault();
-    if (!chatInput.trim()) return;
-    setIsLoading(true);
-    try {
-      const data = await aiStudyAssistant({ term: chatInput });
-      setDeepResearchResult(data);
-      addToHistory('research', chatInput);
     } catch (error) {
       console.error(error);
     } finally {
@@ -319,7 +296,7 @@ export default function Home() {
           <SidebarFooter className="p-4 border-t">
              <div className="flex justify-between items-center group-data-[collapsible=icon]:hidden">
                 <span className="text-[10px] text-muted-foreground uppercase">API Powered</span>
-                <Button variant="ghost" size="icon" className="rounded-full h-8 w-8" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+                <Button variant="ghost" size="icon" className="rounded-full h-8 w-8" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle theme">
                   {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
                 </Button>
              </div>
@@ -368,7 +345,7 @@ export default function Home() {
                       </Card>
                       <Card className="shadow-sm">
                         <CardHeader><CardTitle className="text-lg font-headline">Parsing Data</CardTitle></CardHeader>
-                        <CardContent><pre className="text-xs bg-muted p-3 rounded font-mono">{wordResult.lexicalData}</pre></CardContent>
+                        <CardContent><pre className="text-xs bg-muted p-3 rounded font-mono overflow-auto">{wordResult.lexicalData}</pre></CardContent>
                       </Card>
                     </div>
                     <Button variant="outline" onClick={() => setWordResult(null)}>New Search</Button>
@@ -431,7 +408,7 @@ export default function Home() {
                 <header className="flex justify-between items-end border-b pb-6">
                   <div>
                     <h1 className="text-3xl font-bold font-headline">Digital Library</h1>
-                    <p className="text-muted-foreground text-sm">Managing versions from bible.helloao.org and SWORD interface.</p>
+                    <p className="text-muted-foreground text-sm">Managing versions from bible.helloao.org for accurate research.</p>
                   </div>
                 </header>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -448,7 +425,7 @@ export default function Home() {
                           </div>
                         </div>
                         <Button size="sm" variant={mod.installed ? 'outline' : 'default'} onClick={() => toggleModule(mod.id)}>
-                          {mod.installed ? 'Remov' : 'Add'}
+                          {mod.installed ? 'Remove' : 'Add'}
                         </Button>
                       </div>
                     </Card>
@@ -457,50 +434,147 @@ export default function Home() {
               </div>
             )}
 
-            {/* AI Assistant, History, and Translations logic remains integrated with the same UI pattern */}
             {activeTab === 'ai-assistant' && (
                <div className="flex flex-col h-[70vh] gap-4">
+                 <header className="mb-4">
+                    <h1 className="text-2xl font-bold font-headline">Scholar AI Assistant</h1>
+                    <p className="text-sm text-muted-foreground">Expert discussion on biblical terms, historical context, and theology.</p>
+                 </header>
                  <ScrollArea className="flex-1 border rounded-lg p-4 bg-muted/5">
                    <div className="space-y-4">
+                     {chatHistory.length === 0 && (
+                       <div className="text-center py-20 text-muted-foreground">
+                         <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                         <p>Start a conversation with the scholarly assistant.</p>
+                       </div>
+                     )}
                      {chatHistory.map((m, i) => (
                        <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                         <div className={`max-w-[80%] p-3 rounded-lg ${m.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-card border'}`}>
-                           <p className="text-sm">{m.content}</p>
+                         <div className={`max-w-[80%] p-3 rounded-lg ${m.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-card border shadow-sm'}`}>
+                           <p className="text-sm whitespace-pre-wrap">{m.content}</p>
                          </div>
                        </div>
                      ))}
+                     {isLoading && (
+                       <div className="flex justify-start">
+                         <div className="bg-muted p-3 rounded-lg flex items-center gap-2">
+                           <Loader2 className="h-4 w-4 animate-spin" />
+                           <span className="text-xs">Scholar is thinking...</span>
+                         </div>
+                       </div>
+                     )}
                    </div>
                  </ScrollArea>
                  <form onSubmit={handleAIChat} className="flex gap-2">
                    <Input 
                      id={chatInputId}
-                     placeholder="Ask the Scholar AI..." 
+                     placeholder="Ask the Scholar AI about a term or passage..." 
                      value={chatInput}
                      onChange={(e) => setChatInput(e.target.value)}
+                     className="h-12"
                    />
-                   <Button type="submit" size="icon" disabled={isLoading}><Send className="h-4 w-4" /></Button>
+                   <Button type="submit" size="icon" disabled={isLoading} className="h-12 w-12">
+                     <Send className="h-5 w-5" />
+                   </Button>
                  </form>
                </div>
             )}
 
             {activeTab === 'history' && (
               <div className="space-y-6">
-                <h1 className="text-3xl font-bold font-headline">Session Logs</h1>
+                <header>
+                  <h1 className="text-3xl font-bold font-headline">Session Logs</h1>
+                  <p className="text-muted-foreground">Your recent research activity.</p>
+                </header>
                 <Card>
                   <CardContent className="p-0">
-                    <div className="divide-y">
-                      {history.map(h => (
-                        <div key={h.id} className="p-4 flex justify-between items-center hover:bg-muted/30 cursor-pointer" onClick={() => setActiveTab(h.type as any)}>
-                          <div className="flex gap-3">
-                            <Badge variant="outline">{h.type.toUpperCase()}</Badge>
-                            <span className="font-medium">{h.term}</span>
+                    {history.length === 0 ? (
+                      <div className="p-8 text-center text-muted-foreground">No recent activity.</div>
+                    ) : (
+                      <div className="divide-y">
+                        {history.map(h => (
+                          <div key={h.id} className="p-4 flex justify-between items-center hover:bg-muted/30 cursor-pointer transition-colors" onClick={() => setActiveTab(h.type as any)}>
+                            <div className="flex gap-3 items-center">
+                              <Badge variant="outline" className="font-mono text-[10px]">{h.type.toUpperCase()}</Badge>
+                              <span className="font-medium">{h.term}</span>
+                            </div>
+                            <span className="text-xs text-muted-foreground">{h.date}</span>
                           </div>
-                          <span className="text-xs text-muted-foreground">{h.date}</span>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
+              </div>
+            )}
+
+            {activeTab === 'translations' && (
+              <div className="space-y-8 animate-in fade-in">
+                <header className="text-center mb-10">
+                  <h1 className="text-3xl font-bold font-headline mb-2">Version Comparison</h1>
+                  <p className="text-muted-foreground">Analyze linguistic nuances across major Bible translations.</p>
+                </header>
+                <Card className="max-w-2xl mx-auto shadow-md">
+                  <CardContent className="pt-6">
+                    <form onSubmit={handleTranslationCompare} className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor={transSearchId}>Term / Word</Label>
+                          <Input 
+                            id={transSearchId}
+                            placeholder="e.g. Logos" 
+                            value={transWord}
+                            onChange={(e) => setTransWord(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Language</Label>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" className="w-full justify-between">
+                                {transLanguage} <Languages className="h-4 w-4 ml-2" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="w-full">
+                              {['Greek', 'Hebrew', 'Aramaic', 'Latin'].map(lang => (
+                                <DropdownMenuItem key={lang} onClick={() => setTransLanguage(lang)}>
+                                  {lang}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+                      <Button className="w-full h-11" type="submit" disabled={isLoading}>
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Languages className="h-4 w-4 mr-2" />}
+                        Compare Versions
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+
+                {transResult && (
+                  <div className="grid gap-6 mt-8 animate-in slide-in-from-bottom-4">
+                    <Card className="border-t-4 border-t-primary">
+                      <CardHeader><CardTitle className="font-headline">Theological Summary</CardTitle></CardHeader>
+                      <CardContent><p className="text-muted-foreground leading-relaxed">{transResult.summary}</p></CardContent>
+                    </Card>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {transResult.translations.map((t, i) => (
+                        <Card key={i} className="hover:border-primary/50 transition-colors">
+                          <CardHeader className="pb-2">
+                            <Badge variant="secondary" className="w-fit">{t.version}</Badge>
+                            <CardTitle className="text-lg mt-2">{t.translation}</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-xs text-primary font-serif italic mb-2">{t.originalWord} ({t.transliteration})</p>
+                            <p className="text-sm text-muted-foreground">{t.notes}</p>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
