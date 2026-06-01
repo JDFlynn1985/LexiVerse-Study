@@ -5,16 +5,14 @@ import { useTheme } from 'next-themes';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 import { 
-  getAuth, 
   signInWithPopup, 
   GoogleAuthProvider, 
-  signOut, 
-  onAuthStateChanged,
-  type User
+  signOut
 } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 import { appConfig } from '@/app-config';
+import { useAuth, useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 
-// Set up PDF.js worker
 if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
   pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 }
@@ -25,12 +23,10 @@ import {
   SidebarGroup, 
   SidebarGroupLabel, 
   SidebarHeader, 
-  SidebarInput, 
   SidebarMenu, 
   SidebarMenuItem, 
   SidebarMenuButton, 
   SidebarProvider, 
-  SidebarRail, 
   SidebarInset, 
   SidebarFooter 
 } from '@/components/ui/sidebar';
@@ -38,21 +34,15 @@ import {
   Search, 
   BookOpen, 
   Scroll, 
-  Feather, 
   FileText, 
-  Info, 
   Mic, 
-  Puzzle,
   Loader2,
-  BookMarked,
   Languages,
   MessageSquare,
   History,
   Send,
   Download,
-  CheckCircle2,
   Trash2,
-  Bookmark,
   Sun,
   Moon,
   Share2,
@@ -63,18 +53,15 @@ import {
   Zap,
   Quote,
   Scale,
-  SpellCheck,
   ClipboardList,
   Edit3,
   Highlighter,
   Plus,
   Copy,
-  FileUp,
   FileSearch,
   Check,
   FileCode,
   LogOut,
-  FileJson,
   Table as TableIcon,
   CloudDownload,
   FileWarning
@@ -83,10 +70,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import { 
   DropdownMenu, 
@@ -102,7 +86,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter
 } from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
@@ -110,7 +93,6 @@ import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flow
 import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/compare-translations-ai';
 import { interactiveVerseExplorationAI } from '@/ai/flows/interactive-verse-exploration-ai';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
-import { initializeFirebase } from '@/firebase';
 
 type ViewMode = 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers';
 
@@ -151,31 +133,27 @@ export default function Home() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  
-  // Auth State
-  const [user, setUser] = useState<User | null>(null);
+  const auth = useAuth();
+  const db = useFirestore();
+  const { user } = useUser();
   const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null);
 
-  // Accessibility IDs
   const wordSearchId = useId();
   const dictSearchId = useId();
   const transSearchId = useId();
   const verseRefId = useId();
   const chatInputId = useId();
 
-  // State Management
   const [history, setHistory] = useState<{id: string, type: string, term: string, date: string}[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [biblioItems, setBiblioItems] = useState<BiblioItem[]>([]);
   const [researchPapers, setResearchPapers] = useState<ResearchPaper[]>([]);
   const [currentContext, setCurrentContext] = useState<string | null>(null);
 
-  // Drive Import State
   const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
   const [isDriveModalOpen, setIsDriveModalOpen] = useState(false);
   const [isFetchingDrive, setIsFetchingDrive] = useState(false);
 
-  // Content States
   const [searchTerm, setSearchTerm] = useState('');
   const [wordResult, setWordResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
   const [dictTerm, setDictTerm] = useState('');
@@ -190,24 +168,14 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true);
-    const { auth } = initializeFirebase();
-    
-    onAuthStateChanged(auth, (u) => {
-      setUser(u);
-    });
-
     const savedHistory = localStorage.getItem('lexiverse_history');
     if (savedHistory) setHistory(JSON.parse(savedHistory));
-
     const savedNotes = localStorage.getItem('lexiverse_notes');
     if (savedNotes) setNotes(JSON.parse(savedNotes));
-
     const savedBiblio = localStorage.getItem('lexiverse_biblio');
     if (savedBiblio) setBiblioItems(JSON.parse(savedBiblio));
-
     const savedPapers = localStorage.getItem('lexiverse_papers');
     if (savedPapers) setResearchPapers(JSON.parse(savedPapers));
-
     getVersions().then(setVersions);
   }, []);
 
@@ -218,15 +186,32 @@ export default function Home() {
   }, [chatHistory]);
 
   const handleLogin = async () => {
-    const { auth } = initializeFirebase();
     const provider = new GoogleAuthProvider();
-    // Request scopes from central appConfig
     appConfig.google.scopes.forEach(scope => provider.addScope(scope));
     
     try {
       const result = await signInWithPopup(auth, provider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
       setGoogleAccessToken(credential?.accessToken || null);
+      
+      const userRef = doc(db, 'users', result.user.uid);
+      const userData = {
+        uid: result.user.uid,
+        displayName: result.user.displayName,
+        email: result.user.email,
+        photoURL: result.user.photoURL,
+      };
+      
+      setDoc(userRef, userData, { merge: true })
+        .catch(async () => {
+          const permissionError = new FirestorePermissionError({
+            path: userRef.path,
+            operation: 'write',
+            requestResourceData: userData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
+
       toast({
         title: "Logged in",
         description: `Welcome back, ${result.user.displayName}`,
@@ -241,7 +226,6 @@ export default function Home() {
   };
 
   const handleLogout = async () => {
-    const { auth } = initializeFirebase();
     await signOut(auth);
     setGoogleAccessToken(null);
     toast({ title: "Logged out" });
@@ -282,8 +266,8 @@ export default function Home() {
         const res = await fetch(`https://docs.googleapis.com/v1/documents/${file.id}`, {
           headers: { Authorization: `Bearer ${googleAccessToken}` },
         });
-        const doc = await res.json();
-        content = doc.body.content.map((c: any) => {
+        const docRes = await res.json();
+        content = docRes.body.content.map((c: any) => {
           if (c.paragraph) {
             return c.paragraph.elements.map((e: any) => e.textRun?.content || "").join("");
           }
@@ -357,9 +341,9 @@ export default function Home() {
       });
 
       if (!response.ok) throw new Error('Failed to create document');
-      const doc = await response.json();
+      const docRes = await response.json();
       
-      await fetch(`https://docs.googleapis.com/v1/documents/${doc.documentId}:batchUpdate`, {
+      await fetch(`https://docs.googleapis.com/v1/documents/${docRes.documentId}:batchUpdate`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${googleAccessToken}`,
@@ -379,7 +363,7 @@ export default function Home() {
         title: "Exported to Google Docs",
         description: `"${title}" has been created in your Drive.`,
         action: (
-          <Button variant="outline" size="sm" onClick={() => window.open(`https://docs.google.com/document/d/${doc.documentId}/edit`, '_blank')}>
+          <Button variant="outline" size="sm" onClick={() => window.open(`https://docs.google.com/document/d/${docRes.documentId}/edit`, '_blank')}>
             Open Doc
           </Button>
         ),
@@ -510,7 +494,6 @@ export default function Home() {
       }
       return fullText;
     } catch (error) {
-      console.error('Error extracting PDF text:', error);
       throw new Error('Failed to parse PDF file.');
     }
   };
@@ -520,7 +503,6 @@ export default function Home() {
       const result = await mammoth.extractRawText({ arrayBuffer });
       return result.value;
     } catch (error) {
-      console.error('Error extracting DOCX text:', error);
       throw new Error('Failed to parse Word document.');
     }
   };
@@ -607,7 +589,6 @@ export default function Home() {
       addToHistory('lexicon', searchTerm);
       setActiveTab('lexicon');
     } catch (error) {
-      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -632,7 +613,6 @@ export default function Home() {
       setCurrentContext(`Dictionary: ${dictTerm}`);
       addToHistory('dictionaries', dictTerm);
     } catch (error) {
-      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -652,7 +632,6 @@ export default function Home() {
       setCurrentContext(`Translation Comparison: ${transWord}`);
       addToHistory('translations', transWord);
     } catch (error) {
-      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -673,7 +652,6 @@ export default function Home() {
       setCurrentContext(`Verse Analysis: ${verseRef}`);
       addToHistory('verse-explorer', verseRef);
     } catch (error) {
-      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -697,7 +675,6 @@ export default function Home() {
       });
       setChatHistory(prev => [...prev, { role: 'model', content: data.response }]);
     } catch (error) {
-      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -840,7 +817,7 @@ export default function Home() {
              )}
              
              <div className="flex justify-between items-center group-data-[collapsible=icon]:hidden">
-                <span className="text-[10px] text-muted-foreground uppercase">LexiVerse v2.8</span>
+                <span className="text-[10px] text-muted-foreground uppercase">LexiVerse v2.9</span>
                 <Button variant="ghost" size="icon" className="rounded-full h-8 w-8" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Toggle theme">
                   {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
                 </Button>
@@ -849,7 +826,6 @@ export default function Home() {
         </Sidebar>
 
         <SidebarInset className="bg-background overflow-y-auto">
-          {/* Global Tool Overlay */}
           <div className="fixed top-4 right-8 z-50 flex gap-2">
             <Button variant="secondary" className="shadow-lg h-10 border" onClick={captureSelectionToNotes}>
               <Highlighter className="h-4 w-4 mr-2" /> Capture Highlight
@@ -857,7 +833,6 @@ export default function Home() {
           </div>
 
           <main className="container max-w-5xl mx-auto py-10 px-6" id="main-content">
-            
             {activeTab === 'bibles' && (
               <div className="space-y-6 animate-in fade-in">
                 <header className="flex justify-between items-end border-b pb-6">
@@ -989,27 +964,6 @@ export default function Home() {
                     ))}
                   </div>
                 )}
-              </div>
-            )}
-
-            {activeTab === 'commentaries' && (
-              <div className="space-y-6 animate-in fade-in">
-                <header>
-                  <h1 className="text-3xl font-bold font-headline">Commentary Research</h1>
-                  <p className="text-muted-foreground">Synthesized historical and linguistic context.</p>
-                </header>
-                <Card className="bg-muted/30 border-dashed">
-                  <CardContent className="py-12 text-center">
-                    <Feather className="h-12 w-12 mx-auto mb-4 opacity-20 text-primary" />
-                    <h3 className="font-bold text-lg mb-2">Integrated Research Mode</h3>
-                    <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6">
-                      Use the Verse Explorer or Scholar AI to generate academic commentary insights.
-                    </p>
-                    <Button onClick={() => setActiveTab('verse-explorer')}>
-                      Go to Verse Explorer
-                    </Button>
-                  </CardContent>
-                </Card>
               </div>
             )}
 
@@ -1504,11 +1458,9 @@ export default function Home() {
                 </Card>
               </div>
             )}
-
           </main>
         </SidebarInset>
       </div>
     </SidebarProvider>
   );
 }
-

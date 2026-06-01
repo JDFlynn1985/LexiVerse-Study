@@ -1,14 +1,12 @@
 'use server';
 /**
- * @fileOverview This flow provides an interactive AI experience for exploring scripture verses and terms, 
- * now supporting additional context from user-uploaded research papers.
+ * @fileOverview This flow provides an interactive AI experience for exploring scripture verses and terms.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { getChapterContent, parseReference } from '@/lib/bible-api';
 
-// Define tool for searching verses
 const searchBibleVerseTool = ai.defineTool({
   name: 'searchBibleVerse',
   description: 'Searches for a Bible verse or passage and retrieves the full text using the Free Use Bible API.',
@@ -94,14 +92,13 @@ const interactiveVerseExplorationAIFlow = ai.defineFlow(
     messages.push({ role: 'user', content: input.question });
 
     let systemPrompt = `You are an expert biblical scholar. 
-    You have access to a tool to fetch the actual text of Bible verses. 
-    Use this tool whenever the user asks about a specific passage or reference.
+    Use the searchBibleVerse tool whenever the user asks about a specific passage or reference.
     Always quote the scripture you are discussing.
     Structure your response academically for a seminary student.
     The current focus is: '${input.term}'.`;
 
     if (input.researchContext && input.researchContext.length > 0) {
-      systemPrompt += `\n\nAdditionally, the user has provided excerpts from the following research papers for inclusion in your analysis. If relevant, synthesize information from these papers into your response:
+      systemPrompt += `\n\nAdditionally, incorporate these excerpts from research papers:
       ${input.researchContext.map((p, i) => `[Paper ${i+1}]: ${p}`).join('\n\n')}`;
     }
 
@@ -114,7 +111,7 @@ const interactiveVerseExplorationAIFlow = ai.defineFlow(
       tools: [searchBibleVerseTool],
     });
 
-    return { response: response.text() };
+    return { response: response.text };
   }
 );
 

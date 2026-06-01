@@ -1,30 +1,20 @@
-
 'use server';
 /**
  * @fileOverview This flow allows users to ask follow-up questions to the AI about a specific term or its analysis.
- *
- * - interactWithAI - A function that handles the interactive AI questioning process.
- * - InteractWithAIInput - The input type for the interactWithAI function.
- * - InteractWithAIOutput - The return type for the interactWithAI function.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
-// Mock Whisper.js integration - modified to handle text simulation for demo purposes
 const whisperTranscribe = async (audioData: string): Promise<string> => {
-  console.log('Mock Whisper.js: Transcribing simulated audio data...');
   return new Promise((resolve) => {
     setTimeout(() => {
       const transcription = "Explain the eschatological significance of this root word."; 
-      console.log(`Mock Whisper.js: Transcription complete - "${transcription}"`);
       resolve(transcription);
     }, 1500);
   });
 };
 
-
-// Define the input schema for the flow
 const InteractWithAIInputSchema = z.object({
   term: z.string().describe('The term or concept the user is asking about.'),
   history: z.array(z.object({ role: z.enum(['user', 'model']), content: z.string() })).describe('The conversation history to maintain context.').optional(),
@@ -35,15 +25,11 @@ const InteractWithAIInputSchema = z.object({
 export type InteractWithAIInput = z.infer<typeof InteractWithAIInputSchema>;
 
 const InteractWithAIOutputSchema = z.object({
-  response: z.string().describe('The AI s response to the user s question.'),
+  response: z.string().describe('The AI response to the user question.'),
 });
 
 export type InteractWithAIOutput = z.infer<typeof InteractWithAIOutputSchema>;
 
-/**
- * A Genkit flow that allows users to ask follow-up questions to the AI about a specific term or its analysis,
- * with support for voice input.
- */
 const interactWithAIFlow = ai.defineFlow(
   {
     name: 'interactWithAIFlow',
@@ -58,7 +44,6 @@ const interactWithAIFlow = ai.defineFlow(
         const transcription = await whisperTranscribe(input.audioBase64);
         userQuestion = transcription; 
       } catch (error) {
-        console.error("Error transcribing audio:", error);
         return { response: "I encountered an error processing your voice input. Please try again or type your question." };
       }
     }
@@ -76,7 +61,6 @@ const interactWithAIFlow = ai.defineFlow(
     const systemPrompt = `You are a helpful assistant designed to provide in-depth information about biblical terms.
    You have access to extensive linguistic data, historical context, and commentary from various sources.
    When asked a question about a term, provide a comprehensive answer.
-   If the user is asking a follow-up question, use the provided conversation history to maintain context and provide a relevant response.
    Always structure your responses academically, as if addressing a seminary student, and include a bibliography of all sources used.
    The current term of focus is: '${input.term}'.`;
 
@@ -88,16 +72,10 @@ const interactWithAIFlow = ai.defineFlow(
       ],
     });
 
-    return { response: response.text() };
+    return { response: response.text };
   }
 );
 
-/**
- * Wrapper function to call the interactWithAIFlow.
- *
- * @param input The input parameters for the flow.
- * @returns The AI's response to the user's follow-up question.
- */
 export async function interactWithAI(input: InteractWithAIInput): Promise<InteractWithAIOutput> {
   return interactWithAIFlow(input);
 }
