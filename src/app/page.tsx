@@ -1,12 +1,10 @@
-
-
 'use client';
 
-import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupLabel, SidebarHeader, SidebarInput, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarRail, SidebarInset } from '@/components/ui/sidebar';
-import { Search, BookOpen, Scroll, Quill, FileText, Info, Settings, Mic } from 'lucide-react'; // Added relevant icons
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupLabel, SidebarHeader, SidebarInput, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarRail, SidebarInset, SidebarFooter } from '@/components/ui/sidebar';
+import { Search, BookOpen, Scroll, Feather, FileText, Info, Settings, Mic } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'; // Import Tooltip components
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'; 
 
 export default function Home() {
   return (
@@ -18,7 +16,7 @@ export default function Home() {
             <SidebarMenuButton
               variant="outline"
               size="lg"
-              tooltip="LexiVerse Explorer" // Updated tooltip text
+              tooltip="LexiVerse Explorer" 
               className="text-headline font-bold text-lg h-12 w-full justify-center"
             >
               <Search className="mr-2 h-5 w-5" />
@@ -36,31 +34,30 @@ export default function Home() {
                       tooltip="Word Studies"
                       className="text-headline"
                     >
-                      <BookOpen className="mr-2 h-5 w-5"/> {/* Icon for Word Studies */}
+                      <BookOpen className="mr-2 h-5 w-5"/> 
                       Word Studies
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton tooltip="Verse Explorer">
-                      <Scroll className="mr-2 h-5 w-5"/> {/* Icon for Verse Explorer */}
+                      <Scroll className="mr-2 h-5 w-5"/> 
                       Verse Explorer
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton tooltip="Commentaries">
-                      <Quill className="mr-2 h-5 w-5"/> {/* Icon for Commentaries */}
+                      <Feather className="mr-2 h-5 w-5"/> 
                       Commentaries
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton tooltip="Translations">
-                      <FileText className="mr-2 h-5 w-5"/> {/* Icon for Translations */}
+                      <FileText className="mr-2 h-5 w-5"/> 
                       Translations
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton tooltip="Sword Modules">
-                      {/* Placeholder icon for Sword Modules */}
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-puzzle mr-2 h-5 w-5"><path d="M11 19c-1.5-1-3-2-4-3s-2-2-3-3"></path><path d="M15 19c1.5-1 3-2 4-3s2-2 3-3"></path><path d="M11 5c-1.5 1-3 2-4 3s-2 2-3 3"></path><path d="M15 5c1.5 1 3 2 4 3s2 2 3 3"></path><path d="M2 12h4"></path><path d="M18 2h4"></path><path d="M2 18h4"></path><path d="M18 22h4"></path><path d="M12 11v4"></path><path d="M12 2v4"></path><path d="M12 18v4"></path><path d="M22 12h-4"></path></svg>
                       Sword Modules
                     </SidebarMenuButton>
@@ -73,19 +70,19 @@ export default function Home() {
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton tooltip="AI Assistant">
-                       <Mic className="mr-2 h-5 w-5"/> {/* Icon for AI Assistant */}
+                       <Mic className="mr-2 h-5 w-5"/> 
                       AI Assistant
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton tooltip="Settings">
-                      <Settings className="mr-2 h-5 w-5"/> {/* Icon for Settings */}
+                      <Settings className="mr-2 h-5 w-5"/> 
                       Settings
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton tooltip="About">
-                      <Info className="mr-2 h-5 w-5"/> {/* Icon for About */}
+                      <Info className="mr-2 h-5 w-5"/> 
                       About
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -115,4 +112,3 @@ export default function Home() {
     </SidebarProvider>
   );
 }
-
