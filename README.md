@@ -10,6 +10,7 @@ LexiVerse Explorer is an advanced, AI-powered Bible study platform designed for 
 - **Research Paper Integration**: Upload PDF, Word, and Text documents to create a custom knowledge base for the AI.
 - **Google Workspace Sync**: Export notes to Google Keep, research logs to Google Docs, and bibliographies to Google Sheets.
 - **Personal Study Suite**: Highlight-to-note capture and academic bibliography management.
+- **Privacy First**: Granular cookie consent, GDPR/CCPA compliant data erasure, and multi-dialect localization.
 - **Dark Mode Support**: A scholarly aesthetic that respects your environment.
 
 ## 🚀 Tech Stack
@@ -49,6 +50,13 @@ LexiVerse Explorer is an advanced, AI-powered Bible study platform designed for 
    ```bash
    npm run dev
    ```
+
+## 🗺️ Future Roadmap
+
+- **Vector Research Assistant**: Implement RAG (Retrieval-Augmented Generation) so the AI Assistant can semantically search and cite your uploaded research papers.
+- **Peer-Reviewed Wiki**: Add a formal approval workflow for Wiki entries, allowing faculty admins to curate scholarly content.
+- **Offline Mode (PWA)**: Service worker support for accessing lexicons and saved notes in areas with poor connectivity.
+- **Zotero Integration**: Direct API sync with standard bibliographic managers for advanced citation management.
 
 ## 📄 License
 

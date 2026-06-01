@@ -74,7 +74,10 @@ import {
   Languages,
   ShieldAlert,
   Download,
-  Trash2
+  Trash2,
+  Cpu,
+  Share2,
+  Smartphone
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -313,15 +316,8 @@ export default function Home() {
     if (!user) return;
     setIsLoading(true);
     try {
-      // 1. Delete Firestore records (Right to Erasure)
       await deleteDoc(doc(db, 'users', user.uid));
-      
-      // 2. Note: Real production apps would trigger a background function 
-      // to cleanup search_logs and other user-attributed records.
-      
-      // 3. Delete Auth record
       await deleteUser(user);
-      
       toast({ title: "Account Deleted", description: "All your data has been purged according to retention policies." });
       setUserProfile(null);
       setActiveTab('dashboard');
@@ -389,45 +385,6 @@ export default function Home() {
       handleSearch(sidebarSearchTerm, 'ai-assistant');
     }
     setSidebarSearchTerm('');
-  };
-
-  const handleVerseExplore = async (ref?: string) => {
-    const targetRef = ref || explorerQuestion;
-    if (!targetRef.trim()) return;
-    setActiveTab('verse-explorer');
-    if (ref) setExplorerRef(ref);
-    setIsLoading(true);
-    try {
-      const result = await interactiveVerseExplorationAI({
-        term: ref || explorerRef || 'Scripture',
-        question: ref ? `Provide a deep analysis of ${ref}` : explorerQuestion,
-        history: explorerChat,
-        model: aiPrefs.selectedModel
-      });
-      setExplorerChat([...explorerChat, { role: 'user', content: ref || explorerQuestion }, { role: 'model', content: result.response }]);
-      if (!ref) setExplorerQuestion('');
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'AI Error', description: 'Failed to explore verse.' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSavePreferences = () => {
-    if (user && db) {
-      setIsLoading(true);
-      updateDoc(doc(db, 'users', user.uid), { 
-        preferences: aiPrefs 
-      }).then(() => {
-        setLanguage(aiPrefs.language as any);
-        toast({ title: 'Preferences saved' });
-      }).finally(() => {
-        setIsLoading(false);
-      });
-    } else {
-      setLanguage(aiPrefs.language as any);
-      toast({ title: 'Preferences saved locally' });
-    }
   };
 
   if (!mounted) return null;
@@ -685,19 +642,41 @@ export default function Home() {
                       </CardContent>
                     </Card>
 
-                    <Card className="md:col-span-2 border-dashed border-2 bg-muted/5 group cursor-pointer hover:bg-muted/10 transition-all" onClick={() => trackAdClick('dashboard_spotlight', 'dashboard')}>
-                      <CardHeader className="pb-2">
-                        <div className="flex justify-between items-start">
-                          <Badge variant="outline" className="text-[10px] text-primary/60 border-primary/20 bg-primary/5">{t.dashboard.spotlight}</Badge>
-                          <Megaphone className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary transition-colors" />
-                        </div>
-                        <CardTitle className="font-headline text-xl mt-2">{t.dashboard.spotlight}</CardTitle>
-                        <CardDescription>Highlight academic journals, theological institutions, or library resources here.</CardDescription>
+                    <Card className="md:col-span-2 shadow-md border-primary/10">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="font-headline text-sm flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4 text-primary" /> Future Research Horizons
+                        </CardTitle>
+                        <CardDescription>Upcoming features for the scholarly community.</CardDescription>
                       </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground italic">
-                           <GraduationCap className="h-8 w-8 opacity-20" />
-                           <p>{t.dashboard.spotlight_desc}</p>
+                      <CardContent className="grid gap-3 md:grid-cols-2">
+                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5">
+                           <Cpu className="h-5 w-5 text-accent shrink-0 mt-0.5" />
+                           <div>
+                             <p className="text-xs font-bold">Vector Search (RAG)</p>
+                             <p className="text-[10px] text-muted-foreground">AI semantic search across your personal PDF library.</p>
+                           </div>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5">
+                           <Share2 className="h-5 w-5 text-accent shrink-0 mt-0.5" />
+                           <div>
+                             <p className="text-xs font-bold">Collaborative Peer-Review</p>
+                             <p className="text-[10px] text-muted-foreground">Submit wiki entries for formal academic review by admins.</p>
+                           </div>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5">
+                           <Smartphone className="h-5 w-5 text-accent shrink-0 mt-0.5" />
+                           <div>
+                             <p className="text-xs font-bold">Offline Lexicon (PWA)</p>
+                             <p className="text-[10px] text-muted-foreground">Access Strong's data and notes without an internet connection.</p>
+                           </div>
+                        </div>
+                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5">
+                           <Puzzle className="h-5 w-5 text-accent shrink-0 mt-0.5" />
+                           <div>
+                             <p className="text-xs font-bold">Zotero/Mendeley Sync</p>
+                             <p className="text-[10px] text-muted-foreground">Seamlessly import/export bibliographic metadata.</p>
+                           </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -736,7 +715,6 @@ export default function Home() {
                   </header>
                   
                   <div className="grid gap-8">
-                    {/* Interface Configuration Section */}
                     <Card className="shadow-md border-primary/10">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -764,7 +742,6 @@ export default function Home() {
                       </CardContent>
                     </Card>
 
-                    {/* AI Configuration Section */}
                     <Card className="shadow-md border-primary/10">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -812,7 +789,6 @@ export default function Home() {
                       </CardContent>
                     </Card>
 
-                    {/* Biblical Studies Section */}
                     <Card className="shadow-md border-primary/10">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -848,7 +824,6 @@ export default function Home() {
                       </CardContent>
                     </Card>
 
-                    {/* Privacy & Data Rights Section */}
                     <Card className="shadow-md border-primary/10">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
@@ -966,8 +941,6 @@ export default function Home() {
                   )}
                 </div>
               )}
-              
-              {/* Other tabs remain implemented similarly... */}
             </div>
 
             <footer className="mt-12 pt-8 border-t">
