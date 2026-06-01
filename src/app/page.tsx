@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useId, useRef } from 'react';
+import { useState, useEffect, useId, useRef, useMemo } from 'react';
 import { useTheme } from 'next-themes';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
@@ -80,7 +80,8 @@ import {
   Volume2,
   ArrowRight,
   Clock,
-  File
+  File,
+  StickyNote
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -148,6 +149,13 @@ interface ResearchPaper {
   date: string;
 }
 
+interface SessionItem {
+  id: string;
+  title: string;
+  type: 'note' | 'paper';
+  timestamp: number;
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<ViewMode>('dashboard');
   const [isLoading, setIsLoading] = useState(false);
@@ -165,6 +173,7 @@ export default function Home() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [biblioItems, setBiblioItems] = useState<BiblioItem[]>([]);
   const [researchPapers, setResearchPapers] = useState<ResearchPaper[]>([]);
+  const [sessionRecentItems, setSessionRecentItems] = useState<SessionItem[]>([]);
   
   // Lexicon Search
   const [strongsTerm, setStrongsTerm] = useState('');
@@ -192,7 +201,6 @@ export default function Home() {
   // Bibliography States
   const [biblioStyle, setBiblioStyle] = useState<'SBL' | 'Turabian' | 'Chicago' | 'APA' | 'MLA'>('SBL');
   const [formattedBiblioResult, setFormattedBiblioResult] = useState<FormatBibliographyOutput | null>(null);
-  const [activeCitation, setActiveCitation] = useState<{ type: 'footnote' | 'inline', text: string } | null>(null);
 
   // Integrity States
   const [integrityInput, setIntegrityInput] = useState('');
@@ -244,12 +252,21 @@ export default function Home() {
     toast({ title: "Logged out" });
   };
 
+  const updateSessionItems = (id: string, title: string, type: 'note' | 'paper') => {
+    setSessionRecentItems(prev => {
+      const newItem: SessionItem = { id, title, type, timestamp: Date.now() };
+      return [newItem, ...prev].slice(0, 5);
+    });
+  };
+
   const handleSaveNote = (content: string, source: string = "Selection") => {
     if (!content.trim()) return;
-    const newNote = { id: Date.now().toString(), content: content.trim(), source, date: new Date().toLocaleString() };
+    const noteId = Date.now().toString();
+    const newNote = { id: noteId, content: content.trim(), source, date: new Date().toLocaleString() };
     const updated = [newNote, ...notes];
     setNotes(updated);
     localStorage.setItem('lexiverse_notes', JSON.stringify(updated));
+    updateSessionItems(noteId, content.substring(0, 30) + '...', 'note');
     toast({ title: "Note Saved" });
   };
 
@@ -402,10 +419,12 @@ export default function Home() {
       } else {
         content = await file.text();
       }
-      const newPaper: ResearchPaper = { id: Date.now().toString(), title: file.name, content, format: format as any, date: new Date().toLocaleDateString() };
+      const paperId = Date.now().toString();
+      const newPaper: ResearchPaper = { id: paperId, title: file.name, content, format: format as any, date: new Date().toLocaleDateString() };
       const updated = [newPaper, ...researchPapers];
       setResearchPapers(updated);
       localStorage.setItem('lexiverse_papers', JSON.stringify(updated));
+      updateSessionItems(paperId, file.name, 'paper');
       toast({ title: "Document Added", description: `${file.name} is now available in library.` });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Upload Failed' });
@@ -445,25 +464,25 @@ export default function Home() {
             </SidebarGroup>
             
             <SidebarGroup>
-              <SidebarGroupLabel>Recent Documents</SidebarGroupLabel>
+              <SidebarGroupLabel>Session Activity</SidebarGroupLabel>
               <SidebarMenu>
-                {researchPapers.slice(0, 5).length > 0 ? (
-                  researchPapers.slice(0, 5).map((paper) => (
-                    <SidebarMenuItem key={paper.id}>
+                {sessionRecentItems.length > 0 ? (
+                  sessionRecentItems.map((item) => (
+                    <SidebarMenuItem key={item.id}>
                       <SidebarMenuButton 
-                        onClick={() => setActiveTab('papers')}
-                        tooltip={paper.title}
+                        onClick={() => setActiveTab(item.type === 'paper' ? 'papers' : 'notes')}
+                        tooltip={item.title}
                         className="group"
                       >
-                        <File className="h-4 w-4" />
-                        <span className="truncate">{paper.title}</span>
+                        {item.type === 'paper' ? <File className="h-4 w-4" /> : <StickyNote className="h-4 w-4" />}
+                        <span className="truncate">{item.title}</span>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))
                 ) : (
                   <SidebarMenuItem>
                     <div className="px-2 py-1 text-xs text-muted-foreground italic group-data-[collapsible=icon]:hidden">
-                      No documents yet
+                      No session items yet
                     </div>
                   </SidebarMenuItem>
                 )}
