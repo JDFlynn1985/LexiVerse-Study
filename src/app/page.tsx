@@ -95,7 +95,9 @@ import {
   Shield,
   Megaphone,
   Network,
-  Milestone
+  Milestone,
+  Map as MapIcon,
+  BookMarked
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -140,10 +142,11 @@ import { checkIntegrity, type AcademicIntegrityOutput } from '@/ai/flows/academi
 import { extractTextFromImage } from '@/ai/flows/ocr-flow';
 import { analyzeTheologicalConcept, type TheologicalConceptOutput } from '@/ai/flows/theological-concept-analysis';
 import { generateHistoricalTimeline, type HistoricalTimelineOutput } from '@/ai/flows/historical-timeline-flow';
+import { searchCommentariesForContext, type SearchCommentariesOutput } from '@/ai/flows/search-commentaries';
 import { getVersions, getChapterContent, parseReference, type BibleVersion, type BibleChapter } from '@/lib/bible-api';
 import { trackAdClick } from '@/components/analytics';
 
-type ViewMode = 'dashboard' | 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers' | 'gallery' | 'writing-assistant' | 'integrity' | 'ai-settings' | 'theology-map' | 'timeline';
+type ViewMode = 'dashboard' | 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers' | 'gallery' | 'writing-assistant' | 'integrity' | 'ai-settings' | 'theology-map' | 'timeline' | 'maps';
 
 interface Note {
   id: string;
@@ -210,6 +213,13 @@ export default function Home() {
 
   const [strongsTerm, setStrongsTerm] = useState('');
   const [lexiconResult, setLexiconResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
+
+  const [dictTerm, setDictTerm] = useState('');
+  const [dictResult, setDictResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
+
+  const [commWord, setCommWord] = useState('');
+  const [commLanguage, setCommLanguage] = useState('Greek');
+  const [commResult, setCommResult] = useState<SearchCommentariesOutput | null>(null);
 
   const [transWord, setTransWord] = useState('');
   const [transResult, setTransResult] = useState<CompareTranslationsOutput | null>(null);
@@ -457,6 +467,39 @@ export default function Home() {
       localStorage.setItem('lexiverse_history', JSON.stringify(newHistory));
     } catch (error) {
       toast({ variant: 'destructive', title: 'Lexicon search failed' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDictionarySearch = async () => {
+    if (!dictTerm.trim()) return;
+    setIsLoading(true);
+    try {
+      // Re-using the analysis flow for dictionary lookups as it handles term definition well
+      const result = await defineAndAnalyzeTerm({ strongsNumber: dictTerm });
+      setDictResult(result);
+      const newHistory = [{id: Date.now().toString(), type: 'Dictionary', term: dictTerm, date: new Date().toLocaleString()}, ...history];
+      setHistory(newHistory.slice(0, 10));
+      localStorage.setItem('lexiverse_history', JSON.stringify(newHistory));
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Dictionary search failed' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCommentarySearch = async () => {
+    if (!commWord.trim()) return;
+    setIsLoading(true);
+    try {
+      const result = await searchCommentariesForContext({ word: commWord, language: commLanguage });
+      setCommResult(result);
+      const newHistory = [{id: Date.now().toString(), type: 'Commentary', term: commWord, date: new Date().toLocaleString()}, ...history];
+      setHistory(newHistory.slice(0, 10));
+      localStorage.setItem('lexiverse_history', JSON.stringify(newHistory));
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Commentary search failed' });
     } finally {
       setIsLoading(false);
     }
@@ -723,9 +766,11 @@ export default function Home() {
                 {[
                   { id: 'bibles', label: 'Bible Reader', icon: Book },
                   { id: 'lexicon', label: 'Advanced Lexicon', icon: BookOpen },
+                  { id: 'dictionaries', label: 'Dictionaries', icon: BookMarked },
+                  { id: 'commentaries', label: 'Commentaries', icon: Scroll },
                   { id: 'translations', label: 'Parallel Versions', icon: Scale },
                   { id: 'papers', label: 'My Papers', icon: Library },
-                  { id: 'gallery', label: 'Image Gallery', icon: ImagesIcon },
+                  { id: 'gallery', label: 'Gallery & Maps', icon: ImagesIcon },
                 ].map((item) => (
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton isActive={activeTab === item.id} onClick={() => setActiveTab(item.id as ViewMode)} tooltip={item.label}>
@@ -951,6 +996,8 @@ export default function Home() {
                             {history.map(item => (
                               <div key={item.id} className="p-4 hover:bg-muted/50 transition-colors cursor-pointer flex justify-between items-center group" onClick={() => {
                                 if (item.type === 'Lexicon') { setStrongsTerm(item.term); handleLexiconSearch(); setActiveTab('lexicon'); }
+                                else if (item.type === 'Dictionary') { setDictTerm(item.term); handleDictionarySearch(); setActiveTab('dictionaries'); }
+                                else if (item.type === 'Commentary') { setCommWord(item.term); handleCommentarySearch(); setActiveTab('commentaries'); }
                                 else { setPassageRef(item.term); loadPassage(); setActiveTab('bibles'); }
                               }}>
                                 <div className="space-y-1">
@@ -1054,6 +1101,112 @@ export default function Home() {
                     </CardFooter>
                   </Card>
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'dictionaries' && (
+              <div className="space-y-8 animate-in fade-in max-w-5xl mx-auto">
+                <header className="border-b pb-6">
+                  <h1 className="text-3xl font-bold font-headline">Biblical Dictionaries</h1>
+                  <p className="text-muted-foreground">General definitions and theological context for biblical terms.</p>
+                </header>
+                
+                <div className="flex gap-4 max-w-md mx-auto">
+                  <Input 
+                    placeholder="Enter term (e.g. Grace, Justification)" 
+                    value={dictTerm} 
+                    onChange={(e) => setDictTerm(e.target.value)} 
+                  />
+                  <Button onClick={handleDictionarySearch} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Lookup"}
+                  </Button>
+                </div>
+
+                {dictResult && (
+                  <Card className="shadow-lg border-primary/20">
+                    <CardHeader className="bg-primary/5">
+                      <CardTitle className="text-4xl font-bold font-headline text-primary">{dictResult.originalWord}</CardTitle>
+                      <CardDescription className="text-lg mt-1 italic">{dictResult.transliteration} • [{dictResult.pronunciation}]</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-8 space-y-6">
+                      <div>
+                        <h4 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3">Dictionary Definition</h4>
+                        {dictResult.definitions.map((def, i) => (
+                          <p key={i} className="text-lg leading-relaxed font-serif mb-4">{def}</p>
+                        ))}
+                      </div>
+                      <Separator />
+                      <div>
+                        <h4 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3">Theological Summary</h4>
+                        <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">{dictResult.summary}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'commentaries' && (
+              <div className="space-y-8 animate-in fade-in max-w-5xl mx-auto">
+                <header className="border-b pb-6">
+                  <h1 className="text-3xl font-bold font-headline">Scholarly Commentaries</h1>
+                  <p className="text-muted-foreground">Historical and linguistic context from academic commentators.</p>
+                </header>
+
+                <div className="flex flex-col md:flex-row gap-4 max-w-2xl mx-auto items-end">
+                  <div className="flex-1 space-y-2">
+                    <Label>Word or Phrase</Label>
+                    <Input value={commWord} onChange={e => setCommWord(e.target.value)} placeholder="e.g. Logos, Paraclete" />
+                  </div>
+                  <div className="w-[150px] space-y-2">
+                    <Label>Language</Label>
+                    <Select value={commLanguage} onValueChange={setCommLanguage}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Greek">Greek</SelectItem>
+                        <SelectItem value="Hebrew">Hebrew</SelectItem>
+                        <SelectItem value="Aramaic">Aramaic</SelectItem>
+                        <SelectItem value="English">English</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button onClick={handleCommentarySearch} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4 mr-2" />} Search Commentaries
+                  </Button>
+                </div>
+
+                {commResult && (
+                  <div className="grid gap-6 md:grid-cols-3">
+                    <Card className="md:col-span-2 shadow-lg">
+                      <CardHeader>
+                        <CardTitle className="text-2xl font-headline">Commentary Summary: {commResult.searchWord}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{commResult.commentarySummary}</p>
+                      </CardContent>
+                      <CardFooter className="bg-muted/5 border-t">
+                        <div className="text-[10px] font-mono text-muted-foreground italic">Source citations: {commResult.bibliography}</div>
+                      </CardFooter>
+                    </Card>
+
+                    <div className="space-y-4">
+                       <h3 className="text-sm font-bold uppercase tracking-widest px-2">Key Scholarly Insights</h3>
+                       {commResult.specificInsights.map((insight, i) => (
+                         <Card key={i} className="bg-accent/5 border-accent/20">
+                           <CardHeader className="p-4 pb-2">
+                             <div className="flex justify-between items-center">
+                               <CardTitle className="text-xs font-bold text-primary">{insight.commentator}</CardTitle>
+                               {insight.relevantVerse && <Badge variant="outline" className="text-[9px]">{insight.relevantVerse}</Badge>}
+                             </div>
+                           </CardHeader>
+                           <CardContent className="p-4 pt-0">
+                             <p className="text-[11px] leading-relaxed italic">"{insight.insight}"</p>
+                           </CardContent>
+                         </Card>
+                       ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1211,8 +1364,8 @@ export default function Home() {
               <div className="space-y-8 animate-in fade-in">
                 <header className="flex justify-between items-center border-b pb-6">
                   <div>
-                    <h1 className="text-3xl font-bold font-headline">Visual Resource Gallery</h1>
-                    <p className="text-muted-foreground">Dedicated view for archaeological photos, charts, and maps.</p>
+                    <h1 className="text-3xl font-bold font-headline">Gallery & Maps</h1>
+                    <p className="text-muted-foreground">Visual resources including archaeological maps, manuscript photos, and charts.</p>
                   </div>
                   <Button onClick={() => fileInputRef.current?.click()} variant="outline">
                     <Plus className="h-4 w-4 mr-2" /> Add Visual
@@ -1278,7 +1431,7 @@ export default function Home() {
                     <ImagesIcon className="h-16 w-16" />
                     <div>
                       <p className="text-lg font-headline font-bold">No visual resources yet.</p>
-                      <p className="text-sm">Upload manuscript photos or charts to build your visual library.</p>
+                      <p className="text-sm">Upload manuscript photos or archaeological maps to build your library.</p>
                     </div>
                   </div>
                 )}
@@ -1369,7 +1522,7 @@ export default function Home() {
                         <div className="flex justify-between items-start">
                           <div>
                             <CardTitle className="text-4xl font-bold font-headline text-primary">{lexiconResult.originalWord}</CardTitle>
-                            <CardDescription className="text-lg mt-1 italic">{lexiconResult.transliteration} • [{lexiconResult.pronunciation}]</CardDescription>
+                            <CardTitle className="text-lg mt-1 italic">{lexiconResult.transliteration} • [{lexiconResult.pronunciation}]</CardTitle>
                           </div>
                           <Badge variant="outline" className="text-lg py-1 px-3 border-primary/50 text-primary">{lexiconResult.searchStrongNumber}</Badge>
                         </div>
