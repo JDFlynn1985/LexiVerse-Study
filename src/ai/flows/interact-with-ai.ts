@@ -1,6 +1,8 @@
+
 'use server';
 /**
  * @fileOverview This flow allows users to ask follow-up questions to the AI about a specific term or its analysis.
+ * Supports custom model selection.
  */
 
 import { ai } from '@/ai/genkit';
@@ -19,7 +21,8 @@ const InteractWithAIInputSchema = z.object({
   term: z.string().describe('The term or concept the user is asking about.'),
   history: z.array(z.object({ role: z.enum(['user', 'model']), content: z.string() })).describe('The conversation history to maintain context.').optional(),
   question: z.string().describe('The follow-up question from the user.'),
-  audioBase64: z.string().describe('Optional base64 audio string for voice interaction simulation.').optional(), 
+  audioBase64: z.string().describe('Optional base64 audio string for voice interaction simulation.').optional(),
+  model: z.string().optional().default('googleai/gemini-2.5-flash').describe('The AI model to use for this interaction.'),
 });
 
 export type InteractWithAIInput = z.infer<typeof InteractWithAIInputSchema>;
@@ -65,7 +68,7 @@ const interactWithAIFlow = ai.defineFlow(
    The current term of focus is: '${input.term}'.`;
 
     const response = await ai.chat({ 
-      model: 'googleai/gemini-2.5-pro-001', 
+      model: input.model as any, 
       messages: [
         { role: 'system', content: systemPrompt },
         ...messages

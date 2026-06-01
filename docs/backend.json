@@ -9,7 +9,14 @@
         "uid": { "type": "string" },
         "displayName": { "type": "string" },
         "email": { "type": "string" },
-        "photoURL": { "type": "string" }
+        "photoURL": { "type": "string" },
+        "aiPreferences": {
+          "type": "object",
+          "properties": {
+            "selectedModel": { "type": "string", "enum": ["googleai/gemini-2.5-pro-001", "googleai/gemini-2.5-flash"] },
+            "customApiKey": { "type": "string" }
+          }
+        }
       },
       "required": ["uid"]
     }

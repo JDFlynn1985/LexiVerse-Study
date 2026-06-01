@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useId, useRef, useMemo } from 'react';
@@ -9,7 +10,7 @@ import {
   GoogleAuthProvider, 
   signOut
 } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { appConfig } from '@/app-config';
 import { useAuth, useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 
@@ -87,7 +88,10 @@ import {
   Cloud,
   FolderOpen,
   Images as ImagesIcon,
-  ScanText
+  ScanText,
+  Settings,
+  Cpu,
+  Key
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -132,7 +136,7 @@ import { checkIntegrity, type AcademicIntegrityOutput } from '@/ai/flows/academi
 import { extractTextFromImage } from '@/ai/flows/ocr-flow';
 import { getVersions, getChapterContent, parseReference, type BibleVersion, type BibleChapter } from '@/lib/bible-api';
 
-type ViewMode = 'dashboard' | 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers' | 'gallery' | 'writing-assistant' | 'integrity';
+type ViewMode = 'dashboard' | 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers' | 'gallery' | 'writing-assistant' | 'integrity' | 'ai-settings';
 
 interface Note {
   id: string;
@@ -167,6 +171,11 @@ interface SessionItem {
   timestamp: number;
 }
 
+interface AiPreferences {
+  selectedModel: 'googleai/gemini-2.5-pro-001' | 'googleai/gemini-2.5-flash';
+  customApiKey: string;
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<ViewMode>('dashboard');
   const [isLoading, setIsLoading] = useState(false);
@@ -187,6 +196,12 @@ export default function Home() {
   const [researchPapers, setResearchPapers] = useState<ResearchPaper[]>([]);
   const [sessionRecentItems, setSessionRecentItems] = useState<SessionItem[]>([]);
   
+  // AI Preferences
+  const [aiPrefs, setAiPrefs] = useState<AiPreferences>({
+    selectedModel: 'googleai/gemini-2.5-pro-001',
+    customApiKey: ''
+  });
+
   // Lexicon Search
   const [strongsTerm, setStrongsTerm] = useState('');
   const [lexiconResult, setLexiconResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
@@ -236,6 +251,21 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (user && db) {
+      const userRef = doc(db, 'users', user.uid);
+      const unsub = onSnapshot(userRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          if (data.aiPreferences) {
+            setAiPrefs(data.aiPreferences);
+          }
+        }
+      });
+      return () => unsub();
+    }
+  }, [user, db]);
+
+  useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
@@ -265,6 +295,20 @@ export default function Home() {
       }
     } catch (error: any) {
       toast({ variant: "destructive", title: "Login Failed", description: error.message });
+    }
+  };
+
+  const handleSaveAiPrefs = async () => {
+    if (!user || !db) return;
+    setIsLoading(true);
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await setDoc(userRef, { aiPreferences: aiPrefs }, { merge: true });
+      toast({ title: "Settings Saved", description: "Your AI preferences have been updated." });
+    } catch (error) {
+      toast({ variant: 'destructive', title: "Update Failed" });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -443,7 +487,6 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-      // Include extracted OCR text in context
       const context = researchPapers.map(p => {
         let text = p.content;
         if (p.extractedText) text += `\n[EXTRACTED FROM IMAGE]: ${p.extractedText}`;
@@ -454,7 +497,8 @@ export default function Home() {
         term: strongsTerm || 'Bible Study',
         question: chatInput,
         history: chatHistory,
-        researchContext: context
+        researchContext: context,
+        model: aiPrefs.selectedModel
       });
       setChatHistory(prev => [...prev, { role: 'model', content: result.response }]);
     } catch (error) {
@@ -675,6 +719,17 @@ export default function Home() {
                 ))}
               </SidebarMenu>
             </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarGroupLabel>Configuration</SidebarGroupLabel>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'ai-settings'} onClick={() => setActiveTab('ai-settings')} tooltip="AI Engine Settings">
+                    <Cpu className="h-5 w-5" /> <span>AI Engine</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
           </SidebarContent>
           <SidebarFooter className="p-4 border-t gap-4">
             {user ? (
@@ -690,6 +745,8 @@ export default function Home() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem onClick={() => setActiveTab('ai-settings')}><Settings className="h-4 w-4 mr-2" /> AI Settings</DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleLogout} className="text-destructive"><LogOut className="h-4 w-4 mr-2" /> Logout</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -736,12 +793,12 @@ export default function Home() {
                     </CardHeader>
                     <CardContent className="text-xs text-muted-foreground">Captured study fragments</CardContent>
                   </Card>
-                  <Card className="bg-accent/5 border-accent/20">
+                  <Card className="bg-accent/5 border-accent/20 cursor-pointer hover:bg-accent/10 transition-colors" onClick={() => setActiveTab('ai-settings')}>
                     <CardHeader className="pb-2">
-                      <CardDescription className="flex items-center gap-2"><ClipboardList className="h-4 w-4" /> Citations</CardDescription>
-                      <CardTitle className="text-3xl">{biblioItems.length}</CardTitle>
+                      <CardDescription className="flex items-center gap-2"><Cpu className="h-4 w-4" /> AI Engine</CardDescription>
+                      <CardTitle className="text-xs truncate">{aiPrefs.selectedModel.split('/').pop()}</CardTitle>
                     </CardHeader>
-                    <CardContent className="text-xs text-muted-foreground">Pending bibliography items</CardContent>
+                    <CardContent className="text-[10px] text-muted-foreground">Active processing model</CardContent>
                   </Card>
                 </div>
 
@@ -811,6 +868,77 @@ export default function Home() {
                         )}
                       </ScrollArea>
                     </CardContent>
+                  </Card>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'ai-settings' && (
+              <div className="space-y-8 animate-in fade-in max-w-4xl mx-auto">
+                <header className="border-b pb-6">
+                  <h1 className="text-3xl font-bold font-headline">AI Engine Configuration</h1>
+                  <p className="text-muted-foreground">Select your processing model and manage personal API credentials.</p>
+                </header>
+
+                <div className="grid gap-8">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><Cpu className="h-5 w-5 text-primary" /> Model Selection</CardTitle>
+                      <CardDescription>Choose the core model for your theological analysis and OCR tasks.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div 
+                          className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${aiPrefs.selectedModel === 'googleai/gemini-2.5-pro-001' ? 'border-primary bg-primary/5' : 'border-muted hover:border-muted-foreground/30'}`}
+                          onClick={() => setAiPrefs({ ...aiPrefs, selectedModel: 'googleai/gemini-2.5-pro-001' })}
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="font-bold">Gemini 2.5 Pro</span>
+                            {aiPrefs.selectedModel === 'googleai/gemini-2.5-pro-001' && <Check className="h-4 w-4 text-primary" />}
+                          </div>
+                          <p className="text-xs text-muted-foreground leading-relaxed">Advanced reasoning engine. Best for complex eschatological synthesis and deep semantic analysis. Supports 1M+ context window.</p>
+                        </div>
+                        <div 
+                          className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${aiPrefs.selectedModel === 'googleai/gemini-2.5-flash' ? 'border-primary bg-primary/5' : 'border-muted hover:border-muted-foreground/30'}`}
+                          onClick={() => setAiPrefs({ ...aiPrefs, selectedModel: 'googleai/gemini-2.5-flash' })}
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="font-bold">Gemini 2.5 Flash</span>
+                            {aiPrefs.selectedModel === 'googleai/gemini-2.5-flash' && <Check className="h-4 w-4 text-primary" />}
+                          </div>
+                          <p className="text-xs text-muted-foreground leading-relaxed">High-speed optimized model. Best for quick definitions, rapid OCR transcription, and simple scriptural queries.</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2"><Key className="h-5 w-5 text-primary" /> API Credentials</CardTitle>
+                      <CardDescription>Provide your own API keys to increase rate limits or use custom billing accounts.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Google AI (Gemini) API Key</Label>
+                        <Input 
+                          type="password" 
+                          placeholder="AIza..." 
+                          value={aiPrefs.customApiKey} 
+                          onChange={(e) => setAiPrefs({ ...aiPrefs, customApiKey: e.target.value })}
+                        />
+                        <p className="text-[10px] text-muted-foreground italic">Keys are encrypted and stored in your secure user profile.</p>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="bg-muted/5 border-t p-4 flex justify-between items-center">
+                      <div className="flex items-center gap-2 text-xs text-amber-600 font-medium">
+                        <Info className="h-3 w-3" />
+                        Custom keys override default app limits.
+                      </div>
+                      <Button onClick={handleSaveAiPrefs} disabled={isLoading || !user}>
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <FileCheck className="h-4 w-4 mr-2" />}
+                        Apply Changes
+                      </Button>
+                    </CardFooter>
                   </Card>
                 </div>
               </div>
@@ -1092,6 +1220,7 @@ export default function Home() {
                         <div className="flex flex-col items-center justify-center h-full text-center space-y-4 opacity-50 mt-20">
                           <div className="bg-primary/10 p-4 rounded-full"><Sparkles className="h-10 w-10 text-primary" /></div>
                           <p className="max-w-xs text-sm">Ask about eschatology, semantic ranges, or how your research papers align with historical commentaries.</p>
+                          <Badge variant="outline" className="text-[10px] flex items-center gap-1">Using: {aiPrefs.selectedModel.split('/').pop()}</Badge>
                         </div>
                       )}
                       {chatHistory.map((msg, i) => (

@@ -1,6 +1,8 @@
+
 'use server';
 /**
  * @fileOverview This flow provides an interactive AI experience for exploring scripture verses and terms.
+ * Supports custom model selection.
  */
 
 import { ai } from '@/ai/genkit';
@@ -65,6 +67,7 @@ const InteractiveVerseExplorationAIInputSchema = z.object({
   history: z.array(z.object({ role: z.enum(['user', 'model']), content: z.string() })).describe('The conversation history.').optional(),
   question: z.string().describe('The follow-up question from the user.'),
   researchContext: z.array(z.string()).optional().describe('Text content from uploaded research papers to be used as context.'),
+  model: z.string().optional().default('googleai/gemini-2.5-pro-001').describe('The AI model to use for this interaction.'),
 });
 
 const InteractiveVerseExplorationAIOutputSchema = z.object({
@@ -103,7 +106,7 @@ const interactiveVerseExplorationAIFlow = ai.defineFlow(
     }
 
     const response = await ai.chat({
-      model: 'googleai/gemini-2.5-pro-001',
+      model: input.model as any,
       messages: [
         { role: 'system', content: systemPrompt },
         ...messages
