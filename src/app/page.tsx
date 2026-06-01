@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useId, useRef } from 'react';
@@ -75,7 +74,9 @@ import {
   FileCode,
   LogOut,
   FileJson,
-  Table as TableIcon
+  Table as TableIcon,
+  CloudDownload,
+  FileWarning
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -94,6 +95,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter
+} from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
 import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/compare-translations-ai';
@@ -121,9 +131,15 @@ interface ResearchPaper {
   id: string;
   title: string;
   content: string;
-  format: 'txt' | 'pdf' | 'docx';
+  format: 'txt' | 'pdf' | 'docx' | 'gdoc' | 'gsheet';
   author?: string;
   date: string;
+}
+
+interface DriveFile {
+  id: string;
+  name: string;
+  mimeType: string;
 }
 
 export default function Home() {
@@ -152,6 +168,11 @@ export default function Home() {
   const [biblioItems, setBiblioItems] = useState<BiblioItem[]>([]);
   const [researchPapers, setResearchPapers] = useState<ResearchPaper[]>([]);
   const [currentContext, setCurrentContext] = useState<string | null>(null);
+
+  // Drive Import State
+  const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
+  const [isDriveModalOpen, setIsDriveModalOpen] = useState(false);
+  const [isFetchingDrive, setIsFetchingDrive] = useState(false);
 
   // Content States
   const [searchTerm, setSearchTerm] = useState('');
@@ -198,10 +219,13 @@ export default function Home() {
   const handleLogin = async () => {
     const { auth } = initializeFirebase();
     const provider = new GoogleAuthProvider();
-    // Request scopes for Docs, Sheets, and Drive
+    // Request broader scopes for reading and managing files
+    provider.addScope('https://www.googleapis.com/auth/documents.readonly');
+    provider.addScope('https://www.googleapis.com/auth/spreadsheets.readonly');
+    provider.addScope('https://www.googleapis.com/auth/drive.metadata.readonly');
+    provider.addScope('https://www.googleapis.com/auth/drive.readonly');
     provider.addScope('https://www.googleapis.com/auth/documents');
     provider.addScope('https://www.googleapis.com/auth/spreadsheets');
-    provider.addScope('https://www.googleapis.com/auth/drive.file');
     
     try {
       const result = await signInWithPopup(auth, provider);
@@ -225,6 +249,85 @@ export default function Home() {
     await signOut(auth);
     setGoogleAccessToken(null);
     toast({ title: "Logged out" });
+  };
+
+  const listDriveFiles = async () => {
+    if (!googleAccessToken) return;
+    setIsFetchingDrive(true);
+    try {
+      const response = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=mimeType='application/vnd.google-apps.document' or mimeType='application/vnd.google-apps.spreadsheet'&fields=files(id, name, mimeType)`,
+        {
+          headers: { Authorization: `Bearer ${googleAccessToken}` },
+        }
+      );
+      const data = await response.json();
+      setDriveFiles(data.files || []);
+      setIsDriveModalOpen(true);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Drive Access Error",
+        description: "Could not retrieve your Google Drive files.",
+      });
+    } finally {
+      setIsFetchingDrive(false);
+    }
+  };
+
+  const importDriveFile = async (file: DriveFile) => {
+    if (!googleAccessToken) return;
+    setIsLoading(true);
+    try {
+      let content = "";
+      let format: ResearchPaper['format'] = 'gdoc';
+
+      if (file.mimeType === 'application/vnd.google-apps.document') {
+        const res = await fetch(`https://docs.googleapis.com/v1/documents/${file.id}`, {
+          headers: { Authorization: `Bearer ${googleAccessToken}` },
+        });
+        const doc = await res.json();
+        content = doc.body.content.map((c: any) => {
+          if (c.paragraph) {
+            return c.paragraph.elements.map((e: any) => e.textRun?.content || "").join("");
+          }
+          return "";
+        }).join("\n");
+        format = 'gdoc';
+      } else if (file.mimeType === 'application/vnd.google-apps.spreadsheet') {
+        const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${file.id}/values/A1:Z100`, {
+          headers: { Authorization: `Bearer ${googleAccessToken}` },
+        });
+        const sheet = await res.json();
+        content = sheet.values?.map((row: string[]) => row.join("\t")).join("\n") || "";
+        format = 'gsheet';
+      }
+
+      const newPaper: ResearchPaper = {
+        id: Date.now().toString(),
+        title: file.name,
+        content,
+        format,
+        date: new Date().toLocaleString()
+      };
+
+      const updated = [newPaper, ...researchPapers];
+      setResearchPapers(updated);
+      localStorage.setItem('lexiverse_papers', JSON.stringify(updated));
+      setIsDriveModalOpen(false);
+      toast({
+        title: "Import Successful",
+        description: `"${file.name}" added to your knowledge base.`,
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Import Failed",
+        description: error.message,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const exportToGoogleKeep = (content: string, title: string) => {
@@ -260,7 +363,6 @@ export default function Home() {
       if (!response.ok) throw new Error('Failed to create document');
       const doc = await response.json();
       
-      // Update the document with content
       await fetch(`https://docs.googleapis.com/v1/documents/${doc.documentId}:batchUpdate`, {
         method: 'POST',
         headers: {
@@ -324,7 +426,6 @@ export default function Home() {
       const sheet = await response.json();
       const spreadsheetId = sheet.spreadsheetId;
 
-      // Prepare values: Header + Data
       const values = [
         ['Citation', 'Source Type', 'Date Captured'],
         ...data.map(item => [item.citation, item.sourceType, item.date])
@@ -438,7 +539,7 @@ export default function Home() {
 
     try {
       let content = '';
-      let format: 'txt' | 'pdf' | 'docx' = 'txt';
+      let format: ResearchPaper['format'] = 'txt';
 
       if (extension === 'pdf') {
         const arrayBuffer = await file.arrayBuffer();
@@ -798,7 +899,7 @@ export default function Home() {
                 <header className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                   <div>
                     <h1 className="text-3xl font-bold font-headline">Knowledge Base</h1>
-                    <p className="text-muted-foreground">Import your research from PDF, Word, or Text formats.</p>
+                    <p className="text-muted-foreground">Import your research from Local Files or Google Drive.</p>
                   </div>
                   <div className="flex gap-2">
                     <Input 
@@ -808,18 +909,52 @@ export default function Home() {
                       onChange={handleFileUpload}
                       accept=".txt,.md,.pdf,.docx"
                     />
-                    <Button onClick={() => fileInputRef.current?.click()} disabled={isLoading}>
-                      {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileUp className="h-4 w-4 mr-2" />} 
-                      Upload Scholar Paper
+                    <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isLoading}>
+                      <Plus className="h-4 w-4 mr-2" /> Upload File
+                    </Button>
+                    <Button onClick={listDriveFiles} disabled={isLoading || !googleAccessToken || isFetchingDrive}>
+                      {isFetchingDrive ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CloudDownload className="h-4 w-4 mr-2" />} 
+                      Import from Drive
                     </Button>
                   </div>
                 </header>
 
+                <Dialog open={isDriveModalOpen} onOpenChange={setIsDriveModalOpen}>
+                  <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+                    <DialogHeader>
+                      <DialogTitle>Import from Google Drive</DialogTitle>
+                      <DialogDescription>Select a Google Doc or Spreadsheet to include in your AI research context.</DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="flex-1 mt-4">
+                      <div className="space-y-2">
+                        {driveFiles.length === 0 ? (
+                          <div className="py-10 text-center text-muted-foreground">
+                            <FileWarning className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                            <p>No compatible Docs or Sheets found in your Drive.</p>
+                          </div>
+                        ) : (
+                          driveFiles.map(file => (
+                            <div key={file.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group" onClick={() => importDriveFile(file)}>
+                              <div className="flex items-center gap-3">
+                                {file.mimeType.includes('document') ? <FileText className="h-5 w-5 text-blue-500" /> : <TableIcon className="h-5 w-5 text-green-500" />}
+                                <span className="font-medium text-sm">{file.name}</span>
+                              </div>
+                              <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">Import</Button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </ScrollArea>
+                    <DialogFooter>
+                      <Button variant="ghost" onClick={() => setIsDriveModalOpen(false)}>Close</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
                 {researchPapers.length === 0 ? (
                   <Card className="border-dashed py-20 text-center">
                     <FileSearch className="h-12 w-12 mx-auto mb-4 opacity-10" />
-                    <p className="text-muted-foreground">No papers uploaded. Add PDFs, Word docs, or Text files to enhance AI context.</p>
-                    <p className="text-xs text-muted-foreground mt-2 italic">(Google Docs: Export to PDF/Word and upload here)</p>
+                    <p className="text-muted-foreground">No papers uploaded. Add PDFs, Word docs, or Google Drive content.</p>
                   </Card>
                 ) : (
                   <div className="grid gap-4 md:grid-cols-2">
@@ -830,6 +965,8 @@ export default function Home() {
                             <CardTitle className="text-lg line-clamp-1 flex items-center gap-2">
                               {paper.format === 'pdf' && <FileText className="h-4 w-4 text-red-500" />}
                               {paper.format === 'docx' && <FileCode className="h-4 w-4 text-blue-500" />}
+                              {paper.format === 'gdoc' && <FileText className="h-4 w-4 text-blue-600" />}
+                              {paper.format === 'gsheet' && <TableIcon className="h-4 w-4 text-green-600" />}
                               {paper.format === 'txt' && <FileText className="h-4 w-4 text-muted-foreground" />}
                               {paper.title}
                             </CardTitle>
