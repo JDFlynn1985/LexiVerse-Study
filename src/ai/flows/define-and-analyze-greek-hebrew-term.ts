@@ -1,7 +1,7 @@
 'use server';
 /**
  * @fileOverview This flow defines and analyzes Greek or Hebrew terms based on Strong's numbers.
- * Enhanced to provide full verse text and contextual nuances.
+ * Enhanced to provide full verse text and contextual nuances for seminary students.
  *
  * - defineAndAnalyzeTerm - A function that takes a Strong's number and retrieves detailed information about the term.
  * - DefineAndAnalyzeTermInput - The input type for the defineAndAnalyzeTerm function.
@@ -59,16 +59,17 @@ export async function defineAndAnalyzeTerm(input: DefineAndAnalyzeTermInput): Pr
   const { output } = await ai.generate({
     model: selectedModel,
     prompt: `You are an expert biblical scholar specializing in ancient languages. Perform a comprehensive analysis of the Strong's number: ${input.strongsNumber}.
+Your analysis must be tailored for a seminary student, assuming a high level of linguistic interest and theological depth.
 
 Requirements:
-1. Provide a detailed dictionary entry and lexical breakdown.
-2. Synthesize an "AI Overview" summary of the term's theological significance.
+1. Provide a detailed dictionary entry and lexical breakdown using standard scholarly references.
+2. Synthesize an "AI Overview" summary of the term's theological significance in a formal, academic tone.
 3. Deeply explore the historical and cultural connotations (how it was understood in its original time).
 4. Find EVERY major verse where this term is used. For each verse:
    - Provide the full text of the verse.
    - Provide the specific nuance of the term in that context.
    - Provide a simulated reference link for our "Verse Explorer".
-5. Trace etymological roots.
+5. Trace etymological roots with precision.
 6. Provide insights from classical scholarly commentaries.
 7. Format an SBL bibliography.
 

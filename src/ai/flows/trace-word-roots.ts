@@ -42,6 +42,7 @@ const traceWordRootsPrompt = ai.definePrompt({
     schema: TraceWordRootsOutputSchema,
   },
   prompt: `You are an expert etymologist specializing in biblical languages. Your task is to trace the roots of a given word and provide detailed information about each root.
+Always present your findings in an academic, professional manner suitable for a seminary student.
 
 Provide the original word, its language, and an array of its root words. For each root word, include its definition and lexical data.
 
@@ -53,7 +54,7 @@ Analyze the etymological roots and provide the following information for each ro
 - Definition
 - Lexical Data
 
-Ensure the output is a JSON object matching the TraceWordRootsOutputSchema.`,
+Ensure the output is a JSON object matching the TraceWordRootsOutputSchema. Maintain high linguistic precision throughout your analysis.`,
 });
 
 const traceWordRootsFlow = ai.defineFlow(

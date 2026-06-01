@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview This flow compares the translation of a given word across various Bible versions.
@@ -40,9 +39,11 @@ const compareTranslationsPrompt = ai.definePrompt({
   output: {
     schema: CompareTranslationsOutputSchema,
   },
-  prompt: `You are an expert biblical linguist. Compare the translation of '{{word}}' ({{language}}) across these versions: {{#each versions}}{{{this}}}, {{/each}}.
+  prompt: `You are an expert biblical linguist and translator. Compare the translation of '{{word}}' ({{language}}) across these versions: {{#each versions}}{{{this}}}, {{/each}}.
+Your analysis must be structured for a seminary student, focusing on the translational philosophy and theological nuance of each version.
 
 Simulate fetching translations and providing original terms. Highlight theological nuances and differences in translation philosophy.
+Address the user as a fellow scholar-in-training.
 
 Format strictly as JSON adhering to CompareTranslationsOutputSchema.`,
 });

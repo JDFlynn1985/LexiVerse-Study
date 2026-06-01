@@ -36,9 +36,10 @@ export async function searchCommentariesForContext(input: SearchCommentariesInpu
   const { output } = await ai.generate({
     model: selectedModel,
     prompt: `You are an expert biblical historian and researcher. Find and synthesize historical and linguistic context for the word "${input.word}" (${input.language}).
+    Always provide your analysis in a tone appropriate for a seminary student, prioritizing academic rigor and theological precision.
     ${input.rootWord ? `Focus on its connection to the root: ${input.rootWord}.` : ''}
     
-    Search prominent online commentaries (e.g., JFB, Keil & Delitzsch, Expositor's). 
+    Search prominent online commentaries (e.g., JFB, Keil & Delitzsch, Expositor's, and modern critical works). 
     Extract specific insights and provide an academic summary.
     Format your response strictly as JSON adhering to the SearchCommentariesOutputSchema.`,
     output: {

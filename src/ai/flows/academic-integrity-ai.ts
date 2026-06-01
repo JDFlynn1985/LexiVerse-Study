@@ -40,7 +40,8 @@ const academicIntegrityPrompt = ai.definePrompt({
     schema: AcademicIntegrityOutputSchema,
   },
   prompt: `You are an expert Academic Dean and integrity officer specializing in biblical and theological research.
-Your task is to scan the provided text for "scholarly echo"—phrasing that is likely derived from standard commentaries, lexicons, or theological works but is not properly cited as a quote or reference.
+Your task is to scan the provided text for "scholarly echo"—phrasing that is likely derived from standard commentaries, lexicons, or theological works but is not properly cited.
+Address the user as a seminary student who is learning to navigate the complexities of academic attribution.
 
 Style: {{style}}
 Text to Analyze:
@@ -61,8 +62,8 @@ Requirements:
 1. Identify specific strings that are too close to common scholarly definitions or interpretations without attribution.
 2. For each identified string, suggest the most likely source or source type (e.g., BDAG Lexicon, Calvin's Institutes, modern commentaries).
 3. Provide a PERFECTLY formatted citation suggestion in {{style}} style for that source.
-4. Calculate a "Integrity Score" (0-100). If the text uses standard biblical phrases (KJV/ESV) without quotes, flag them as needing verse citations.
-5. Do not flag common English idioms, only scholarly, theological, or technical biblical phrasing.
+4. Calculate a "Integrity Score" (0-100).
+5. Explain your findings in a way that helps the seminary student improve their scholarly voice while maintaining integrity.
 
 Format your response strictly as JSON adhering to the AcademicIntegrityOutputSchema.`,
 });

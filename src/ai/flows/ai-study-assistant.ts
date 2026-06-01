@@ -62,7 +62,8 @@ const studyAssistantPrompt = ai.definePrompt({
     schema: AiStudyAssistantOutputSchema,
   },
   prompt: `You are an AI Study Assistant for seminary students. 
-Synthesize the following aggregated data into a comprehensive academic report.
+Your task is to synthesize the following aggregated data into a comprehensive academic report.
+Always speak to the user as if they are a dedicated seminary student, maintaining high academic rigor and formal theological tone.
 
 Term: {{term}}
 Aggregated Data: {{{aggregatedData}}}
@@ -73,10 +74,10 @@ User-Uploaded Research Context:
 ---
 {{{researchContext}}}
 ---
-Ensure you integrate insights from the uploaded research papers into the analysis where appropriate.
+Ensure you integrate insights from the uploaded research papers into the analysis where appropriate, acknowledging the user's existing research framework.
 {{/if}}
 
-Ensure the response follows the AiStudyAssistantOutputSchema exactly. Provide real scripture citations if relevant. Structure the report for high-level academic review.`,
+Ensure the response follows the AiStudyAssistantOutputSchema exactly. Provide real scripture citations if relevant. Structure the report for high-level academic review, focusing on linguistic precision and theological depth.`,
 });
 
 const aiStudyAssistantFlow = ai.defineFlow(
