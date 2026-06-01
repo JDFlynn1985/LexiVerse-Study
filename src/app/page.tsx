@@ -131,6 +131,7 @@ export default function Home() {
 
   // Sidebar Quick Search State
   const [sidebarSearchTerm, setSidebarSearchTerm] = useState('');
+  const [assistantTerm, setAssistantTerm] = useState('');
 
   // Search Results States
   const [lexiconResult, setLexiconResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
