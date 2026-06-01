@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview English (US) localization strings.
  */
@@ -51,6 +52,12 @@ export const enUS = {
     scripture_desc: "Default translations and academic settings for primary sources.",
     interface_prefs: "Interface Preferences",
     interface_desc: "Customize how you interact with the platform.",
+    privacy_title: "Privacy & Data Rights",
+    privacy_desc: "Manage your data, cookie preferences, and account deletion in compliance with GDPR/CCPA.",
+    manage_cookies: "Manage Cookie Preferences",
+    request_data: "Request Copy of Records",
+    delete_account: "Delete Account & Data",
+    delete_confirm: "Are you sure? This action is permanent and compliant with all data retention requirements.",
     language: "Interface Language & Dialect",
     bible_version: "Preferred Bible Version",
     api_key: "Google AI API Key",

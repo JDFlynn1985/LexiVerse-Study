@@ -1,3 +1,4 @@
+
 'use client';
 
 /**
@@ -27,7 +28,7 @@ export type CookieConsentPreferences = {
   timestamp: string;
 };
 
-const CONSENT_KEY = 'lexiverse_cookie_consent';
+export const CONSENT_KEY = 'lexiverse_cookie_consent';
 
 export function CookieConsent() {
   const { t } = useLanguage();
@@ -47,6 +48,15 @@ export function CookieConsent() {
     } else {
       setPrefs(JSON.parse(savedConsent));
     }
+
+    // Listen for manual trigger from settings
+    const handleOpenConsent = () => {
+      setIsOpen(true);
+      setShowCustom(true);
+    };
+
+    window.addEventListener('open-cookie-settings', handleOpenConsent);
+    return () => window.removeEventListener('open-cookie-settings', handleOpenConsent);
   }, []);
 
   const handleSave = (newPrefs: CookieConsentPreferences) => {
