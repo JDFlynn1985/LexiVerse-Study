@@ -83,7 +83,9 @@ import {
   File,
   StickyNote,
   Image as ImageIcon,
-  Eye
+  Eye,
+  Cloud,
+  FolderOpen
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -134,6 +136,7 @@ interface Note {
   content: string;
   source: string;
   date: string;
+  driveFileId?: string;
 }
 
 interface BiblioItem {
@@ -150,6 +153,7 @@ interface ResearchPaper {
   format: 'txt' | 'pdf' | 'docx' | 'gdoc' | 'gsheet' | 'png' | 'jpg' | 'jpeg' | 'webp';
   author?: string;
   date: string;
+  driveFileId?: string;
 }
 
 interface SessionItem {
@@ -171,6 +175,7 @@ export default function Home() {
   const db = useFirestore();
   const { user } = useUser();
   const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null);
+  const [driveFolderId, setDriveFolderId] = useState<string | null>(null);
 
   const [history, setHistory] = useState<{id: string, type: string, term: string, date: string}[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
@@ -234,7 +239,9 @@ export default function Home() {
     try {
       const result = await signInWithPopup(auth, provider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
-      setGoogleAccessToken(credential?.accessToken || null);
+      const token = credential?.accessToken || null;
+      setGoogleAccessToken(token);
+      
       const userRef = doc(db, 'users', result.user.uid);
       const userData = {
         uid: result.user.uid,
@@ -244,14 +251,51 @@ export default function Home() {
       };
       setDoc(userRef, userData, { merge: true });
       toast({ title: "Logged in", description: `Welcome back, ${result.user.displayName}` });
+
+      if (token) {
+        initializeDriveFolder(token);
+      }
     } catch (error: any) {
       toast({ variant: "destructive", title: "Login Failed", description: error.message });
+    }
+  };
+
+  const initializeDriveFolder = async (token: string) => {
+    try {
+      // Search for LexiVerse folder
+      const searchRes = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=name='LexiVerse Research' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const searchData = await searchRes.json();
+      
+      if (searchData.files && searchData.files.length > 0) {
+        setDriveFolderId(searchData.files[0].id);
+      } else {
+        // Create new folder
+        const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+          method: 'POST',
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name: 'LexiVerse Research',
+            mimeType: 'application/vnd.google-apps.folder'
+          })
+        });
+        const createData = await createRes.json();
+        setDriveFolderId(createData.id);
+      }
+    } catch (error) {
+      console.error("Failed to initialize Google Drive folder", error);
     }
   };
 
   const handleLogout = async () => {
     await signOut(auth);
     setGoogleAccessToken(null);
+    setDriveFolderId(null);
     toast({ title: "Logged out" });
   };
 
@@ -271,6 +315,83 @@ export default function Home() {
     localStorage.setItem('lexiverse_notes', JSON.stringify(updated));
     updateSessionItems(noteId, content.substring(0, 30) + '...', 'note');
     toast({ title: "Note Saved" });
+  };
+
+  const syncToDrive = async (type: 'note' | 'paper', id: string) => {
+    if (!googleAccessToken || !driveFolderId) {
+      toast({ variant: "destructive", title: "Sync Failed", description: "Please link your Google account first." });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      let name = "";
+      let content = "";
+      let mimeType = "application/vnd.google-apps.document"; // Default to Google Doc
+
+      if (type === 'note') {
+        const note = notes.find(n => n.id === id);
+        if (!note) return;
+        name = `Note: ${note.source} (${note.date})`;
+        content = note.content;
+      } else {
+        const paper = researchPapers.find(p => p.id === id);
+        if (!paper) return;
+        name = paper.title;
+        content = paper.content;
+        if (['png', 'jpg', 'jpeg', 'webp'].includes(paper.format)) {
+          mimeType = `image/${paper.format === 'jpg' ? 'jpeg' : paper.format}`;
+          // For images, we just upload the base64 as binary
+          const blob = await (await fetch(paper.content)).blob();
+          const metadata = { name, parents: [driveFolderId] };
+          const form = new FormData();
+          form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+          form.append('file', blob);
+
+          const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${googleAccessToken}` },
+            body: form
+          });
+          const data = await res.json();
+          if (data.id) toast({ title: "Synced to Drive", description: "Image uploaded to LexiVerse Research folder." });
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // Upload text as Google Doc
+      const res = await fetch('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: { 
+          Authorization: `Bearer ${googleAccessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name,
+          mimeType: 'application/vnd.google-apps.document',
+          parents: [driveFolderId]
+        })
+      });
+      const data = await res.json();
+      
+      if (data.id) {
+        // Update the document content
+        await fetch(`https://www.googleapis.com/upload/drive/v3/files/${data.id}?uploadType=media`, {
+          method: 'PATCH',
+          headers: { 
+            Authorization: `Bearer ${googleAccessToken}`,
+            'Content-Type': 'text/plain'
+          },
+          body: content
+        });
+        toast({ title: "Synced to Drive", description: `${name} is now in your Google Drive.` });
+      }
+    } catch (error) {
+      toast({ variant: "destructive", title: "Sync Failed" });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSaveToBiblio = (citation: string, type: string = "Research Source") => {
@@ -545,17 +666,22 @@ export default function Home() {
           </SidebarContent>
           <SidebarFooter className="p-4 border-t gap-4">
             {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="w-full justify-start px-2 py-6">
-                    <img src={user.photoURL || ''} className="h-8 w-8 rounded-full border mr-3" alt="" />
-                    <span className="text-sm font-semibold truncate group-data-[collapsible=icon]:hidden">{user.displayName}</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onClick={handleLogout} className="text-destructive"><LogOut className="h-4 w-4 mr-2" /> Logout</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="space-y-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="w-full justify-start px-2 py-6">
+                      <img src={user.photoURL || ''} className="h-8 w-8 rounded-full border mr-3" alt="" />
+                      <div className="flex flex-col text-left overflow-hidden">
+                        <span className="text-sm font-semibold truncate group-data-[collapsible=icon]:hidden">{user.displayName}</span>
+                        {driveFolderId && <span className="text-[10px] text-emerald-600 flex items-center gap-1"><Cloud className="h-2 w-2" /> Sync Enabled</span>}
+                      </div>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem onClick={handleLogout} className="text-destructive"><LogOut className="h-4 w-4 mr-2" /> Logout</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             ) : (
               <Button variant="outline" className="w-full justify-start gap-2" onClick={handleLogin}>
                 <Globe className="h-4 w-4" /> <span className="group-data-[collapsible=icon]:hidden">Link Google</span>
@@ -982,6 +1108,11 @@ export default function Home() {
                       </CardHeader>
                       <CardContent><p className="text-[10px] text-muted-foreground line-clamp-3 italic">Uploaded on {paper.date}</p></CardContent>
                       <CardFooter className="justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {driveFolderId && (
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" onClick={() => syncToDrive('paper', paper.id)}>
+                            <CloudDownload className="h-3 w-3" />
+                          </Button>
+                        )}
                         {['png', 'jpg', 'jpeg', 'webp'].includes(paper.format) && (
                           <Dialog>
                             <DialogTrigger asChild>
@@ -1029,6 +1160,11 @@ export default function Home() {
                       </CardHeader>
                       <CardContent><p className="text-sm font-serif line-clamp-6">{note.content}</p></CardContent>
                       <CardFooter className="justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {driveFolderId && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => syncToDrive('note', note.id)}>
+                            <CloudDownload className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => {
                           const updated = notes.filter(n => n.id !== note.id);
                           setNotes(updated);
@@ -1050,16 +1186,39 @@ export default function Home() {
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-4">
                     <Label>Research Draft</Label>
-                    <Textarea 
-                      placeholder="Paste your draft here..." 
-                      className="min-h-[450px] leading-relaxed" 
-                      value={writingInput} 
-                      onChange={(e) => setWritingInput(e.target.value)} 
-                    />
+                    <div className="relative">
+                      <Textarea 
+                        placeholder="Paste your draft here..." 
+                        className="min-h-[450px] leading-relaxed" 
+                        value={writingInput} 
+                        onChange={(e) => setWritingInput(e.target.value)} 
+                      />
+                      {googleAccessToken && (
+                        <div className="absolute top-2 right-2">
+                          <Button variant="ghost" size="sm" onClick={() => handleSaveNote(writingInput, "AI Draft Refinement")}>
+                            <Scroll className="h-4 w-4 mr-2" /> Save to Notes
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                     <Button className="w-full h-12" onClick={handleWritingRefinement} disabled={isLoading}><Sparkles className="h-5 w-5 mr-2" /> Refine Draft</Button>
                   </div>
                   <div className="space-y-4">
-                    <Label>Scholar AI Refinement</Label>
+                    <div className="flex justify-between items-center">
+                      <Label>Scholar AI Refinement</Label>
+                      {writingResult && driveFolderId && (
+                        <Button variant="outline" size="sm" onClick={() => {
+                          const name = `Refined Draft (${new Date().toLocaleDateString()})`;
+                          // Manually calling sync logic for refined draft
+                          const tempId = Date.now().toString();
+                          const tempNote = { id: tempId, content: writingResult.improvedText, source: 'AI Refinement', date: new Date().toLocaleString() };
+                          setNotes(prev => [tempNote, ...prev]);
+                          syncToDrive('note', tempId);
+                        }}>
+                          <CloudDownload className="h-4 w-4 mr-2" /> Export to Google Docs
+                        </Button>
+                      )}
+                    </div>
                     <Card className="min-h-[450px] bg-muted/5 p-6">
                       <ScrollArea className="h-full">
                         {writingResult ? (
@@ -1100,7 +1259,34 @@ export default function Home() {
                   <Card className="shadow-lg border-primary/20">
                     <CardHeader className="bg-primary/5 border-b flex justify-between items-center flex-row">
                       <CardTitle className="text-lg">Formatted Bibliography</CardTitle>
-                      <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(formattedBiblioResult.formattedOutput); toast({ title: "Copied" }); }}><Copy className="h-4 w-4 mr-2" /> Copy</Button>
+                      <div className="flex gap-2">
+                        {driveFolderId && (
+                          <Button variant="outline" size="sm" onClick={async () => {
+                            const res = await fetch('https://www.googleapis.com/drive/v3/files', {
+                              method: 'POST',
+                              headers: { 
+                                Authorization: `Bearer ${googleAccessToken}`,
+                                'Content-Type': 'application/json'
+                              },
+                              body: JSON.stringify({
+                                name: `Bibliography - ${biblioStyle} (${new Date().toLocaleDateString()})`,
+                                mimeType: 'application/vnd.google-apps.document',
+                                parents: [driveFolderId]
+                              })
+                            });
+                            const data = await res.json();
+                            if (data.id) {
+                              await fetch(`https://www.googleapis.com/upload/drive/v3/files/${data.id}?uploadType=media`, {
+                                method: 'PATCH',
+                                headers: { Authorization: `Bearer ${googleAccessToken}`, 'Content-Type': 'text/plain' },
+                                body: formattedBiblioResult.formattedOutput
+                              });
+                              toast({ title: "Exported to Docs" });
+                            }
+                          }}><CloudDownload className="h-4 w-4 mr-2" /> Google Docs</Button>
+                        )}
+                        <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(formattedBiblioResult.formattedOutput); toast({ title: "Copied" }); }}><Copy className="h-4 w-4 mr-2" /> Copy</Button>
+                      </div>
                     </CardHeader>
                     <CardContent className="p-8"><p className="whitespace-pre-wrap font-serif text-lg leading-loose">{formattedBiblioResult.formattedOutput}</p></CardContent>
                   </Card>
@@ -1149,7 +1335,34 @@ export default function Home() {
           </main>
         </SidebarInset>
 
-        <div className="fixed bottom-8 right-8 z-50">
+        <div className="fixed bottom-8 right-8 z-50 flex flex-col gap-2">
+          {googleAccessToken && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="secondary" className="shadow-lg h-10 border bg-white">
+                  <Share2 className="h-4 w-4 mr-2" /> Share / Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>External Workspaces</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => {
+                  const selection = window.getSelection()?.toString();
+                  if (selection) {
+                    const url = `https://keep.google.com/u/0/#create/${encodeURIComponent(selection)}`;
+                    window.open(url, '_blank');
+                  } else {
+                    toast({ variant: "destructive", title: "Nothing Selected", description: "Select text first to copy to Keep." });
+                  }
+                }}>
+                  <ImageIcon className="h-4 w-4 mr-2" /> Copy Selection to Keep
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => window.open(`https://drive.google.com/drive/u/0/folders/${driveFolderId}`, '_blank')}>
+                  <FolderOpen className="h-4 w-4 mr-2" /> Open Research Folder
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <Button variant="secondary" className="shadow-lg h-10 border" onClick={captureSelectionToNotes}>
             <Highlighter className="h-4 w-4 mr-2" /> Capture Highlight
           </Button>
@@ -1158,3 +1371,4 @@ export default function Home() {
     </SidebarProvider>
   );
 }
+

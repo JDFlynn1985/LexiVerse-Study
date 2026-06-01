@@ -18,6 +18,7 @@ export const appConfig = {
   },
   google: {
     // Scopes for Google Drive, Docs, and Sheets integration
+    // Added 'drive.file' to allow creating and managing files in the app's own folder
     scopes: [
       'https://www.googleapis.com/auth/documents.readonly',
       'https://www.googleapis.com/auth/spreadsheets.readonly',
@@ -25,6 +26,7 @@ export const appConfig = {
       'https://www.googleapis.com/auth/drive.readonly',
       'https://www.googleapis.com/auth/documents',
       'https://www.googleapis.com/auth/spreadsheets',
+      'https://www.googleapis.com/auth/drive.file',
     ],
   }
 };
