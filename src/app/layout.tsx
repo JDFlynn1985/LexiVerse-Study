@@ -1,6 +1,7 @@
 import type {Metadata} from 'next';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
+import { LanguageProvider } from '@/components/language-provider';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { FirebaseErrorListener } from '@/components/firebase-error-listener';
 import { Toaster } from '@/components/ui/toaster';
@@ -27,21 +28,23 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <Analytics />
         <FirebaseClientProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="light"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <FirebaseErrorListener />
-            <a href="#main-content" className="skip-link">
-              Skip to main content
-            </a>
-            <div id="main-content">
-              {children}
-            </div>
-            <Toaster />
-          </ThemeProvider>
+          <LanguageProvider>
+            <ThemeProvider
+              attribute="class"
+              defaultTheme="light"
+              enableSystem
+              disableTransitionOnChange
+            >
+              <FirebaseErrorListener />
+              <a href="#main-content" className="skip-link">
+                Skip to main content
+              </a>
+              <div id="main-content">
+                {children}
+              </div>
+              <Toaster />
+            </ThemeProvider>
+          </LanguageProvider>
         </FirebaseClientProvider>
       </body>
     </html>
