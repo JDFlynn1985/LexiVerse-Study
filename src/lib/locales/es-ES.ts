@@ -54,7 +54,35 @@ export const esES = {
     language: "Idioma e Dialecto de Interfaz",
     bible_version: "Versión Bíblica Preferida",
     api_key: "Clave API de Google AI",
-    save: "Guardar Todas las Preferencias"
+    save: "Guardar Todas las Preferencias",
+    cookie_settings: "Privacidad y Cookies",
+    cookie_manage: "Gestionar Preferencias de Cookies"
+  },
+  cookies: {
+    title: "Privacidad e Investigación",
+    description: "Utilizamos cookies para mejorar su experiencia de investigación. Algunas son esenciales para el funcionamiento del sitio, mientras que otras nos ayudan a entender cómo utiliza nuestras herramientas.",
+    accept_all: "Aceptar Todo",
+    reject_all: "Rechazar Todo",
+    customize: "Personalizar",
+    save: "Guardar Preferencias",
+    categories: {
+      necessary: {
+        title: "Estrictamente Necesarias",
+        desc: "Esenciales para la autenticación y seguridad básica. No se pueden desactivar."
+      },
+      analytics: {
+        title: "Análisis de Investigación",
+        desc: "Nos ayuda a identificar temas de investigación de alta demanda y optimizar las herramientas."
+      },
+      functional: {
+        title: "Preferencias de Estudio",
+        desc: "Nos permite recordar su idioma, tema y ajustes del motor de IA."
+      },
+      marketing: {
+        title: "Interacción con Patrocinios",
+        desc: "Rastrea de forma anónima las interacciones con patrocinadores de recursos académicos para apoyar la plataforma."
+      }
+    }
   },
   common: {
     search_placeholder: "Léxico (G3056) o consulta IA...",

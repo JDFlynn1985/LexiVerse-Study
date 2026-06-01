@@ -54,7 +54,35 @@ export const enUS = {
     language: "Interface Language & Dialect",
     bible_version: "Preferred Bible Version",
     api_key: "Google AI API Key",
-    save: "Save All Preferences"
+    save: "Save All Preferences",
+    cookie_settings: "Privacy & Cookie Settings",
+    cookie_manage: "Manage Cookie Preferences"
+  },
+  cookies: {
+    title: "Privacy & Scholarly Research",
+    description: "We use cookies to enhance your research experience. Some are essential for the site to function, while others help us understand how you use our tools.",
+    accept_all: "Accept All",
+    reject_all: "Reject All",
+    customize: "Customize",
+    save: "Save Preferences",
+    categories: {
+      necessary: {
+        title: "Strictly Necessary",
+        desc: "Essential for authentication and core platform security. Cannot be disabled."
+      },
+      analytics: {
+        title: "Research Analytics",
+        desc: "Helps us identify high-demand research topics and optimize tool performance."
+      },
+      functional: {
+        title: "Study Preferences",
+        desc: "Allows us to remember your language, theme, and AI engine settings."
+      },
+      marketing: {
+        title: "Sponsorship Engagement",
+        desc: "Anonymously tracks interactions with scholarly resource sponsors to support the platform."
+      }
+    }
   },
   common: {
     search_placeholder: "Lexicon (G3056) or AI query...",

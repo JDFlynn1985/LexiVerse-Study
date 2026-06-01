@@ -6,6 +6,7 @@ import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { FirebaseErrorListener } from '@/components/firebase-error-listener';
 import { Toaster } from '@/components/ui/toaster';
 import { Analytics } from '@/components/analytics';
+import { CookieConsent } from '@/components/cookie-consent';
 
 export const metadata: Metadata = {
   title: 'LexiVerse Explorer',
@@ -36,6 +37,7 @@ export default function RootLayout({
               disableTransitionOnChange
             >
               <FirebaseErrorListener />
+              <CookieConsent />
               <a href="#main-content" className="skip-link">
                 Skip to main content
               </a>
