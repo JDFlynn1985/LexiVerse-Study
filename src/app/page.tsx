@@ -74,7 +74,10 @@ import {
   ShieldCheck,
   ShieldAlert,
   Info,
-  Type
+  Type,
+  Maximize2,
+  Minimize2,
+  Volume2
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -114,7 +117,7 @@ import { interactiveVerseExplorationAI } from '@/ai/flows/interactive-verse-expl
 import { refineWriting, type WritingAssistantOutput } from '@/ai/flows/writing-assistant-ai';
 import { formatBibliography, type FormatBibliographyOutput } from '@/ai/flows/format-bibliography-ai';
 import { checkIntegrity, type AcademicIntegrityOutput } from '@/ai/flows/academic-integrity-ai';
-import { getVersions, type BibleVersion } from '@/lib/bible-api';
+import { getVersions, getChapterContent, parseReference, type BibleVersion, type BibleChapter } from '@/lib/bible-api';
 
 type ViewMode = 'bibles' | 'commentaries' | 'dictionaries' | 'lexicon' | 'translations' | 'verse-explorer' | 'scholar-ai' | 'history' | 'notes' | 'bibliography' | 'papers' | 'writing-assistant' | 'integrity';
 
@@ -164,20 +167,22 @@ export default function Home() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [biblioItems, setBiblioItems] = useState<BiblioItem[]>([]);
   const [researchPapers, setResearchPapers] = useState<ResearchPaper[]>([]);
-  const [currentContext, setCurrentContext] = useState<string | null>(null);
+  
+  // Lexicon Search
+  const [strongsTerm, setStrongsTerm] = useState('');
+  const [lexiconResult, setLexiconResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
 
-  const [driveFiles, setDriveFiles] = useState<DriveFile[]>([]);
-  const [isDriveModalOpen, setIsDriveModalOpen] = useState(false);
-  const [isFetchingDrive, setIsFetchingDrive] = useState(false);
-
-  const [searchTerm, setSearchTerm] = useState('');
-  const [wordResult, setWordResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
-  const [dictTerm, setDictTerm] = useState('');
-  const [dictResult, setDictResult] = useState<{term: string, definition: string, sources: string[]} | null>(null);
+  // Translation Comparison
   const [transWord, setTransWord] = useState('');
   const [transResult, setTransResult] = useState<CompareTranslationsOutput | null>(null);
-  const [verseRef, setVerseRef] = useState('');
-  const [verseExploration, setVerseExploration] = useState<string | null>(null);
+  const [selectedVersions, setSelectedVersions] = useState<string[]>(['kjv', 'net']);
+
+  // Bible Reading
+  const [currentPassage, setCurrentPassage] = useState<BibleChapter | null>(null);
+  const [passageRef, setPassageRef] = useState('John 1');
+  const [readingVersion, setReadingVersion] = useState('kjv');
+
+  // Scholar AI
   const [chatInput, setChatInput] = useState('');
   const [chatHistory, setChatHistory] = useState<{role: 'user' | 'model', content: string}[]>([]);
   const [versions, setVersions] = useState<BibleVersion[]>([]);
@@ -228,15 +233,7 @@ export default function Home() {
         email: result.user.email,
         photoURL: result.user.photoURL,
       };
-      setDoc(userRef, userData, { merge: true })
-        .catch(async () => {
-          const permissionError = new FirestorePermissionError({
-            path: userRef.path,
-            operation: 'write',
-            requestResourceData: userData,
-          });
-          errorEmitter.emit('permission-error', permissionError);
-        });
+      setDoc(userRef, userData, { merge: true });
       toast({ title: "Logged in", description: `Welcome back, ${result.user.displayName}` });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Login Failed", description: error.message });
@@ -247,140 +244,6 @@ export default function Home() {
     await signOut(auth);
     setGoogleAccessToken(null);
     toast({ title: "Logged out" });
-  };
-
-  const listDriveFiles = async () => {
-    if (!googleAccessToken) return;
-    setIsFetchingDrive(true);
-    try {
-      const response = await fetch(`https://www.googleapis.com/drive/v3/files?q=mimeType='application/vnd.google-apps.document' or mimeType='application/vnd.google-apps.spreadsheet'&fields=files(id, name, mimeType)`, {
-        headers: { Authorization: `Bearer ${googleAccessToken}` },
-      });
-      const data = await response.json();
-      setDriveFiles(data.files || []);
-      setIsDriveModalOpen(true);
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Drive Access Error", description: "Could not retrieve your Google Drive files." });
-    } finally {
-      setIsFetchingDrive(false);
-    }
-  };
-
-  const importDriveFile = async (file: DriveFile) => {
-    if (!googleAccessToken) return;
-    setIsLoading(true);
-    try {
-      let content = "";
-      let format: ResearchPaper['format'] = 'gdoc';
-      if (file.mimeType === 'application/vnd.google-apps.document') {
-        const res = await fetch(`https://docs.googleapis.com/v1/documents/${file.id}`, {
-          headers: { Authorization: `Bearer ${googleAccessToken}` },
-        });
-        const docRes = await res.json();
-        content = docRes.body.content.map((c: any) => {
-          if (c.paragraph) return c.paragraph.elements.map((e: any) => e.textRun?.content || "").join("");
-          return "";
-        }).join("\n");
-        format = 'gdoc';
-      } else if (file.mimeType === 'application/vnd.google-apps.spreadsheet') {
-        const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${file.id}/values/A1:Z100`, {
-          headers: { Authorization: `Bearer ${googleAccessToken}` },
-        });
-        const sheet = await res.json();
-        content = sheet.values?.map((row: string[]) => row.join("\t")).join("\n") || "";
-        format = 'gsheet';
-      }
-      const newPaper: ResearchPaper = {
-        id: Date.now().toString(),
-        title: file.name,
-        content,
-        format,
-        date: new Date().toLocaleString()
-      };
-      const updated = [newPaper, ...researchPapers];
-      setResearchPapers(updated);
-      localStorage.setItem('lexiverse_papers', JSON.stringify(updated));
-      setIsDriveModalOpen(false);
-      toast({ title: "Import Successful", description: `"${file.name}" added to your knowledge base.` });
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Import Failed", description: error.message });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const exportToGoogleKeep = (content: string, title: string) => {
-    navigator.clipboard.writeText(content);
-    toast({ title: "Copied for Google Keep", description: "Content is on your clipboard. Opening Google Keep..." });
-    window.open('https://keep.google.com/', '_blank');
-  };
-
-  const exportToGoogleDocs = async (title: string, content: string) => {
-    if (!googleAccessToken) {
-      toast({ variant: "destructive", title: "Authentication Required", description: "Please login with Google to export." });
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const response = await fetch('https://docs.googleapis.com/v1/documents', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${googleAccessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title }),
-      });
-      if (!response.ok) throw new Error('Failed to create document');
-      const docRes = await response.json();
-      await fetch(`https://docs.googleapis.com/v1/documents/${docRes.documentId}:batchUpdate`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${googleAccessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          requests: [{ insertText: { location: { index: 1 }, text: content } }]
-        }),
-      });
-      toast({
-        title: "Exported to Google Docs",
-        description: `"${title}" has been created in your Drive.`,
-        action: (
-          <Button variant="outline" size="sm" onClick={() => window.open(`https://docs.google.com/document/d/${docRes.documentId}/edit`, '_blank')}>
-            Open Doc
-          </Button>
-        ),
-      });
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Export Failed", description: error.message });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const exportToGoogleSheets = async (title: string, data: BiblioItem[]) => {
-    if (!googleAccessToken) {
-      toast({ variant: "destructive", title: "Authentication Required", description: "Please login with Google." });
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const response = await fetch('https://sheets.googleapis.com/v4/spreadsheets', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${googleAccessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ properties: { title } }),
-      });
-      if (!response.ok) throw new Error('Failed to create spreadsheet');
-      const sheet = await response.json();
-      const spreadsheetId = sheet.spreadsheetId;
-      const values = [['Citation', 'Source Type', 'Date Captured'], ...data.map(item => [item.citation, item.sourceType, item.date])];
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/Sheet1!A1:append?valueInputOption=USER_ENTERED`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${googleAccessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ values }),
-      });
-      toast({ title: "Exported to Google Sheets", description: `"${title}" created.`, action: (
-        <Button variant="outline" size="sm" onClick={() => window.open(`https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`, '_blank')}>Open Sheet</Button>
-      )});
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Export Failed", description: error.message });
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleSaveNote = (content: string, source: string = "Selection") => {
@@ -401,68 +264,79 @@ export default function Home() {
     toast({ title: "Citation Added", description: "Source added to your academic bibliography." });
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsLoading(true);
-    const fileName = file.name;
-    const extension = fileName.split('.').pop()?.toLowerCase();
-    try {
-      let content = '';
-      let format: ResearchPaper['format'] = 'txt';
-      if (extension === 'pdf') {
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const textContent = await page.getTextContent();
-          content += textContent.items.map((item: any) => item.str).join(' ') + '\n';
-        }
-        format = 'pdf';
-      } else if (extension === 'docx') {
-        const arrayBuffer = await file.arrayBuffer();
-        const result = await mammoth.extractRawText({ arrayBuffer });
-        content = result.value;
-        format = 'docx';
-      } else {
-        content = await file.text();
-        format = 'txt';
-      }
-      const newPaper: ResearchPaper = { id: Date.now().toString(), title: fileName, content, format, date: new Date().toLocaleString() };
-      const updated = [newPaper, ...researchPapers];
-      setResearchPapers(updated);
-      localStorage.setItem('lexiverse_papers', JSON.stringify(updated));
-      toast({ title: "Paper Uploaded", description: `"${fileName}" has been processed.` });
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Upload Failed", description: error.message });
-    } finally {
-      setIsLoading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
-  const captureSelectionToNotes = () => {
-    const selection = window.getSelection()?.toString();
-    if (selection) handleSaveNote(selection, currentContext || "Active Study");
-    else toast({ variant: "destructive", title: "No Text Selected", description: "Highlight text first." });
-  };
-
-  const askScholarAboutContext = (content: string, type: string) => {
-    setChatInput(`Can you explain the significance and context of this ${type}: "${content}"?`);
-    setActiveTab('scholar-ai');
-  };
-
-  async function generateSpecificCitation(item: BiblioItem, type: 'footnote' | 'inline') {
+  const handleLexiconSearch = async () => {
+    if (!strongsTerm.trim()) return;
     setIsLoading(true);
     try {
-      const data = await formatBibliography({ items: [item.citation], style: biblioStyle, formatType: type });
-      setActiveCitation({ type, text: data.formattedOutput });
+      const result = await defineAndAnalyzeTerm({ strongsNumber: strongsTerm });
+      setLexiconResult(result);
+      const newHistory = [{id: Date.now().toString(), type: 'Lexicon', term: strongsTerm, date: new Date().toLocaleString()}, ...history];
+      setHistory(newHistory.slice(0, 10));
+      localStorage.setItem('lexiverse_history', JSON.stringify(newHistory));
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Generation Failed' });
+      toast({ variant: 'destructive', title: 'Lexicon search failed' });
     } finally {
       setIsLoading(false);
     }
-  }
+  };
+
+  const handleTranslationComparison = async () => {
+    if (!transWord.trim()) return;
+    setIsLoading(true);
+    try {
+      const result = await compareTranslations({ 
+        word: transWord, 
+        language: 'Greek/Hebrew', 
+        versions: selectedVersions 
+      });
+      setTransResult(result);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Comparison failed' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadPassage = async () => {
+    setIsLoading(true);
+    const parsed = parseReference(passageRef);
+    if (!parsed) {
+      toast({ variant: 'destructive', title: 'Invalid Reference', description: 'Try "John 3" or "Genesis 1:1"' });
+      setIsLoading(false);
+      return;
+    }
+    const content = await getChapterContent(readingVersion, parsed.bookName, parsed.chapter);
+    if (content) {
+      setCurrentPassage(content);
+    } else {
+      toast({ variant: 'destructive', title: 'Passage not found' });
+    }
+    setIsLoading(false);
+  };
+
+  const handleScholarChat = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!chatInput.trim()) return;
+    
+    const userMsg = { role: 'user' as const, content: chatInput };
+    setChatHistory(prev => [...prev, userMsg]);
+    setChatInput('');
+    setIsLoading(true);
+
+    try {
+      const result = await interactiveVerseExplorationAI({
+        term: strongsTerm || 'Bible Study',
+        question: chatInput,
+        history: chatHistory,
+        researchContext: researchPapers.map(p => p.content).slice(0, 3) // Limiting context for prompt size
+      });
+      setChatHistory(prev => [...prev, { role: 'model', content: result.response }]);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Scholar AI Error' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   async function handleBiblioFormatting() {
     if (biblioItems.length === 0) return;
@@ -503,6 +377,12 @@ export default function Home() {
     }
   }
 
+  const captureSelectionToNotes = () => {
+    const selection = window.getSelection()?.toString();
+    if (selection) handleSaveNote(selection, "Manual Study Capture");
+    else toast({ variant: "destructive", title: "No Text Selected", description: "Highlight text first." });
+  };
+
   if (!mounted) return null;
 
   return (
@@ -520,11 +400,10 @@ export default function Home() {
               <SidebarGroupLabel>Library & Research</SidebarGroupLabel>
               <SidebarMenu>
                 {[
-                  { id: 'bibles', label: 'Dashboard', icon: LayoutDashboard },
-                  { id: 'lexicon', label: 'Lexicon', icon: BookOpen },
-                  { id: 'dictionaries', label: 'Dictionaries', icon: Library },
-                  { id: 'papers', label: 'Knowledge Base', icon: FileSearch },
-                  { id: 'translations', label: 'Comparisons', icon: Scale },
+                  { id: 'bibles', label: 'Bible Reader', icon: Book },
+                  { id: 'lexicon', label: 'Advanced Lexicon', icon: BookOpen },
+                  { id: 'translations', label: 'Parallel Versions', icon: Scale },
+                  { id: 'papers', label: 'My Library', icon: Library },
                 ].map((item) => (
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton isActive={activeTab === item.id} onClick={() => setActiveTab(item.id as ViewMode)} tooltip={item.label}>
@@ -535,14 +414,14 @@ export default function Home() {
               </SidebarMenu>
             </SidebarGroup>
             <SidebarGroup>
-              <SidebarGroupLabel>Scholar Tools</SidebarGroupLabel>
+              <SidebarGroupLabel>Scholar AI Engine</SidebarGroupLabel>
               <SidebarMenu>
                 {[
-                  { id: 'scholar-ai', label: 'Scholar AI', icon: Mic },
-                  { id: 'writing-assistant', label: 'Writing AI', icon: SpellCheck },
-                  { id: 'integrity', label: 'Integrity Scan', icon: ShieldCheck },
-                  { id: 'bibliography', label: 'Citation Manager', icon: ClipboardList },
-                  { id: 'notes', label: 'My Notes', icon: Edit3 },
+                  { id: 'scholar-ai', label: 'Scholar Chat', icon: MessageSquare },
+                  { id: 'writing-assistant', label: 'Writing Editor', icon: Edit3 },
+                  { id: 'integrity', label: 'Academic Integrity', icon: ShieldCheck },
+                  { id: 'bibliography', label: 'Citations', icon: ClipboardList },
+                  { id: 'notes', label: 'Research Notes', icon: Scroll },
                 ].map((item) => (
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton isActive={activeTab === item.id} onClick={() => setActiveTab(item.id as ViewMode)} tooltip={item.label}>
@@ -580,24 +459,287 @@ export default function Home() {
         <SidebarInset>
           <div className="fixed top-4 right-8 z-50 flex gap-2">
             <Button variant="secondary" className="shadow-lg h-10 border" onClick={captureSelectionToNotes}>
-              <Highlighter className="h-4 w-4 mr-2" /> Capture Note
+              <Highlighter className="h-4 w-4 mr-2" /> Capture Highlight
             </Button>
           </div>
 
           <main className="container max-w-5xl mx-auto py-10 px-6">
             {activeTab === 'bibles' && (
+              <div className="space-y-6 animate-in fade-in">
+                <header className="flex flex-col md:flex-row gap-4 items-center justify-between border-b pb-6">
+                  <div>
+                    <h1 className="text-3xl font-bold font-headline">Scripture Reader</h1>
+                    <p className="text-muted-foreground">High-performance digital library access.</p>
+                  </div>
+                  <div className="flex gap-2 w-full md:w-auto">
+                    <Select value={readingVersion} onValueChange={setReadingVersion}>
+                      <SelectTrigger className="w-[120px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {versions.map(v => <SelectItem key={v.id} value={v.id}>{v.abbreviation}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Input 
+                      placeholder="e.g. John 3" 
+                      className="w-full md:w-40" 
+                      value={passageRef} 
+                      onChange={(e) => setPassageRef(e.target.value)} 
+                    />
+                    <Button onClick={loadPassage} disabled={isLoading}>
+                      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </header>
+
+                <Card className="min-h-[600px] shadow-lg">
+                  <CardContent className="p-10">
+                    {currentPassage ? (
+                      <div className="space-y-8 max-w-2xl mx-auto">
+                        <h2 className="text-4xl font-bold font-headline text-center mb-10">{currentPassage.bookName} {currentPassage.chapterNumber}</h2>
+                        <div className="prose dark:prose-invert max-w-none font-serif text-xl leading-relaxed">
+                          {currentPassage.content.map((node, i) => (
+                            <span key={i} className="group relative inline cursor-text hover:bg-primary/5 rounded transition-colors px-0.5">
+                              {node.type === 'verse' && <sup className="text-primary font-bold mr-1 text-sm">{node.number}</sup>}
+                              {node.text}
+                              {node.content && node.content.map((c: any, ci: number) => (
+                                <span key={ci} className={c.type === 'line_break' ? 'block my-4' : ''}>
+                                  {c.text}
+                                </span>
+                              ))}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="h-[500px] flex flex-col items-center justify-center text-muted-foreground opacity-30 text-center space-y-4">
+                        <Book className="h-20 w-20" />
+                        <p className="text-lg">Select a version and passage to begin your study.</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {activeTab === 'lexicon' && (
               <div className="space-y-8 animate-in fade-in">
                 <header className="border-b pb-6">
-                  <h1 className="text-3xl font-bold font-headline">Study Dashboard</h1>
-                  <p className="text-muted-foreground">Synthesize scripture, lexicons, and personal research.</p>
+                  <h1 className="text-3xl font-bold font-headline">Advanced Lexicon</h1>
+                  <p className="text-muted-foreground">Original language analysis with Strong's semantic tracing.</p>
                 </header>
-                <div className="grid gap-6 md:grid-cols-3">
-                  <Card className="bg-primary text-primary-foreground shadow-xl">
-                    <CardHeader><CardTitle className="text-sm flex items-center gap-2"><History className="h-4 w-4" /> Recent Activity</CardTitle></CardHeader>
-                    <CardContent><p className="font-bold text-lg">{history[0]?.term || 'No history'}</p></CardContent>
-                  </Card>
-                  <Card><CardHeader><CardTitle className="text-sm flex items-center gap-2"><Edit3 className="h-4 w-4" /> Notes</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold">{notes.length}</p></CardContent></Card>
-                  <Card><CardHeader><CardTitle className="text-sm flex items-center gap-2"><FileText className="h-4 w-4" /> Library</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold">{researchPapers.length}</p></CardContent></Card>
+                
+                <div className="flex gap-4 max-w-md mx-auto">
+                  <Input 
+                    placeholder="Enter Strong's (e.g. G2424, H1254)" 
+                    value={strongsTerm} 
+                    onChange={(e) => setStrongsTerm(e.target.value)} 
+                  />
+                  <Button onClick={handleLexiconSearch} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Analyze"}
+                  </Button>
+                </div>
+
+                {lexiconResult && (
+                  <div className="grid gap-6 md:grid-cols-3">
+                    <Card className="md:col-span-2 shadow-xl border-primary/20">
+                      <CardHeader className="bg-primary/5">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <CardTitle className="text-4xl font-bold font-headline text-primary">{lexiconResult.originalWord}</CardTitle>
+                            <CardDescription className="text-lg mt-1 italic">{lexiconResult.transliteration} • [{lexiconResult.pronunciation}]</CardDescription>
+                          </div>
+                          <Badge variant="outline" className="text-lg py-1 px-3 border-primary/50 text-primary">{lexiconResult.searchStrongNumber}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-8 space-y-8">
+                        <div>
+                          <h4 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+                            <Library className="h-4 w-4" /> Definitions & Semantic Range
+                          </h4>
+                          <div className="space-y-3">
+                            {lexiconResult.definitions.map((def, i) => (
+                              <p key={i} className="text-lg leading-relaxed font-serif">{def}</p>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        <Separator />
+
+                        <div>
+                          <h4 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+                            <Sparkles className="h-4 w-4" /> Scholar AI Synthesis
+                          </h4>
+                          <p className="text-sm leading-relaxed text-muted-foreground">{lexiconResult.summary}</p>
+                        </div>
+
+                        <div className="bg-muted/30 p-4 rounded-lg border italic text-xs">
+                          {lexiconResult.bibliography}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <div className="space-y-6">
+                      <Card>
+                        <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Quote className="h-4 w-4" /> Scriptural Usage</CardTitle></CardHeader>
+                        <CardContent className="space-y-2">
+                          {lexiconResult.scriptureReferences.map((ref, i) => (
+                            <Button key={i} variant="ghost" size="sm" className="w-full justify-start font-mono text-xs" onClick={() => {setPassageRef(ref); setActiveTab('bibles');}}>
+                              <ChevronRight className="h-3 w-3 mr-2" /> {ref}
+                            </Button>
+                          ))}
+                        </CardContent>
+                      </Card>
+
+                      <Card className="bg-accent/10 border-accent/20">
+                        <CardHeader><CardTitle className="text-sm flex items-center gap-2 text-accent-foreground"><Zap className="h-4 w-4" /> Root Analysis</CardTitle></CardHeader>
+                        <CardContent className="space-y-4">
+                          {lexiconResult.roots?.map((root, i) => (
+                            <div key={i} className="space-y-1">
+                              <p className="text-sm font-bold text-accent-foreground">{root.root}</p>
+                              <p className="text-xs text-muted-foreground line-clamp-2">{root.definition}</p>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'translations' && (
+              <div className="space-y-8 animate-in fade-in">
+                <header className="border-b pb-6">
+                  <h1 className="text-3xl font-bold font-headline">Parallel Comparison</h1>
+                  <p className="text-muted-foreground">Compare translation philosophies and linguistic nuances side-by-side.</p>
+                </header>
+
+                <div className="grid gap-6 md:grid-cols-2 max-w-2xl mx-auto items-end">
+                  <div className="space-y-2">
+                    <Label>Word or Passage</Label>
+                    <Input value={transWord} onChange={e => setTransWord(e.target.value)} placeholder="e.g. Logos, John 1:1" />
+                  </div>
+                  <Button onClick={handleTranslationComparison} disabled={isLoading} className="h-10">
+                    Compare Versions
+                  </Button>
+                </div>
+
+                {transResult && (
+                  <div className="space-y-8">
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                      {transResult.translations.map((t, i) => (
+                        <Card key={i} className="relative overflow-hidden group">
+                          <div className="absolute top-0 left-0 w-1 h-full bg-primary" />
+                          <CardHeader className="pb-2">
+                            <div className="flex justify-between items-center">
+                              <CardTitle className="text-lg font-bold">{t.version}</CardTitle>
+                              <Badge variant="secondary" className="text-[10px]">{t.transliteration}</Badge>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-xl font-serif leading-relaxed mb-4">"{t.translation}"</p>
+                            {t.notes && <p className="text-xs text-muted-foreground italic border-t pt-2">{t.notes}</p>}
+                          </CardContent>
+                          <CardFooter>
+                            <Button variant="ghost" size="sm" className="w-full text-[10px] opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleSaveNote(`${t.version}: ${t.translation}`, `Comparison: ${transWord}`)}>
+                              <Plus className="h-3 w-3 mr-1" /> Save Note
+                            </Button>
+                          </CardFooter>
+                        </Card>
+                      ))}
+                    </div>
+                    
+                    <Card className="bg-primary/5 border-dashed">
+                      <CardHeader><CardTitle className="text-sm flex items-center gap-2"><Sparkles className="h-4 w-4" /> Comparative Synthesis</CardTitle></CardHeader>
+                      <CardContent><p className="text-sm leading-relaxed">{transResult.summary}</p></CardContent>
+                    </Card>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'scholar-ai' && (
+              <div className="h-[calc(100vh-160px)] flex flex-col animate-in fade-in">
+                <header className="border-b pb-4 mb-4 flex justify-between items-center">
+                  <div>
+                    <h1 className="text-3xl font-bold font-headline">Scholar AI Chat</h1>
+                    <p className="text-muted-foreground text-sm">Synthetic analysis across scripture, lexicons, and your research library.</p>
+                  </div>
+                  {researchPapers.length > 0 && <Badge variant="secondary" className="gap-1"><FileCode className="h-3 w-3" /> {researchPapers.length} Papers in Context</Badge>}
+                </header>
+
+                <Card className="flex-1 flex flex-col overflow-hidden shadow-2xl relative bg-card/50">
+                  <ScrollArea className="flex-1 p-6" ref={scrollRef}>
+                    <div className="space-y-6 max-w-3xl mx-auto py-4">
+                      {chatHistory.length === 0 && (
+                        <div className="flex flex-col items-center justify-center h-full text-center space-y-4 opacity-50 mt-20">
+                          <div className="bg-primary/10 p-4 rounded-full"><Sparkles className="h-10 w-10 text-primary" /></div>
+                          <p className="max-w-xs text-sm">Ask about eschatology, semantic ranges, or how your research papers align with historical commentaries.</p>
+                        </div>
+                      )}
+                      {chatHistory.map((msg, i) => (
+                        <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-[85%] p-4 rounded-2xl shadow-sm ${
+                            msg.role === 'user' 
+                              ? 'bg-primary text-primary-foreground rounded-br-none' 
+                              : 'bg-muted border rounded-bl-none font-serif leading-relaxed'
+                          }`}>
+                            <p className="text-sm md:text-base whitespace-pre-wrap">{msg.content}</p>
+                          </div>
+                        </div>
+                      ))}
+                      {isLoading && (
+                        <div className="flex justify-start">
+                          <div className="bg-muted p-4 rounded-2xl border rounded-bl-none flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            <span className="text-xs font-bold animate-pulse">Consulting scholarly records...</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
+                  <form onSubmit={handleScholarChat} className="p-4 border-t bg-background/80 backdrop-blur flex gap-2">
+                    <Input 
+                      placeholder="Ask the Scholar AI..." 
+                      className="h-12 text-lg shadow-inner bg-card"
+                      value={chatInput}
+                      onChange={e => setChatInput(e.target.value)}
+                      disabled={isLoading}
+                    />
+                    <Button type="submit" size="icon" className="h-12 w-12 rounded-full shadow-lg" disabled={isLoading || !chatInput.trim()}>
+                      <Send className="h-5 w-5" />
+                    </Button>
+                  </form>
+                </Card>
+              </div>
+            )}
+
+            {/* Other tabs follow same patterns as before */}
+            {activeTab === 'notes' && (
+              <div className="space-y-8 animate-in fade-in">
+                <header className="flex justify-between items-center border-b pb-6">
+                  <div>
+                    <h1 className="text-3xl font-bold font-headline">Research Notes</h1>
+                    <p className="text-muted-foreground">Captured fragments and study reflections.</p>
+                  </div>
+                  <Button variant="outline" onClick={() => exportToGoogleDocs('Study Notes', notes.map(n => `Source: ${n.source}\n${n.content}\n---`).join('\n'))}>
+                    <ExternalLink className="h-4 w-4 mr-2" /> Export to Docs
+                  </Button>
+                </header>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {notes.map(note => (
+                    <Card key={note.id} className="relative group">
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-center">
+                          <Badge variant="outline" className="text-[10px]">{note.source}</Badge>
+                          <span className="text-[10px] text-muted-foreground">{note.date}</span>
+                        </div>
+                      </CardHeader>
+                      <CardContent><p className="text-sm font-serif line-clamp-6">{note.content}</p></CardContent>
+                      <CardFooter className="justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setNotes(notes.filter(n => n.id !== note.id))}><Trash2 className="h-4 w-4" /></Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
                 </div>
               </div>
             )}
@@ -647,13 +789,6 @@ export default function Home() {
                                     <p className="text-sm font-medium">{item.citation}</p>
                                   </div>
                                   <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <DropdownMenu>
-                                      <DropdownMenuTrigger asChild><Button variant="outline" size="sm">Get Citation</Button></DropdownMenuTrigger>
-                                      <DropdownMenuContent>
-                                        <DropdownMenuItem onClick={() => generateSpecificCitation(item, 'footnote')}>As Footnote</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => generateSpecificCitation(item, 'inline')}>As Inline Ref</DropdownMenuItem>
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
                                     <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setBiblioItems(biblioItems.filter(i => i.id !== item.id))}><Trash2 className="h-4 w-4" /></Button>
                                   </div>
                                 </CardContent>
@@ -674,6 +809,39 @@ export default function Home() {
                       </CardContent>
                     </Card>
                   </aside>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'papers' && (
+              <div className="space-y-8 animate-in fade-in">
+                <header className="flex justify-between items-center border-b pb-6">
+                  <div>
+                    <h1 className="text-3xl font-bold font-headline">Research Library</h1>
+                    <p className="text-muted-foreground">Your custom knowledge base for the Scholar AI.</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <input type="file" className="hidden" ref={fileInputRef} onChange={handleFileUpload} accept=".pdf,.docx,.txt" />
+                    <Button onClick={() => fileInputRef.current?.click()} disabled={isLoading}><Plus className="h-4 w-4 mr-2" /> Add Paper</Button>
+                  </div>
+                </header>
+                <div className="grid gap-4 md:grid-cols-3">
+                  {researchPapers.map(paper => (
+                    <Card key={paper.id} className="group overflow-hidden">
+                      <div className={`h-1 w-full ${paper.format === 'pdf' ? 'bg-red-500' : paper.format === 'docx' ? 'bg-blue-500' : 'bg-gray-500'}`} />
+                      <CardHeader className="pb-2">
+                        <div className="flex justify-between items-start">
+                          <CardTitle className="text-sm font-bold line-clamp-1">{paper.title}</CardTitle>
+                          <Badge variant="secondary" className="text-[8px] uppercase">{paper.format}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent><p className="text-[10px] text-muted-foreground line-clamp-3 italic">Uploaded on {paper.date}</p></CardContent>
+                      <CardFooter className="justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleSaveNote(paper.content, `Paper: ${paper.title}`)}><Copy className="h-3 w-3" /></Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setResearchPapers(researchPapers.filter(p => p.id !== paper.id))}><Trash2 className="h-3 w-3" /></Button>
+                      </CardFooter>
+                    </Card>
+                  ))}
                 </div>
               </div>
             )}
@@ -742,9 +910,6 @@ export default function Home() {
                 </div>
               </div>
             )}
-            
-            {/* Additional tab views (lexicon, dictionaries, etc) continue with same integration patterns */}
-
           </main>
         </SidebarInset>
 
@@ -766,4 +931,10 @@ export default function Home() {
       </div>
     </SidebarProvider>
   );
+}
+
+async function exportToGoogleDocs(title: string, content: string) {
+  // Simulating export functionality - in a real app this would call Google Docs API via server action
+  navigator.clipboard.writeText(content);
+  window.open('https://docs.google.com/', '_blank');
 }
