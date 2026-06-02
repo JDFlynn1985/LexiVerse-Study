@@ -26,7 +26,12 @@ export const enUS = {
     help: "Help Center",
     logout: "Logout",
     login_google: "Link Google",
-    boilerplate: "Module Boilerplate"
+    boilerplate: "Module Boilerplate",
+    api_portal: "API Access",
+    admin_api: "Provision Keys",
+    institutions: "Institutions",
+    system_control: "System Control",
+    module_governance: "Modules"
   },
   dashboard: {
     title: "Research Workspace",

@@ -10,11 +10,11 @@ import {
   signOut
 } from 'firebase/auth';
 import { doc, setDoc, onSnapshot, getDoc, updateDoc, collection, getDocs, query, orderBy, addDoc, limit, where, serverTimestamp } from 'firebase/firestore';
-import { appConfig } from '@/app-config';
 import { useAuth, useFirestore, useUser, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { logSearch } from '@/lib/search-logging';
 import { useLanguage } from '@/components/language-provider';
 import { getGravatarUrl } from '@/lib/utils';
+import { getIconByName } from '@/lib/icons';
 
 // UI Layout Components
 import { 
@@ -35,7 +35,8 @@ import {
   LogOut, 
   Moon, 
   Sun, 
-  User
+  User,
+  Loader2
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -51,7 +52,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 // Config & Types
 import { ViewMode, UserProfile } from '@/types/scholarly';
-import { SCHOLARLY_MODULES, GOVERNANCE_MODULES } from '@/config/modules';
+import { DEFAULT_MODULES, GOVERNANCE_MODULES } from '@/config/modules';
 
 // Modular View Components
 import { DashboardView } from '@/components/views/dashboard-view';
@@ -94,6 +95,8 @@ export default function Home() {
   const [availableVersions, setAvailableVersions] = useState<BibleVersion[]>([]);
   const [institutions, setInstitutions] = useState<{id: string, name: string}[]>([]);
   const [localApiKey, setLocalApiKey] = useState<string>('');
+  const [dynamicModules, setDynamicModules] = useState<any[]>([]);
+  const [modulesLoading, setModulesLoading] = useState(true);
   
   const [aiPrefs, setAiPrefs] = useState({
     modelProvider: 'google' as 'google' | 'local',
@@ -150,7 +153,17 @@ export default function Home() {
         setSystemConfig(data);
       }
     });
-    return () => unsubConfig();
+
+    const unsubModules = onSnapshot(collection(db, 'system', 'modules'), (snap) => {
+      const mods = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      setDynamicModules(mods);
+      setModulesLoading(false);
+    });
+
+    return () => {
+      unsubConfig();
+      unsubModules();
+    };
   }, [db, refreshLocalDocs]);
 
   useEffect(() => {
@@ -265,9 +278,21 @@ export default function Home() {
     return res || key;
   };
 
-  /**
-   * Native View Mapping - Directly merges modular code into the app lifecycle.
-   */
+  // Combine static defaults with dynamic overrides from Firestore
+  const getActiveModules = (group: string) => {
+    const staticGroup = [...DEFAULT_MODULES, ...GOVERNANCE_MODULES].filter(m => m.group === group);
+    
+    // If modules are still loading, show defaults
+    if (modulesLoading || dynamicModules.length === 0) return staticGroup;
+
+    // Filter based on Firestore 'enabled' status
+    return staticGroup.filter(m => {
+      const dynamic = dynamicModules.find(dm => dm.id === m.id);
+      if (dynamic) return dynamic.enabled === true;
+      return true; // Default to enabled if not explicitly in Firestore
+    });
+  };
+
   const renderModularContent = () => {
     switch (activeTab) {
       case 'dashboard': return <DashboardView t={t} effectiveApiKey={effectiveApiKey} isLocalMode={isLocalMode} aiPrefs={aiPrefs} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} />;
@@ -306,7 +331,7 @@ export default function Home() {
             <SidebarGroup>
               <SidebarGroupLabel>General</SidebarGroupLabel>
               <SidebarMenu>
-                {SCHOLARLY_MODULES.filter(m => m.group === 'general').map(m => (
+                {getActiveModules('general').map(m => (
                   <SidebarMenuItem key={m.id}>
                     {m.path ? (
                       <SidebarMenuButton asChild tooltip={getTranslatedLabel(m.labelKey)}>
@@ -325,7 +350,7 @@ export default function Home() {
             <SidebarGroup>
               <SidebarGroupLabel>{t.nav.ai_hub}</SidebarGroupLabel>
               <SidebarMenu>
-                {SCHOLARLY_MODULES.filter(m => m.group === 'ai_hub').map(m => (
+                {getActiveModules('ai_hub').map(m => (
                   <SidebarMenuItem key={m.id}>
                     {m.path ? (
                       <SidebarMenuButton asChild tooltip={getTranslatedLabel(m.labelKey)}>
@@ -344,7 +369,7 @@ export default function Home() {
             <SidebarGroup>
               <SidebarGroupLabel>Governance</SidebarGroupLabel>
               <SidebarMenu>
-                {GOVERNANCE_MODULES.map((m, idx) => {
+                {getActiveModules('governance').map((m, idx) => {
                   if (m.adminOnly && !userProfile?.isAdmin) return null;
                   return (
                     <SidebarMenuItem key={idx}>
@@ -402,7 +427,12 @@ export default function Home() {
 
         <SidebarInset>
           <main id="main-content" className="container max-w-5xl mx-auto py-10 px-6 min-h-screen">
-            {renderModularContent()}
+            {modulesLoading ? (
+              <div className="flex flex-col items-center justify-center py-40 gap-4">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground italic">Synchronizing Scholarly Workspace...</p>
+              </div>
+            ) : renderModularContent()}
           </main>
         </SidebarInset>
       </div>

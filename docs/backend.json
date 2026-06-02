@@ -98,6 +98,21 @@
       },
       "required": ["content", "senderUid", "type", "createdAt"]
     },
+    "ScholarlyModule": {
+      "title": "Scholarly Module",
+      "description": "Definition of a research tool module for dynamic activation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "labelKey": { "type": "string" },
+        "iconName": { "type": "string" },
+        "group": { "type": "string", "enum": ["general", "ai_hub", "governance"] },
+        "enabled": { "type": "boolean" },
+        "adminOnly": { "type": "boolean" },
+        "path": { "type": "string" }
+      },
+      "required": ["id", "labelKey", "iconName", "group", "enabled"]
+    },
     "APIKey": {
       "title": "API Key",
       "description": "Authentication credentials for external research access.",
@@ -182,6 +197,10 @@
     "/system/config": {
       "schema": "#/backend/entities/SystemSettings",
       "description": "Global system configuration."
+    },
+    "/system/modules/{moduleId}": {
+      "schema": "#/backend/entities/ScholarlyModule",
+      "description": "Scholarly modules and their availability status."
     },
     "/system/error_logs/{logId}": {
         "schema": "#/backend/entities/ErrorLog",

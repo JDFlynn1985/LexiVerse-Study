@@ -17,7 +17,8 @@ import {
   Puzzle,
   Key,
   School,
-  Settings
+  Settings,
+  Layers
 } from 'lucide-react';
 import { ViewMode } from '@/types/scholarly';
 
@@ -31,10 +32,10 @@ export interface ModuleDefinition {
 }
 
 /**
- * SCHOLARLY_MODULES - The single source of truth for the LexiVerse toolset.
- * Adding an entry here automatically updates the sidebar and mobile nav.
+ * DEFAULT_MODULES - The baseline set of scholarly tools.
+ * In a managed environment, these are seeded into Firestore for administrative control.
  */
-export const SCHOLARLY_MODULES: ModuleDefinition[] = [
+export const DEFAULT_MODULES: ModuleDefinition[] = [
   { id: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard, group: 'general' },
   { id: 'chat', labelKey: 'nav.chat_hub', icon: MessageSquare, group: 'general' },
   { id: 'wiki', labelKey: 'nav.wiki', icon: GraduationCap, group: 'general', path: '/wiki' },
@@ -51,5 +52,6 @@ export const GOVERNANCE_MODULES: ModuleDefinition[] = [
   { id: 'profile', labelKey: 'nav.api_portal', icon: Key, group: 'governance', path: '/api-keys' },
   { id: 'dashboard', labelKey: 'nav.admin_api', icon: Key, group: 'governance', adminOnly: true, path: '/admin/api' },
   { id: 'dashboard', labelKey: 'nav.institutions', icon: School, group: 'governance', adminOnly: true, path: '/admin/institutions' },
-  { id: 'dashboard', labelKey: 'nav.system_control', icon: Settings, group: 'governance', adminOnly: true, path: '/admin/settings' }
+  { id: 'dashboard', labelKey: 'nav.system_control', icon: Settings, group: 'governance', adminOnly: true, path: '/admin/settings' },
+  { id: 'dashboard', labelKey: 'nav.module_governance', icon: Layers, group: 'governance', adminOnly: true, path: '/admin/modules' }
 ];

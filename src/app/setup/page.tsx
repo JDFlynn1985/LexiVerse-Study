@@ -3,18 +3,19 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, writeBatch } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ShieldCheck, Database, Sparkles, Activity, Key, CheckCircle2, Loader2, LogIn, Globe, WifiOff } from 'lucide-react';
+import { ShieldCheck, Database, Sparkles, Activity, Key, CheckCircle2, Loader2, LogIn, Globe, WifiOff, Layers } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { useAuth } from '@/firebase';
 import { cn } from '@/lib/utils';
+import { DEFAULT_MODULES } from '@/config/modules';
 
 export default function SetupWizard() {
   const router = useRouter();
@@ -65,16 +66,41 @@ export default function SetupWizard() {
 
     setLoading(true);
     try {
-      await setDoc(doc(db, 'system', 'config'), {
+      const batch = writeBatch(db);
+
+      // 1. System Config
+      batch.set(doc(db, 'system', 'config'), {
         ...formData,
         isConfigured: true,
         updatedAt: new Date().toISOString()
       });
 
+      // 2. Default Modules Seeding
+      DEFAULT_MODULES.forEach(mod => {
+        // Simplified object for Firestore storage (exclude the Icon component)
+        const iconName = mod.id === 'dashboard' ? 'layout-dashboard' : 
+                         mod.id === 'chat' ? 'message-square' :
+                         mod.id === 'wiki' ? 'graduation-cap' :
+                         mod.id === 'ai-assistant' ? 'sparkles' :
+                         mod.id === 'theology' ? 'history' :
+                         mod.id === 'manuscripts' ? 'file-search' :
+                         mod.id === 'lexicon' ? 'book-open' :
+                         mod.id === 'synthesis' ? 'feather' : 'puzzle';
+
+        batch.set(doc(db, 'system', 'modules', mod.id), {
+          id: mod.id,
+          labelKey: mod.labelKey,
+          iconName: iconName,
+          group: mod.group,
+          enabled: true,
+          adminOnly: mod.adminOnly || false,
+          path: mod.path || null
+        });
+      });
+
+      // 3. Admin User
       const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
-      
-      const userData = {
+      batch.set(userRef, {
         uid: user.uid,
         displayName: user.displayName,
         email: user.email,
@@ -82,15 +108,11 @@ export default function SetupWizard() {
         isModerator: true,
         isTrustedContributor: true,
         updatedAt: new Date().toISOString()
-      };
+      }, { merge: true });
 
-      if (userSnap.exists()) {
-        await updateDoc(userRef, userData);
-      } else {
-        await setDoc(userRef, userData);
-      }
+      await batch.commit();
 
-      toast({ title: "Configuration Saved", description: "Your scholarly workspace is ready, and you have been granted System Admin status." });
+      toast({ title: "Configuration Saved", description: "Your scholarly workspace is ready, and modules have been initialized." });
       router.push('/');
     } catch (e: any) {
       toast({ variant: 'destructive', title: "Setup Failed", description: e.message });
@@ -186,23 +208,17 @@ export default function SetupWizard() {
           {step === 3 && (
             <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
               <div className="flex items-center gap-2 text-primary font-bold">
-                <Activity className="h-5 w-5" />
-                <h3>Analytics Integration</h3>
+                <Layers className="h-5 w-5" />
+                <h3>Module Provisioning</h3>
               </div>
-              <p className="text-sm text-muted-foreground">Optional: Track research engagement with Google Analytics or Matomo.</p>
-              <div className="grid gap-4">
-                <div className="space-y-2">
-                  <Label>GA4 Measurement ID</Label>
-                  <Input placeholder="G-XXXXXXXXXX" value={formData.gaMeasurementId} onChange={e => setFormData({...formData, gaMeasurementId: e.target.value})} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Matomo Site ID</Label>
-                  <Input placeholder="e.g. 1" value={formData.matomoSiteId} onChange={e => setFormData({...formData, matomoSiteId: e.target.value})} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Matomo Instance URL</Label>
-                  <Input placeholder="https://analytics.yoursite.com" value={formData.matomoUrl} onChange={e => setFormData({...formData, matomoUrl: e.target.value})} />
-                </div>
+              <p className="text-sm text-muted-foreground">The platform will automatically initialize the following scholarly tools for your environment:</p>
+              <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-4 bg-muted/30 rounded-lg border">
+                {DEFAULT_MODULES.map(m => (
+                  <div key={m.id} className="flex items-center gap-2 text-[10px]">
+                    <CheckCircle2 className="h-3 w-3 text-green-600" />
+                    <span>{m.id}</span>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -235,7 +251,7 @@ export default function SetupWizard() {
             <div className="text-center space-y-4 py-6 animate-in zoom-in-95">
               <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto" />
               <h3 className="text-xl font-bold font-headline">Ready for Deployment</h3>
-              <p className="text-sm text-muted-foreground">All parameters have been validated and the root administrator has been verified. Click complete to finalize.</p>
+              <p className="text-sm text-muted-foreground">All parameters have been validated and the modules registry is prepared. Click complete to finalize.</p>
             </div>
           )}
         </CardContent>
