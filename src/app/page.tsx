@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -44,13 +45,10 @@ import {
   Key,
   Code,
   Cpu,
-  RefreshCw,
-  ShieldCheck,
-  ShieldAlert,
   WifiOff
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -64,6 +62,8 @@ import {
   DropdownMenuLabel
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // AI Flow Imports
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
@@ -105,14 +105,12 @@ export default function Home() {
   const { user } = useUser();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   
-  // System Config State
   const [systemConfig, setSystemConfig] = useState<any>(null);
   const [history, setHistory] = useState<{id: string, type: string, term: string, date: string}[]>([]);
   const [localDocuments, setLocalDocuments] = useState<IDBDocument[]>([]);
   const [availableVersions, setAvailableVersions] = useState<BibleVersion[]>([]);
   const [localApiKey, setLocalApiKey] = useState<string>('');
   
-  // Derived Preferences
   const [aiPrefs, setAiPrefs] = useState({
     modelProvider: 'google' as 'google' | 'local',
     selectedModel: 'googleai/gemini-2.5-flash',
@@ -143,7 +141,6 @@ export default function Home() {
     refreshLocalDocs();
     getVersions().then(setAvailableVersions);
 
-    // Fetch Global System Config
     const unsubConfig = onSnapshot(doc(db, 'system', 'config'), (snap) => {
       if (snap.exists()) {
         const data = snap.data();
@@ -186,12 +183,11 @@ export default function Home() {
     }
   }, [user, db, language]);
 
-  // CALCULATION OF EFFECTIVE AI STATE
   const effectiveApiKey = localApiKey || aiPrefs.customApiKey || systemConfig?.geminiApiKey;
   const isLocalMode = aiPrefs.modelProvider === 'local';
   const effectiveModel = isLocalMode 
     ? aiPrefs.selectedModel 
-    : (aiPrefs.selectedModel.includes('/') ? aiPrefs.selectedModel : `googleai/${aiPrefs.selectedModel}`);
+    : (aiPrefs.selectedModel?.includes('/') ? aiPrefs.selectedModel : `googleai/${aiPrefs.selectedModel}`);
 
   const handleSearch = async (term: string, type: ViewMode) => {
     if (!term.trim()) return;
@@ -302,20 +298,38 @@ export default function Home() {
             <SidebarGroup>
               <SidebarGroupLabel>General</SidebarGroupLabel>
               <SidebarMenu>
-                <SidebarMenuItem><SidebarMenuButton isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} tooltip="Dashboard"><LayoutDashboard className="h-5 w-5" /> <span>Dashboard</span></SidebarMenuButton></SidebarMenuItem>
-                <SidebarMenuItem><SidebarMenuButton isActive={activeTab === 'wiki'} onClick={() => setActiveTab('wiki')} tooltip="Scholarly Wiki"><GraduationCap className="h-5 w-5" /> <span>Scholarly Wiki</span></SidebarMenuButton></SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} tooltip="Dashboard">
+                    <LayoutDashboard className="h-5 w-5" /> <span>Dashboard</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'wiki'} onClick={() => setActiveTab('wiki')} tooltip="Scholarly Wiki">
+                    <GraduationCap className="h-5 w-5" /> <span>Scholarly Wiki</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
 
             <SidebarGroup>
               <SidebarGroupLabel>AI Research Hub</SidebarGroupLabel>
               <SidebarMenu>
-                <SidebarMenuItem><SidebarMenuButton isActive={activeTab === 'ai-assistant'} onClick={() => setActiveTab('ai-assistant')} tooltip="Study Assistant"><Sparkles className="h-5 w-5" /> <span>Study Assistant</span></SidebarMenuButton></SidebarMenuItem>
-                <SidebarMenuItem><SidebarMenuButton isActive={activeTab === 'lexicon'} onClick={() => setActiveTab('lexicon')} tooltip="Lexicon Analysis"><BookOpen className="h-5 w-5" /> <span>Lexicon</span></SidebarMenuButton></SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'ai-assistant'} onClick={() => setActiveTab('ai-assistant')} tooltip="Study Assistant">
+                    <Sparkles className="h-5 w-5" /> <span>Study Assistant</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'lexicon'} onClick={() => setActiveTab('lexicon')} tooltip="Lexicon Analysis">
+                    <BookOpen className="h-5 w-5" /> <span>Lexicon</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild tooltip="API Portal">
                     <Link href="/api-keys">
-                      <Code className="h-5 w-5" /> <span>API Portal</span>
+                      <div className="flex items-center gap-2">
+                        <Code className="h-5 w-5" /> <span>API Portal</span>
+                      </div>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -329,14 +343,18 @@ export default function Home() {
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild tooltip="Admin API Management">
                       <Link href="/admin/api">
-                        <Key className="h-5 w-5" /> <span>Admin API Mgmt</span>
+                        <div className="flex items-center gap-2">
+                          <Key className="h-5 w-5" /> <span>Admin API Mgmt</span>
+                        </div>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild tooltip="System Control Panel">
                       <Link href="/admin/settings">
-                        <Settings className="h-5 w-5" /> <span>System Control</span>
+                        <div className="flex items-center gap-2">
+                          <Settings className="h-5 w-5" /> <span>System Control</span>
+                        </div>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -406,10 +424,11 @@ export default function Home() {
                 <div className="grid gap-6 md:grid-cols-3">
                   <Card className="md:col-span-2 shadow-md border-primary/10">
                     <CardHeader>
-                      <CardTitle className="font-headline flex items-center gap-2">
+                      <CardTitle className="font-headline flex items-center gap-2 text-xl">
                         <Sparkles className={cn("h-5 w-5", effectiveApiKey || isLocalMode ? "text-primary" : "text-muted-foreground")} /> 
                         {isLocalMode ? `Local Assistant (${aiPrefs.selectedModel})` : "Cloud Assistant (Gemini)"}
                       </CardTitle>
+                      <CardDescription>Synthesize findings from your research context.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="flex gap-2">

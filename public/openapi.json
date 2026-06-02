@@ -1,0 +1,126 @@
+
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "LexiVerse Research API",
+    "description": "External scholarly research access to the LexiVerse Explorer AI engine. Integrates scripture analysis, linguistic cross-referencing, and retrieval-augmented generation (RAG).",
+    "version": "1.0.0",
+    "contact": {
+      "name": "LexiVerse Support",
+      "url": "https://lexiverse.app/support"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://lexiverse.app",
+      "description": "Production API Server"
+    },
+    {
+      "url": "http://localhost:9002",
+      "description": "Development API Server"
+    }
+  ],
+  "paths": {
+    "/api/v1/research": {
+      "post": {
+        "summary": "Execute Scholarly Research",
+        "description": "Performs in-depth analysis of a scripture term or concept using the configured AI engine (Gemini or Local Ollama). Supports context injection for custom manuscript analysis.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "term": {
+                    "type": "string",
+                    "example": "John 3:16",
+                    "description": "The scripture reference or Greek/Hebrew term to research."
+                  },
+                  "researchContext": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Optional list of text excerpts from scholarly papers to serve as research context (RAG)."
+                  }
+                },
+                "required": ["term"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful research synthesis",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResearchResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - Missing or invalid Bearer token"
+          },
+          "429": {
+            "description": "Rate Limit Exceeded - Tier quota reached for the day"
+          },
+          "500": {
+            "description": "Internal Engine Error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "API Key"
+      }
+    },
+    "schemas": {
+      "ResearchResult": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "originalWord": { "type": "string" },
+              "transliteration": { "type": "string" },
+              "pronunciation": { "type": "string" },
+              "definitions": { "type": "array", "items": { "type": "string" } },
+              "aiInsights": { "type": "string" },
+              "bibliography": { 
+                "type": "array", 
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "text": { "type": "string" },
+                    "url": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "tier": { "type": "string" },
+              "remaining": { "type": "number" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
