@@ -40,6 +40,7 @@ npm run dev
 
 ## 📖 Scholarly Standards & Manuals
 
+- **[Tech Stack](docs/TECH_STACK.md)**: Full breakdown of frameworks and libraries used.
 - **[Security Policy](docs/SECURITY.md)**: Details on multi-layered defense and data protection.
 - **[Privacy Standards](docs/PRIVACY.md)**: Information on Local-First storage and researcher data rights.
 - **[Accessibility (WCAG)](docs/ACCESSIBILITY.md)**: Our commitment to inclusive design for all scholars.
