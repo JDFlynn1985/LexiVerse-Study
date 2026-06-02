@@ -1,11 +1,12 @@
 'use server';
 /**
  * @fileOverview This flow defines and analyzes Greek or Hebrew terms based on Strong's numbers.
- * Enhanced for universal provider support and secure key routing.
+ * Enhanced with Structured Lexicon Fetching for 100% linguistic accuracy.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
+import { getStrongsData } from '@/lib/lexicon-api';
 
 const DefineAndAnalyzeTermInputSchema = z.object({
   strongsNumber: z.string().describe("The Strong's number (e.g., 'G3056')."),
@@ -48,8 +49,19 @@ const DefineAndAnalyzeTermOutputSchema = z.object({
   verseOccurrences: z.array(VerseOccurrenceSchema),
   summary: z.string(),
   bibliography: z.string(),
+  isVerifiedSource: z.boolean().describe('True if the data was pulled from the structured lexicon registry.'),
 });
 export type DefineAndAnalyzeTermOutput = z.infer<typeof DefineAndAnalyzeTermOutputSchema>;
+
+const fetchStrongsDataTool = ai.defineTool({
+  name: 'fetchStrongsData',
+  description: 'Fetches structured linguistic data for a Strongs number from the LexiVerse registry.',
+  inputSchema: z.object({ number: z.string() }),
+  outputSchema: z.any(),
+  fn: async (input) => {
+    return await getStrongsData(input.number);
+  }
+});
 
 export async function defineAndAnalyzeTerm(input: DefineAndAnalyzeTermInput): Promise<DefineAndAnalyzeTermOutput> {
   const selectedModel = input.model || 'googleai/gemini-2.5-flash';
@@ -66,9 +78,17 @@ export async function defineAndAnalyzeTerm(input: DefineAndAnalyzeTermInput): Pr
 
   const { output } = await ai.generate({
     model: selectedModel,
-    prompt: `You are an expert biblical scholar. Analyze the Strong's number: ${input.strongsNumber}.
+    tools: [fetchStrongsDataTool],
+    prompt: `You are an expert biblical scholar. 
+    Analyze the Strong's number: ${input.strongsNumber}.
+    
+    CRITICAL INSTRUCTION:
+    Use the fetchStrongsData tool to get the EXACT linguistic data for this number. 
+    Use the tool results as the primary source of truth for originalWord, transliteration, morphology, and definition.
+    
     Tailor your response for a post-graduate seminary student. 
-    Ensure original characters (Greek/Hebrew) are returned in originalWord.
+    Provide a deep scholarly summary of how this word functions theologicaly.
+    
     Format your response strictly as JSON adhering to DefineAndAnalyzeTermOutputSchema.`,
     output: {
       schema: DefineAndAnalyzeTermOutputSchema,

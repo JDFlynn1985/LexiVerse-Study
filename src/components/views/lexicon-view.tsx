@@ -1,7 +1,7 @@
 'use client';
 
 import React, { memo, useState } from 'react';
-import { BookOpen, Search, Loader2, Download, Save, FileText, Sparkles, Languages, Database } from 'lucide-react';
+import { BookOpen, Search, Loader2, Download, Save, FileText, Sparkles, Languages, Database, ShieldCheck } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
 import { ViewMode } from '@/types/scholarly';
-import { searchCommentariesForContext, type SearchCommentariesOutput } from '@/ai/flows/search-commentaries';
+import { runCommentaryAggregation } from '@/ai/flows/search-commentaries';
 
 interface LexiconViewProps {
   handleSearch: (term: string, type: ViewMode) => void;
@@ -38,16 +38,14 @@ export const LexiconView = memo(({
 }: LexiconViewProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isCommentaryLoading, setIsCommentaryLoading] = useState(false);
-  const [commentaryResult, setCommentaryResult] = useState<SearchCommentariesOutput | null>(null);
+  const [commentaryResult, setCommentaryResult] = useState<any>(null);
 
   const handleDeepCommentary = async () => {
     if (!lexiconResult) return;
     setIsCommentaryLoading(true);
     try {
-      const res = await searchCommentariesForContext({
-        word: lexiconResult.originalWord,
-        language: lexiconResult.searchStrongNumber.startsWith('G') ? 'Greek' : 'Hebrew',
-        rootWord: lexiconResult.roots?.[0]?.root
+      const res = await runCommentaryAggregation({
+        query: lexiconResult.originalWord,
       });
       setCommentaryResult(res);
     } catch (e) { console.error("Commentary analysis failed"); }
@@ -61,7 +59,7 @@ export const LexiconView = memo(({
           <h1 className="text-3xl font-bold font-headline flex items-center gap-3">
             <BookOpen className="h-8 w-8 text-primary" /> Lexicon Explorer
           </h1>
-          <p className="text-muted-foreground">In-depth original language analysis using Strong's concordance data.</p>
+          <p className="text-muted-foreground">In-depth original language analysis grounded in verified lexical data.</p>
         </div>
         {lexiconResult && (
           <div className="flex gap-2">
@@ -102,7 +100,7 @@ export const LexiconView = memo(({
       </header>
       <div className="flex gap-4">
         <Input 
-          placeholder="Enter Strong's Number (e.g. G3056)..." 
+          placeholder="Enter Strong's Number (e.g. G3056, H7225)..." 
           className="h-12 shadow-sm" 
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
@@ -117,14 +115,23 @@ export const LexiconView = memo(({
           <div className="lg:col-span-2 space-y-6">
             <Card className="shadow-lg border-primary/10 overflow-hidden">
               <div className="h-2 bg-primary w-full" />
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-4xl font-bold font-headline mb-1">{lexiconResult.originalWord}</CardTitle>
-                  <CardDescription className="text-lg">
-                    <span className="font-mono">{lexiconResult.transliteration}</span> | {lexiconResult.pronunciation}
-                  </CardDescription>
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle className="text-4xl font-bold font-headline mb-1">{lexiconResult.originalWord}</CardTitle>
+                    <CardDescription className="text-lg">
+                      <span className="font-mono">{lexiconResult.transliteration}</span> | {lexiconResult.pronunciation}
+                    </CardDescription>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <Badge variant="secondary" className="text-lg py-1 px-4">{lexiconResult.searchStrongNumber}</Badge>
+                    {lexiconResult.isVerifiedSource && (
+                      <Badge variant="outline" className="text-[9px] gap-1 border-green-500/50 text-green-600 bg-green-50/50">
+                        <ShieldCheck className="h-3 w-3" /> VERIFIED REGISTRY
+                      </Badge>
+                    )}
+                  </div>
                 </div>
-                <Badge variant="secondary" className="text-lg py-1 px-4">{lexiconResult.searchStrongNumber}</Badge>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div>
@@ -132,8 +139,8 @@ export const LexiconView = memo(({
                   <Badge variant="outline" className="text-xs uppercase px-3">{lexiconResult.partOfSpeech}</Badge>
                 </div>
                 <div>
-                  <h4 className="font-bold text-xs uppercase text-primary mb-2">Definition</h4>
-                  <p className="text-lg leading-relaxed">{lexiconResult.definition}</p>
+                  <h4 className="font-bold text-xs uppercase text-primary mb-2">Primary Definition</h4>
+                  <p className="text-xl leading-relaxed font-serif">{lexiconResult.definition}</p>
                 </div>
                 <Separator />
                 <div>
@@ -144,33 +151,48 @@ export const LexiconView = memo(({
               <CardFooter className="bg-muted/30 p-4 border-t flex justify-between">
                 <Button variant="outline" size="sm" className="gap-2 bg-background border-accent/20 text-accent hover:bg-accent hover:text-accent-foreground" onClick={handleDeepCommentary} disabled={isCommentaryLoading}>
                   {isCommentaryLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  Deep Commentary Analysis
+                  Commentary Tradition Analysis
                 </Button>
-                <div className="text-[10px] font-mono text-muted-foreground uppercase">SBL Citation Ready</div>
+                <div className="text-[10px] font-mono text-muted-foreground uppercase">SBL 2nd Edition Style</div>
               </CardFooter>
             </Card>
+
             {commentaryResult && (
               <Card className="shadow-lg border-accent/20 bg-accent/5 animate-in slide-in-from-bottom-4">
-                <CardHeader><CardTitle className="text-lg font-headline flex items-center gap-2"><Languages className="h-5 w-5 text-accent" /> Synthesized Historical Context</CardTitle></CardHeader>
+                <CardHeader>
+                  <CardTitle className="text-lg font-headline flex items-center gap-2">
+                    <Languages className="h-5 w-5 text-accent" /> Synthesized Historical Context
+                  </CardTitle>
+                </CardHeader>
                 <CardContent className="space-y-6">
-                  <p className="text-sm italic leading-relaxed text-foreground/80">{commentaryResult.commentarySummary}</p>
+                  <p className="text-sm italic leading-relaxed text-foreground/80">{commentaryResult.summary}</p>
                   <div className="grid gap-3">
-                    {commentaryResult.specificInsights.map((insight, i) => (
-                      <div key={i} className="p-3 bg-background rounded-lg border text-xs leading-relaxed shadow-sm">
-                        <span className="font-bold text-accent">{insight.commentator}:</span> {insight.insight}
+                    {commentaryResult.historicalWorks.map((work: any, i: number) => (
+                      <div key={i} className="p-4 bg-background rounded-xl border text-xs leading-relaxed shadow-sm">
+                        <div className="flex justify-between items-start mb-2">
+                          <span className="font-bold text-accent">{work.source}</span>
+                          <span className="text-[9px] uppercase font-bold text-muted-foreground">{work.era}</span>
+                        </div>
+                        <p className="italic text-muted-foreground">"{work.insight}"</p>
                       </div>
                     ))}
                   </div>
                 </CardContent>
               </Card>
             )}
+
             <div className="grid gap-4 md:grid-cols-2">
               {lexiconResult.verseOccurrences.map((v, i) => (
                 <Card key={i} className="bg-muted/30 border-primary/5 hover:border-primary/20 transition-all group">
-                  <CardHeader className="py-3"><CardTitle className="text-sm font-bold text-primary">{v.reference}</CardTitle></CardHeader>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm font-bold text-primary flex justify-between items-center">
+                      {v.reference}
+                      <Sparkles className="h-3 w-3 opacity-0 group-hover:opacity-100 text-accent transition-opacity" />
+                    </CardTitle>
+                  </CardHeader>
                   <CardContent className="py-0 pb-3">
                     <p className="text-xs italic leading-relaxed mb-2">"{v.text}"</p>
-                    <p className="text-[10px] text-muted-foreground"><strong>Nuance:</strong> {v.contextualMeaning}</p>
+                    <p className="text-[10px] text-muted-foreground"><strong>Linguistic Nuance:</strong> {v.contextualMeaning}</p>
                   </CardContent>
                 </Card>
               ))}

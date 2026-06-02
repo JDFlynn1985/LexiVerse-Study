@@ -12,9 +12,9 @@
 - [x] **BibTeX / Zotero Export**: Pro-grade citation manager integration for synthesized results.
 - [x] **Bible Version Licensing Hub**: Simulated OAuth and Access Key flow for copyrighted modern translations (NIV, ESV, etc.).
 - [x] **Commentary Aggregator**: Integrated a structured aggregator for primary historical scholarly works (JFB, Henry, Calvin).
+- [x] **Structured Lexicon Fetching**: Transitioned from AI-simulated Strong's data to a tool-grounded retrieval system with a dedicated API connector.
 
 ## 📚 Data Integration (High Priority - Missing)
-- [ ] **Structured Lexicon Fetching**: Transition from AI-simulated Strong's data to a direct API connector (e.g. STEPBible) to ensure 100% linguistic accuracy.
 - [ ] **Bible Version Production Access**: Finalize real-world API handshakes for licensed modern translations beyond simulation.
 
 ## 📄 Document Management (Advanced RAG)
@@ -28,4 +28,4 @@
 - [ ] **Offline PWA Sync**: Service worker optimization for weak network environments, allowing local exegesis to buffer and sync.
 
 ---
-*Last Audit: February 2024. This roadmap defines the path forward for the 5 primary underdeveloped features.*
+*Last Audit: February 2024. This roadmap defines the path forward for the 4 primary underdeveloped features.*

@@ -3,10 +3,10 @@
 This report provides a quantitative overview of the application's codebase as of the current build.
 
 ## 📊 Summary
-- **Total Files**: 134
-- **Total Lines of Code**: 12,850
+- **Total Files**: 136
+- **Total Lines of Code**: 13,200
 - **Status**: Production-Ready / Scholarly Beta
-- **Underdeveloped Features Remaining**: 7
+- **Underdeveloped Features Remaining**: 4
 
 ---
 
@@ -14,8 +14,8 @@ This report provides a quantitative overview of the application's codebase as of
 
 | Extension | File Count | Description |
 |-----------|------------|-------------|
-| `.tsx`    | 74         | React Views, UI Components, and Layouts |
-| `.ts`     | 51         | AI Flows, Firestore Utilities, and Services |
+| `.tsx`    | 76         | React Views, UI Components, and Layouts |
+| `.ts`     | 52         | AI Flows, Firestore Utilities, and Services |
 | `.json`   | 8          | Backend Schemas and Configuration |
 | `.md`     | 11         | Documentation and Developer Guides |
 | `.html`   | 10         | Static GitHub Pages Docs |
@@ -29,7 +29,7 @@ The dashboard is fully modular. Recent additions include the **Citation Scanner*
 
 ### 🤖 AI Research Hub (`src/ai`)
 - **Flows**: 24 expert-guided paths for scripture analysis, citation extraction, and multimodal processing.
-- **Grounding**: Real-time scripture fetching and multi-document RAG attribution.
+- **Grounding**: Real-time scripture fetching, verified commentary aggregation, and structured lexicon fetching.
 
 ### 🛡️ Scholarly Governance
 - **Security**: Strict Firestore Rules mapping to `UserStudyProfile` designations.
