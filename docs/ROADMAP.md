@@ -8,8 +8,9 @@ This document outlines the features and components that currently use placeholde
 - [x] **DMCA Resolution Workflow**: Implemented the "Report" and "Takedown" mechanism.
 - [x] **Native Document Parsing**: Implemented local `pdf-parse` and `mammoth` (Docx) logic for scholarly papers.
 - [x] **Audit Resolution Actions**: Added UI buttons in the Audit portal to formally "Resolve" or "Dismiss" logs.
-- [x] **Neuromorphic Analysis**: Implemented actual `brain.js` neural network logic in the Study Assistant.
+- [x] **Neuromorphic Analysis**: Implemented actual linguistic heuristic logic in the Study Assistant.
 - [x] **Selective RAG Phase 1**: Transitioned from "All-in-Prompt" context to a semantic chunking and selection logic (`rag-engine.ts`).
+- [x] **Translation Comparison Hub**: Fully implemented the AI-driven translation analysis module.
 
 ## 🎙️ AI & Multimodal Research
 - [ ] **Advanced Vector Search**: Transition from local keyword ranking to Firestore Vector Search for higher semantic accuracy in the Library Hub.

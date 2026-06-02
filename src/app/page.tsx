@@ -74,6 +74,7 @@ import { AssistantView } from '@/components/views/assistant-view';
 import { ProfileView } from '@/components/views/profile-view';
 import { LibraryView } from '@/components/views/library-view';
 import { BoilerplateView } from '@/components/views/boilerplate-view';
+import { TranslationCompareView } from '@/components/views/translation-compare-view';
 
 // AI & API Imports
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
@@ -83,6 +84,7 @@ import { checkIntegrity, type AcademicIntegrityOutput } from '@/ai/flows/academi
 import { formatBibliography, type FormatBibliographyOutput } from '@/ai/flows/format-bibliography-ai';
 import { analyzeTheologicalConcept, type TheologicalConceptOutput } from '@/ai/flows/theological-concept-analysis';
 import { runBoilerplateAnalysis, type BoilerplateOutput } from '@/ai/flows/boilerplate-flow';
+import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/compare-translations-ai';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 import { getAllLocalDocuments, type IDBDocument } from '@/lib/idb';
 import { chunkText, selectRelevantChunks } from '@/lib/rag-engine';
@@ -131,6 +133,7 @@ export default function Home() {
   const [lexiconResult, setLexiconResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
   const [assistantResult, setAssistantResult] = useState<AiStudyAssistantOutput | null>(null);
   const [boilerplateResult, setBoilerplateResult] = useState<BoilerplateOutput | null>(null);
+  const [translationResult, setTranslationResult] = useState<CompareTranslationsOutput | null>(null);
   const [profileDraft, setProfileDraft] = useState({ displayName: '', credentials: '', designation: '', degreeSubject: '', academicLevel: '', institutionId: '', bio: '', photoURL: '' });
   const [synthesisText, setSynthesisText] = useState('');
   const [synthesisResult, setSynthesisResult] = useState<WritingAssistantOutput | null>(null);
@@ -336,6 +339,12 @@ export default function Home() {
       case 'theology': return <TheologyView theologyTerm={theologyTerm} setTheologyTerm={setTheologyTerm} handleSearch={handleSearch} isLoading={isLoading} theologyResult={theologyResult} />;
       case 'lexicon': return <LexiconView handleSearch={handleSearch} isLoading={isLoading} lexiconResult={lexiconResult} />;
       case 'ai-assistant': return <AssistantView assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} assistantResult={assistantResult} />;
+      case 'translation-compare': return <TranslationCompareView isLoading={isLoading} result={translationResult} availableVersions={availableVersions} onCompare={async (w, l, v) => {
+        setIsLoading(true);
+        try { setTranslationResult(await compareTranslations({ word: w, language: l, versions: v })); }
+        catch (e: any) { toast({ variant: 'destructive', title: "Comparison Error" }); }
+        finally { setIsLoading(false); }
+      }} />;
       case 'boilerplate': return <BoilerplateView isLoading={isLoading} result={boilerplateResult} onSearch={(term) => handleSearch(term, 'boilerplate')} />;
       case 'profile': return userProfile ? <ProfileView userProfile={userProfile} effectiveAvatar={effectiveAvatar} userInstitutionName={userInstitutionName} profileDraft={profileDraft} setProfileDraft={setProfileDraft} institutions={institutions} updateProfile={updateProfile} isLoading={isLoading} aiPrefs={aiPrefs} saveAiPreferences={saveAiPreferences} systemConfig={systemConfig} historyItems={historyItems} handleSearch={handleSearch} /> : null;
       default: return <DashboardView t={t} effectiveApiKey={effectiveApiKey} isLocalMode={isLocalMode} aiPrefs={aiPrefs} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} />;

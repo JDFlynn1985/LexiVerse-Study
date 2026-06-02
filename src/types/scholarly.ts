@@ -13,6 +13,7 @@ export type ViewMode =
   | 'manuscripts' 
   | 'chat'
   | 'library'
+  | 'translation-compare'
   | 'boilerplate'; // Added for module development assistance
 
 export interface UserProfile {

@@ -20,7 +20,8 @@ import {
   Settings,
   Layers,
   Activity,
-  Library
+  Library,
+  ArrowLeftRight
 } from 'lucide-react';
 import { ViewMode } from '@/types/scholarly';
 
@@ -52,6 +53,7 @@ export const DEFAULT_MODULES: ModuleDefinition[] = [
   { id: 'wiki', labelKey: 'nav.wiki', icon: GraduationCap, group: 'general', path: '/wiki' },
   
   { id: 'ai-assistant', labelKey: 'nav.study_assistant', icon: Sparkles, group: 'ai_hub' },
+  { id: 'translation-compare', labelKey: 'nav.translation_compare', icon: ArrowLeftRight, group: 'ai_hub' },
   { id: 'theology', labelKey: 'nav.theology_map', icon: History, group: 'ai_hub' },
   { id: 'manuscripts', labelKey: 'nav.manuscript_hub', icon: FileSearch2, group: 'ai_hub', path: '/manuscripts' },
   { id: 'lexicon', labelKey: 'nav.lexicon', icon: BookOpen, group: 'ai_hub' },
