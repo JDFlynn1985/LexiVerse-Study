@@ -80,6 +80,24 @@
       },
       "required": ["name"]
     },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "A real-time message sent in the social chat system.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "content": { "type": "string" },
+        "senderUid": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderPhotoURL": { "type": "string" },
+        "senderDesignation": { "type": "string" },
+        "senderInstitutionName": { "type": "string" },
+        "type": { "type": "string", "enum": ["global", "institutional"] },
+        "institutionId": { "type": "string", "description": "Target institution ID for filtered chat." },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["content", "senderUid", "type", "createdAt"]
+    },
     "APIKey": {
       "title": "API Key",
       "description": "Authentication credentials for external research access.",
@@ -160,6 +178,10 @@
     "/institutions/{institutionId}": {
       "schema": "#/backend/entities/AcademicInstitution",
       "description": "Directory of scholarly institutions."
+    },
+    "/messages/{messageId}": {
+      "schema": "#/backend/entities/ChatMessage",
+      "description": "Chat messages for the social research system."
     }
   }
 }

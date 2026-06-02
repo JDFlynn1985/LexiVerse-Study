@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
 import { 
@@ -9,9 +8,9 @@ import {
   GoogleAuthProvider, 
   signOut
 } from 'firebase/auth';
-import { doc, setDoc, onSnapshot, getDoc, updateDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, getDoc, updateDoc, collection, getDocs, query, orderBy, addDoc, limit, where, serverTimestamp } from 'firebase/firestore';
 import { appConfig } from '@/app-config';
-import { useAuth, useFirestore, useUser } from '@/firebase';
+import { useAuth, useFirestore, useUser, useCollection } from '@/firebase';
 import { logSearch } from '@/lib/search-logging';
 import { useLanguage } from '@/components/language-provider';
 import { cn, getGravatarUrl } from '@/lib/utils';
@@ -58,7 +57,11 @@ import {
   ArrowRight,
   Plus,
   FileSearch2,
-  School
+  School,
+  MessageSquare,
+  Send,
+  Building2,
+  Users
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -91,7 +94,7 @@ import { analyzeTheologicalConcept, type TheologicalConceptOutput } from '@/ai/f
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 import { getAllLocalDocuments, type IDBDocument } from '@/lib/idb';
 
-type ViewMode = 'dashboard' | 'lexicon' | 'wiki' | 'ai-assistant' | 'profile' | 'synthesis' | 'theology' | 'manuscripts';
+type ViewMode = 'dashboard' | 'lexicon' | 'wiki' | 'ai-assistant' | 'profile' | 'synthesis' | 'theology' | 'manuscripts' | 'chat';
 
 interface UserProfile {
   uid: string;
@@ -99,7 +102,7 @@ interface UserProfile {
   email: string;
   photoURL: string;
   credentials?: string;
-  designation?: 'Professor' | 'Undergraduate Seminary Student' | 'Master\'s Degree Candidate' | 'Doctoral Candidate' | 'Non-Seminary Student';
+  designation?: string;
   degreeSubject?: string;
   academicLevel?: string;
   institutionId?: string;
@@ -152,6 +155,11 @@ export default function Home() {
     language: language,
     storagePreference: 'local' as 'cloud' | 'local'
   });
+
+  // Chat State
+  const [chatMode, setChatMode] = useState<'global' | 'institutional'>('global');
+  const [newMessage, setNewMessage] = useState('');
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   const [assistantTerm, setAssistantTerm] = useState('');
   const [lexiconResult, setLexiconResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
@@ -249,6 +257,49 @@ export default function Home() {
     }
   }, [user, db, language]);
 
+  // Chat Subscription
+  const chatQuery = useCallback(() => {
+    if (!db) return null;
+    const base = collection(db, 'messages');
+    if (chatMode === 'global') {
+      return query(base, where('type', '==', 'global'), orderBy('createdAt', 'desc'), limit(50));
+    } else {
+      const instId = userProfile?.institutionId || 'independent';
+      return query(base, where('type', '==', 'institutional'), where('institutionId', '==', instId), orderBy('createdAt', 'desc'), limit(50));
+    }
+  }, [db, chatMode, userProfile?.institutionId]);
+
+  const { data: messages } = useCollection<any>(chatQuery());
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !newMessage.trim() || !db) return;
+
+    const msgContent = newMessage;
+    setNewMessage('');
+
+    try {
+      const userInstitutionName = institutions.find(i => i.id === userProfile?.institutionId)?.name || 'Independent Scholar';
+      await addDoc(collection(db, 'messages'), {
+        content: msgContent,
+        senderUid: user.uid,
+        senderName: userProfile?.displayName || user.displayName,
+        senderPhotoURL: userProfile?.photoURL || user.photoURL || '',
+        senderDesignation: userProfile?.designation || 'Scholar',
+        senderInstitutionName: userInstitutionName,
+        type: chatMode,
+        institutionId: chatMode === 'institutional' ? (userProfile?.institutionId || 'independent') : null,
+        createdAt: serverTimestamp()
+      });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: "Message Failed", description: e.message });
+    }
+  };
+
   const effectiveApiKey = localApiKey || aiPrefs.customApiKey || systemConfig?.geminiApiKey;
   const isLocalMode = aiPrefs.modelProvider === 'local';
   const effectiveModel = isLocalMode 
@@ -257,13 +308,13 @@ export default function Home() {
 
   const handleSearch = async (term: string, type: ViewMode) => {
     if (!term.trim()) return;
-    if (!effectiveApiKey && !isLocalMode) {
+    if (type !== 'chat' && !effectiveApiKey && !isLocalMode) {
       toast({ variant: "destructive", title: "AI Hub Configuration Required", description: "Please supply your own Gemini API key or switch to a local engine in settings." });
       return;
     }
     setIsLoading(true);
     setActiveTab(type);
-    logSearch(db, term, type, user?.uid);
+    if (type !== 'chat') logSearch(db, term, type, user?.uid);
     try {
       if (type === 'lexicon') {
         const result = await defineAndAnalyzeTerm({ strongsNumber: term, model: effectiveModel, apiKey: effectiveApiKey || undefined });
@@ -276,9 +327,11 @@ export default function Home() {
         const result = await analyzeTheologicalConcept({ concept: term });
         setTheologyResult(result);
       }
-      const newHistory = [{id: Date.now().toString(), type, term, date: new Date().toLocaleString()}, ...historyItems];
-      setHistoryItems(newHistory.slice(0, 10));
-      localStorage.setItem('lexiverse_history', JSON.stringify(newHistory.slice(0, 10)));
+      if (type !== 'chat') {
+        const newHistory = [{id: Date.now().toString(), type, term, date: new Date().toLocaleString()}, ...historyItems];
+        setHistoryItems(newHistory.slice(0, 10));
+        localStorage.setItem('lexiverse_history', JSON.stringify(newHistory.slice(0, 10)));
+      }
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Research Engine Error', description: error.message });
     } finally {
@@ -398,6 +451,11 @@ export default function Home() {
                 <SidebarMenuItem>
                   <SidebarMenuButton isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} tooltip="Dashboard">
                     <LayoutDashboard className="h-5 w-5" /> <span>Dashboard</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'chat'} onClick={() => setActiveTab('chat')} tooltip="Chat Hub">
+                    <MessageSquare className="h-5 w-5" /> <span>Chat Hub</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
@@ -640,12 +698,117 @@ export default function Home() {
                     onClick={() => setActiveTab('synthesis')} 
                   />
                   <QuickToolCard 
-                    title="Scholarly Wiki" 
-                    desc="Peer-reviewed research" 
-                    icon={<GraduationCap className="h-6 w-6" />} 
-                    asLink="/wiki"
+                    title="Chat Hub" 
+                    desc="Real-time scholarly dialogue" 
+                    icon={<MessageSquare className="h-6 w-6" />} 
+                    onClick={() => setActiveTab('chat')} 
                   />
                 </div>
+              </div>
+            )}
+
+            {activeTab === 'chat' && (
+              <div className="h-[calc(100vh-12rem)] flex flex-col gap-6 animate-in fade-in duration-500">
+                <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
+                  <div>
+                    <h1 className="text-3xl font-bold font-headline flex items-center gap-3">
+                      <MessageSquare className="h-8 w-8 text-primary" /> Social Chat Hub
+                    </h1>
+                    <p className="text-muted-foreground">Engage in peer discourse and institutional seminars.</p>
+                  </div>
+                  <div className="flex p-1 bg-muted rounded-lg w-fit self-end">
+                    <Button 
+                      variant={chatMode === 'global' ? 'secondary' : 'ghost'} 
+                      size="sm" 
+                      onClick={() => setChatMode('global')}
+                      className="gap-2"
+                    >
+                      <Users className="h-4 w-4" /> Global
+                    </Button>
+                    <Button 
+                      variant={chatMode === 'institutional' ? 'secondary' : 'ghost'} 
+                      size="sm" 
+                      onClick={() => setChatMode('institutional')}
+                      className="gap-2"
+                      disabled={!userProfile?.institutionId}
+                    >
+                      <Building2 className="h-4 w-4" /> {userProfile?.institutionId ? 'My Institution' : 'Institution Required'}
+                    </Button>
+                  </div>
+                </header>
+
+                <Card className="flex-1 flex flex-col shadow-xl border-primary/10 overflow-hidden bg-card/30 backdrop-blur-sm">
+                  <CardHeader className="bg-primary/5 py-3 border-b">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="bg-background/50 border-primary/20">
+                        {chatMode === 'global' ? 'DISCOURSE: GLOBAL CHANNEL' : `SEMINAR: ${userInstitutionName}`}
+                      </Badge>
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase font-bold tracking-widest">
+                        <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" /> Live Feed Active
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-1 p-0 overflow-hidden">
+                    <ScrollArea className="h-full px-6 py-6">
+                      <div className="space-y-6">
+                        {[...(messages || [])].reverse().map((msg, i) => {
+                          const isOwn = msg.senderUid === user?.uid;
+                          return (
+                            <div key={msg.id || i} className={cn("flex gap-3", isOwn ? "flex-row-reverse" : "flex-row")}>
+                              <Avatar className="h-9 w-9 shrink-0 border-2 border-background shadow-sm">
+                                <AvatarImage src={msg.senderPhotoURL} />
+                                <AvatarFallback className="bg-primary/10 text-primary text-xs">{msg.senderName?.[0]}</AvatarFallback>
+                              </Avatar>
+                              <div className={cn("flex flex-col max-w-[80%] gap-1", isOwn ? "items-end" : "items-start")}>
+                                <div className="flex items-center gap-2 px-1">
+                                  <span className="text-[11px] font-bold">{msg.senderName}</span>
+                                  <Badge variant="ghost" className="text-[9px] h-4 px-1.5 uppercase tracking-tighter opacity-60">
+                                    {msg.senderDesignation}
+                                  </Badge>
+                                </div>
+                                <div 
+                                  className={cn(
+                                    "p-3 rounded-2xl text-sm shadow-sm border",
+                                    isOwn 
+                                      ? "bg-primary text-primary-foreground rounded-tr-none border-primary" 
+                                      : "bg-background rounded-tl-none border-border"
+                                  )}
+                                >
+                                  <p className="leading-relaxed">{msg.content}</p>
+                                </div>
+                                <span className="text-[9px] text-muted-foreground px-1">
+                                  {msg.createdAt?.seconds ? new Date(msg.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending...'}
+                                  {chatMode === 'global' && msg.senderInstitutionName && ` • ${msg.senderInstitutionName}`}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        <div ref={chatEndRef} />
+                        {messages?.length === 0 && (
+                          <div className="flex flex-col items-center justify-center py-20 opacity-20 text-center space-y-4">
+                            <MessageSquare className="h-16 w-16" />
+                            <p className="italic">The scholarly discourse begins with a single word.</p>
+                          </div>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </CardContent>
+                  <CardFooter className="p-4 bg-muted/30 border-t">
+                    <form onSubmit={handleSendMessage} className="flex gap-2 w-full">
+                      <Input 
+                        placeholder={user ? "Share your scholarly insights..." : "Please sign in to participate..."} 
+                        className="h-11 rounded-xl bg-background border-primary/20 shadow-inner"
+                        value={newMessage}
+                        onChange={e => setNewMessage(e.target.value)}
+                        disabled={!user}
+                      />
+                      <Button type="submit" disabled={!user || !newMessage.trim()} className="h-11 w-11 rounded-xl shrink-0 shadow-lg">
+                        <Send className="h-5 w-5" />
+                      </Button>
+                    </form>
+                  </CardFooter>
+                </Card>
               </div>
             )}
 
