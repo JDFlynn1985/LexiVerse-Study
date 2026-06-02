@@ -7,7 +7,7 @@
 'use client';
 
 import React, { memo } from 'react';
-import { User, Cpu, Loader2, ArrowRight, ExternalLink, Key, Globe, Brain, Sparkles, Server, ShieldCheck, Database } from 'lucide-react';
+import { User, Cpu, Loader2, ArrowRight, ExternalLink, Key, Globe, Brain, Sparkles, Server, ShieldCheck, Database, Settings } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,6 +51,22 @@ export const ProfileView = memo(({
 }: ProfileViewProps) => {
 
   if (!profileDraft) return null;
+
+  const handleProviderChange = (val: AIProvider) => {
+    let defaultModel = '';
+    if (val === 'google') defaultModel = 'googleai/gemini-1.5-flash';
+    else if (val === 'openai') defaultModel = 'openai/gpt-4o';
+    else if (val === 'anthropic') defaultModel = 'anthropic/claude-3-5-sonnet';
+    else if (val === 'mistral') defaultModel = 'mistral/mistral-large-latest';
+    else if (val === 'deepseek') defaultModel = 'deepseek/deepseek-chat';
+    else if (val === 'xai') defaultModel = 'xai/grok-beta';
+    else if (val === 'local') {
+      const localModels = systemConfig?.localModelList || [];
+      defaultModel = localModels.length > 0 ? `ollama/${localModels[0]}` : 'ollama/llama3';
+    }
+    
+    saveAiPreferences({ modelProvider: val, selectedModel: defaultModel });
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -122,9 +138,42 @@ export const ProfileView = memo(({
               <CardTitle className="text-xl font-headline flex items-center gap-2">
                 <Key className="h-5 w-5 text-primary" /> Research Credentials
               </CardTitle>
-              <CardDescription>Configure individual API keys for your preferred reasoning engines.</CardDescription>
+              <CardDescription>Configure individual API keys and your default reasoning engine.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-8 pt-6">
+              {/* Global Config */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-primary">
+                  <Settings className="h-4 w-4" /> Global Engine Configuration
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 p-4 bg-muted/30 rounded-xl border">
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold">Default AI Provider</Label>
+                    <Select value={aiPrefs.modelProvider} onValueChange={handleProviderChange}>
+                      <SelectTrigger className="bg-background shadow-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="google">Google AI (Gemini)</SelectItem>
+                        <SelectItem value="openai">OpenAI (GPT-4o)</SelectItem>
+                        <SelectItem value="anthropic">Anthropic (Claude)</SelectItem>
+                        <SelectItem value="mistral">Mistral AI</SelectItem>
+                        <SelectItem value="deepseek">DeepSeek</SelectItem>
+                        <SelectItem value="xai">xAI (Grok)</SelectItem>
+                        <SelectItem value="local">Local Ollama</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold">Preferred Model Identifier</Label>
+                    <Input 
+                      value={aiPrefs.selectedModel} 
+                      onChange={e => saveAiPreferences({ selectedModel: e.target.value })}
+                      placeholder="e.g. googleai/gemini-1.5-flash"
+                      className="bg-background shadow-sm font-mono text-[10px]"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Google AI - Primary */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-widest text-primary">
