@@ -1,4 +1,3 @@
-
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
@@ -477,7 +476,7 @@ export default function Home() {
                 </div>
              </div>
           </header>
-          <main className="container max-w-5xl mx-auto py-10 px-6 min-h-screen" id="main-content">
+          <main className="container max-w-5xl mx-auto py-8 sm:py-10 px-4 sm:px-6 min-h-screen" id="main-content">
             {renderModularContent()}
           </main>
         </SidebarInset>

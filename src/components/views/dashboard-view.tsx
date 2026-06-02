@@ -70,7 +70,6 @@ export const DashboardView = memo(({
         setVocab(data);
       } catch (e) {
         // Silently fail to avoid triggering error overlays in dev mode
-        // Falling back to empty state managed by setVocabLoading
       } finally {
         setVocabLoading(false);
       }
@@ -93,7 +92,7 @@ export const DashboardView = memo(({
         reader.onloadend = async () => {
           const base64Audio = (reader.result as string).split(',')[1];
           try {
-            toast({ title: "Processing Voice...", description: "Transcribing scholarly query via Gemini Multimodal." });
+            toast({ title: "Processing Voice...", description: "Transcribing scholarly query." });
             const result = await transcribeAudio({ audioPart: base64Audio });
             if (result.transcript) {
               setAssistantTerm(result.transcript);
@@ -152,39 +151,39 @@ export const DashboardView = memo(({
   const ActiveProviderIcon = PROVIDERS.find(p => p.id === aiPrefs.modelProvider)?.icon || Globe;
 
   return (
-    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 sm:space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <header className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-primary/10 rounded-2xl">
-              <GraduationCap className="h-10 w-10 text-primary" />
+            <div className="p-3 bg-primary/10 rounded-2xl shrink-0">
+              <GraduationCap className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
             </div>
             <div>
-              <h1 className="text-4xl font-bold font-headline">{t.dashboard.title}</h1>
-              <p className="text-muted-foreground text-lg">{t.dashboard.subtitle}</p>
+              <h1 className="text-2xl sm:text-4xl font-bold font-headline">{t.dashboard.title}</h1>
+              <p className="text-muted-foreground text-sm sm:text-lg">{t.dashboard.subtitle}</p>
             </div>
           </div>
-          <Badge variant="outline" className="bg-primary/5 border-primary/20 text-primary h-8 px-4 font-bold tracking-widest text-[10px]">SCHOLAR MODE ACTIVE</Badge>
+          <Badge variant="outline" className="bg-primary/5 border-primary/20 text-primary h-8 px-4 font-bold tracking-widest text-[10px] w-fit">SCHOLAR MODE ACTIVE</Badge>
         </div>
       </header>
 
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="md:col-span-2 shadow-xl border-primary/10 bg-card/50 overflow-hidden">
           <CardHeader>
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
-                <CardTitle className="font-headline flex items-center gap-2 text-2xl">
-                  <Sparkles className={cn("h-6 w-6", effectiveApiKey || aiPrefs.modelProvider === 'local' ? "text-primary" : "text-muted-foreground")} /> 
+                <CardTitle className="font-headline flex items-center gap-2 text-xl sm:text-2xl">
+                  <Sparkles className={cn("h-5 w-5 sm:h-6 sm:w-6", effectiveApiKey || aiPrefs.modelProvider === 'local' ? "text-primary" : "text-muted-foreground")} /> 
                   Research Engine
                 </CardTitle>
-                <CardDescription>Synthesize deep theological insights from your digital library.</CardDescription>
+                <CardDescription className="text-xs sm:text-sm">Synthesize deep theological insights.</CardDescription>
               </div>
               
-              <div className="flex items-center gap-3 bg-muted/50 p-1.5 rounded-lg border">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 bg-muted/50 p-1.5 rounded-lg border">
                 <div className="space-y-1">
                   <Label className="text-[8px] uppercase opacity-50 px-1">Provider</Label>
                   <Select value={aiPrefs.modelProvider} onValueChange={handleProviderChange}>
-                    <SelectTrigger className="h-8 w-[130px] text-[10px] uppercase font-bold tracking-widest border-none bg-transparent shadow-none focus:ring-0">
+                    <SelectTrigger className="h-8 w-[120px] sm:w-[130px] text-[10px] uppercase font-bold tracking-widest border-none bg-transparent shadow-none focus:ring-0">
                       <div className="flex items-center gap-1.5">
                         <ActiveProviderIcon className="h-3 w-3" />
                         <SelectValue placeholder="Provider" />
@@ -204,7 +203,7 @@ export const DashboardView = memo(({
                   <div className="space-y-1 border-l pl-2">
                     <Label className="text-[8px] uppercase opacity-50 px-1">Local Model</Label>
                     <Select value={aiPrefs.selectedModel} onValueChange={handleModelChange}>
-                      <SelectTrigger className="h-8 w-[110px] text-[10px] uppercase font-bold tracking-widest border-none bg-transparent shadow-none focus:ring-0">
+                      <SelectTrigger className="h-8 w-[100px] sm:w-[110px] text-[10px] uppercase font-bold tracking-widest border-none bg-transparent shadow-none focus:ring-0">
                         <SelectValue placeholder="Model" />
                       </SelectTrigger>
                       <SelectContent>
@@ -224,7 +223,7 @@ export const DashboardView = memo(({
             <div className="relative">
               <Input 
                 placeholder={effectiveApiKey || aiPrefs.modelProvider === 'local' ? `Analyze with ${aiPrefs.selectedModel.split('/').pop()}...` : "Select provider & provide API key"} 
-                className="h-14 pl-4 pr-32 text-lg rounded-xl shadow-inner border-primary/20"
+                className="h-14 pl-4 pr-24 sm:pr-32 text-base sm:text-lg rounded-xl shadow-inner border-primary/20"
                 value={assistantTerm} 
                 onChange={e => setAssistantTerm(e.target.value)} 
                 onKeyDown={e => e.key === 'Enter' && handleSearch(assistantTerm, 'ai-assistant')} 
@@ -252,15 +251,15 @@ export const DashboardView = memo(({
         <Card className="shadow-lg border-accent/20 bg-accent/5 overflow-hidden">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold uppercase tracking-widest text-accent flex items-center gap-2">
-              <BookOpen className="h-4 w-4" /> Theological Vocabulary
+              <BookOpen className="h-4 w-4" /> Vocab of the Day
             </CardTitle>
           </CardHeader>
-          <CardContent className="min-h-[140px] flex flex-col justify-center">
+          <CardContent className="min-h-[120px] sm:min-h-[140px] flex flex-col justify-center">
             {vocabLoading ? (
               <div className="flex justify-center"><Loader2 className="animate-spin opacity-20" /></div>
             ) : vocab ? (
               <div className="space-y-2 animate-in fade-in">
-                <p className="text-lg font-bold text-primary">{vocab.term}</p>
+                <p className="text-base sm:text-lg font-bold text-primary">{vocab.term}</p>
                 <Badge variant="outline" className="text-[8px] uppercase tracking-tighter">{vocab.language}</Badge>
                 <p className="text-[11px] text-muted-foreground italic line-clamp-3">"{vocab.definition}"</p>
               </div>
@@ -279,7 +278,7 @@ export const DashboardView = memo(({
            <div className="h-1 w-8 bg-primary rounded-full" />
            Academic Toolbox
         </h2>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           {quickTools.map((mod) => (
             <QuickToolCard 
               key={mod.id}
