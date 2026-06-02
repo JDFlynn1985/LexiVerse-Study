@@ -1,13 +1,46 @@
 
 # LexiVerse Explorer: Developer SDK & Architecture Manual
 
-Welcome to the LexiVerse Explorer SDK documentation. This guide provides the technical foundation for expanding the platform's scholarly capabilities.
+Welcome to the LexiVerse Explorer SDK documentation. This guide provides the technical foundation for expanding the platform's scholarly capabilities and details the organizational structure of the codebase.
+
+---
+
+## 📂 File & Folder Structure
+
+LexiVerse follows a strictly organized "Unified Native Architecture" to ensure scalability and performance across all research tools.
+
+### Root Directory
+- `docs/`: Technical manuals, security protocols, and scholarly standards.
+- `src/`: The primary source code for the application.
+- `public/`: Static assets and PWA manifests.
+- `backend.json`: The blueprint for Firestore entities and authentication providers.
+
+### The `src/` Directory Breakdown
+- **`ai/`**: The AI research brain.
+  - `flows/`: Individual Genkit flows for linguistic analysis, synthesis, and transcription.
+  - `genkit.ts`: Central configuration for Gemini and Ollama plugins.
+- **`app/`**: Next.js App Router core.
+  - `admin/`: Restricted governance portals (Audit, Settings, API Keys).
+  - `api/`: RESTful API endpoints and Swagger documentation.
+  - `layout.tsx`: Root layout handling global providers (Theme, Language, Firebase).
+  - `page.tsx`: The primary Research Dashboard orchestrator.
+- **`components/`**: Reusable UI logic.
+  - `ui/`: Accessible ShadCN primitives (Radix-based).
+  - `views/`: The "Heart" of the app. Every research tool (Lexicon, Library, Theology) is a standalone, memoized view.
+- **`firebase/`**: Firestore and Authentication orchestration.
+  - `firestore/`: Stabilized real-time hooks (`useCollection`, `useDoc`).
+  - `errors.ts`: Contextual security rule error handling logic.
+- **`lib/`**: Domain-specific scholarly utilities.
+  - `locales/`: Internationalization dictionaries for all supported dialects.
+  - `rag-engine.ts`: Browser-native semantic chunking and ranking logic.
+  - `bible-api.ts`: Connector for the Free Use Bible API.
+- **`types/`**: Global TypeScript interfaces for scholarly entities.
 
 ---
 
 ## 🏛️ Core Architecture: The Native Integration Pattern
 
-LexiVerse uses a **Unified Native Architecture**. Unlike traditional modular systems that isolate features into "sub-apps" or external packages, LexiVerse treats every tool as a first-class citizen of the core codebase.
+LexiVerse uses a **Unified Native Architecture**. Unlike traditional modular systems that isolate features into "sub-apps," LexiVerse treats every tool as a first-class citizen of the core codebase.
 
 ### Key Benefits:
 - **Shared Context**: Every module automatically inherits global `Language`, `Theme`, and `Auth` contexts.
@@ -20,30 +53,7 @@ LexiVerse uses a **Unified Native Architecture**. Unlike traditional modular sys
 
 The platform is powered by **Firebase Genkit**. All AI logic resides in `src/ai/flows/`.
 
-### 1. Defining a Flow
-Always use the `ai.defineFlow` and `ai.definePrompt` pattern. 
-```typescript
-// src/ai/flows/example-flow.ts
-import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
-
-const InputSchema = z.object({ query: z.string() });
-const OutputSchema = z.object({ result: z.string() });
-
-export const exampleFlow = ai.defineFlow({
-  name: 'exampleFlow',
-  inputSchema: InputSchema,
-  outputSchema: OutputSchema,
-}, async (input) => {
-  const { output } = await ai.generate({
-    prompt: `Analyze: ${input.query}`,
-    output: { schema: OutputSchema }
-  });
-  return output!;
-});
-```
-
-### 2. Model Routing
+### Model Routing
 The app supports **Dynamic Routing**. Users can switch between Google Gemini (Cloud) and Ollama (Local) in their profile. The engine handles this via the `model` parameter in `ai.generate`.
 
 ---
@@ -74,54 +84,16 @@ addDoc(collection(db, 'logs'), data).catch(async (err) => {
 
 ---
 
-## 🧩 Modular View System
-
-Modules are registered in two places:
-1.  **Code Registry (`src/config/modules.ts`)**: Defines metadata, icons, and groups.
-2.  **Database Registry (`/modules` collection)**: Controls the `enabled` status and administrative access.
-
-### Adding a New Module:
-1.  Create your view in `src/components/views/my-tool-view.tsx`.
-2.  Add a metadata entry to `DEFAULT_MODULES` in `src/config/modules.ts`.
-3.  Register the component in the `renderModularContent` switch in `src/app/page.tsx`.
-
----
-
 ## 🌍 Localization (i18n)
 
 UI strings are managed in `src/lib/locales/`. 
 - **Pattern**: Use the `useLanguage` hook.
-- **Support**: Standard English (US/UK) and Spanish (ES/MX) are provided.
-
-```tsx
-const { t } = useLanguage();
-return <h1>{t.nav.dashboard}</h1>;
-```
+- **Boilerplate**: Use `src/lib/locales/template.ts` when adding new language support.
 
 ---
 
-## 🛡️ Error Logging & Governance
+## 🛡️ Governance & Auditing
 
 All runtime and permission errors are logged to the `error_logs` collection. 
 - **Utility**: `logErrorToFirestore(db, error, context)`
-- **Auditing**: Administrators can view these logs to debug security rule violations or API failures.
-
----
-
-## 🔌 External Research API
-
-LexiVerse exposes a RESTful API for external scholarly tool integration.
-- **Docs**: `/api/v1/api-docs` (Swagger UI)
-- **Spec**: `/api/doc` (OpenAPI JSON)
-- **Auth**: Bearer tokens provisioned in the **API Portal**.
-
----
-
-## 🛠️ Tech Stack Reference
-
-- **Framework**: Next.js 15 (App Router)
-- **UI**: ShadCN UI + Tailwind CSS
-- **AI**: Genkit 1.x + Google AI / Ollama
-- **Database**: Firebase Firestore
-- **Auth**: Firebase Authentication
-- **Icons**: Lucide React (Dynamic Mapping via `src/lib/icons.ts`)
+- **Auditing**: Administrators review these logs in the Governance Portal to maintain platform integrity.
