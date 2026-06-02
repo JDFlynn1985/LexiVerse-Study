@@ -4,6 +4,7 @@
 /**
  * @fileOverview API Documentation portal using Swagger UI.
  * Provides interactive exploration of the Scholarly Research API.
+ * Updated to consume the dynamic /api/doc endpoint.
  */
 
 import dynamic from 'next/dynamic';
@@ -15,7 +16,13 @@ import Link from 'next/link';
 // SwaggerUI does not support SSR out of the box
 const SwaggerUI = dynamic(() => import('swagger-ui-react'), { 
   ssr: false,
-  loading: () => <div className="p-20 text-center animate-pulse">Initializing Scholarly Documentation Engine...</div>
+  loading: () => (
+    <div className="p-20 text-center animate-pulse space-y-4">
+      <div className="h-10 w-64 bg-muted rounded mx-auto" />
+      <div className="h-4 w-48 bg-muted rounded mx-auto" />
+      <p className="text-muted-foreground">Initializing Scholarly Documentation Engine...</p>
+    </div>
+  )
 });
 
 export default function ApiDocs() {
@@ -45,7 +52,8 @@ export default function ApiDocs() {
 
       <main className="container max-w-6xl mx-auto py-8">
         <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-          <SwaggerUI url="/openapi.json" />
+          {/* Point to the dynamic dynamic API doc endpoint */}
+          <SwaggerUI url="/api/doc" />
         </div>
       </main>
 

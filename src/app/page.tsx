@@ -290,7 +290,9 @@ export default function Home() {
         <Sidebar side="left" variant="inset" collapsible="icon">
           <SidebarHeader className="p-2 border-b">
             <div className="flex items-center gap-2 px-2 py-4">
-              <div className="bg-primary text-primary-foreground p-1.5 rounded-lg shadow-md"><Globe className="h-6 w-6" /></div>
+              <div className="bg-primary text-primary-foreground p-1.5 rounded-lg shadow-md">
+                <Globe className="h-6 w-6" />
+              </div>
               <span className="text-xl font-bold font-headline group-data-[collapsible=icon]:hidden">{t.app_title}</span>
             </div>
           </SidebarHeader>
@@ -327,9 +329,7 @@ export default function Home() {
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild tooltip="API Portal">
                     <Link href="/api-keys">
-                      <div className="flex items-center gap-2">
-                        <Code className="h-5 w-5" /> <span>API Portal</span>
-                      </div>
+                      <Code className="h-5 w-5" /> <span>API Portal</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -343,18 +343,14 @@ export default function Home() {
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild tooltip="Admin API Management">
                       <Link href="/admin/api">
-                        <div className="flex items-center gap-2">
-                          <Key className="h-5 w-5" /> <span>Admin API Mgmt</span>
-                        </div>
+                        <Key className="h-5 w-5" /> <span>Admin API Mgmt</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild tooltip="System Control Panel">
                       <Link href="/admin/settings">
-                        <div className="flex items-center gap-2">
-                          <Settings className="h-5 w-5" /> <span>System Control</span>
-                        </div>
+                        <Settings className="h-5 w-5" /> <span>System Control</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

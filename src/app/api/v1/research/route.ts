@@ -1,21 +1,58 @@
+
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeFirebase } from '@/firebase';
 import { collection, query, where, getDocs, doc, updateDoc, increment, getDoc } from 'firebase/firestore';
 import { aiStudyAssistant } from '@/ai/flows/ai-study-assistant';
 
 /**
- * @fileOverview RESTful API Endpoint for External Scholarly Research.
- * 
- * This endpoint allows third-party integrations (e.g., Python scripts, desktop research tools)
- * to interact with the LexiVerse research engine. Access is governed by a 
- * tiered rate-limiting model configured in the System Control Panel.
- * 
- * Headers:
- * - Authorization: Bearer [lv_api_key]
- * 
- * Body (JSON):
- * - term: string (Required) - The research topic or scripture reference.
- * - researchContext: string[] (Optional) - Excerpts from papers for RAG context.
+ * @swagger
+ * /api/v1/research:
+ *   post:
+ *     summary: Execute a scholarly research query
+ *     description: Leverages the LexiVerse AI engine and local research papers to synthesize an academic report. Access is rate-limited based on your provisioned tier.
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - term
+ *             properties:
+ *               term:
+ *                 type: string
+ *                 example: "Genesis 1:1"
+ *                 description: The scripture reference or scholarly term to research.
+ *               researchContext:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Optional excerpts from research papers to be used as RAG context.
+ *     responses:
+ *       200:
+ *         description: Research successfully synthesized.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/ResearchOutput'
+ *                 meta:
+ *                   type: object
+ *                   properties:
+ *                     tier:
+ *                       type: string
+ *                     remaining:
+ *                       type: number
+ *       401:
+ *         description: Missing or invalid authorization.
+ *       429:
+ *         description: Tier rate limit exceeded.
  */
 
 export async function POST(req: NextRequest) {
@@ -43,15 +80,13 @@ export async function POST(req: NextRequest) {
     const keyData = keyDoc.data();
 
     // 2. Tiered Rate Limit Verification
-    // Tiers are managed globally in /admin/api to balance server load.
     const configSnap = await getDoc(doc(firestore, 'system', 'config'));
     const systemConfig = configSnap.data();
     const tiers = systemConfig?.apiTiers || [];
     const userTier = tiers.find((t: any) => t.name === keyData.tier);
     
-    const dailyLimit = userTier?.requestsPerDay || 10; // Fallback to introductory limit
+    const dailyLimit = userTier?.requestsPerDay || 10; 
     
-    // Usage check (Simple counter for prototype; production should use windowed limits)
     if (keyData.usageCount >= dailyLimit) {
       return NextResponse.json({ error: 'Tier rate limit exceeded' }, { status: 429 });
     }
@@ -65,7 +100,6 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Engine Execution
-    // Uses system-wide cloud defaults for external API requests to ensure stability.
     const result = await aiStudyAssistant({
       term,
       researchContext: researchContext || [],
@@ -74,7 +108,6 @@ export async function POST(req: NextRequest) {
     });
 
     // 5. Usage Analytics Update
-    // Increments usage count to enforce rate limiting on subsequent calls.
     await updateDoc(doc(firestore, 'api_keys', keyDoc.id), {
       usageCount: increment(1),
       lastUsedAt: new Date().toISOString()
