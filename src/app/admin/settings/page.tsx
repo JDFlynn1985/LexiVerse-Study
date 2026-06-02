@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { ShieldCheck, Settings, Key, Globe, LayoutDashboard, Loader2, Save, Link2 } from 'lucide-react';
+import { ShieldCheck, Settings, Key, UserCheck, Loader2, Save, Link2, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 
@@ -33,13 +33,14 @@ export default function AdminSettings() {
     fetchConfig();
   }, [db]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLocalLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (loginData.username === config.adminUsername && loginData.password === config.adminPassword) {
+    // Prioritizing Firestore-stored credentials from setup, fallback to .env if needed (though Firestore is standard here)
+    if (loginData.username === config?.adminUsername && loginData.password === config?.adminPassword) {
       setIsAuthenticated(true);
-      toast({ title: "Authenticated", description: "Welcome back, Admin." });
+      toast({ title: "Authenticated", description: "Local Admin access granted." });
     } else {
-      toast({ variant: 'destructive', title: "Invalid Credentials" });
+      toast({ variant: 'destructive', title: "Invalid Credentials", description: "Local admin login failed." });
     }
   };
 
@@ -55,12 +56,13 @@ export default function AdminSettings() {
     }
   };
 
-  const promoteUserToAdmin = async () => {
+  const promoteUser = async (role: 'admin' | 'moderator') => {
     if (!user) return;
     setSaving(true);
     try {
-      await updateDoc(doc(db, 'users', user.uid), { isAdmin: true });
-      toast({ title: "User Promoted", description: `${user.displayName} is now a system administrator.` });
+      const updates = role === 'admin' ? { isAdmin: true } : { isModerator: true };
+      await updateDoc(doc(db, 'users', user.uid), updates);
+      toast({ title: "User Promoted", description: `${user.displayName} is now a ${role}.` });
     } catch (e: any) {
       toast({ variant: 'destructive', title: "Promotion Failed" });
     } finally {
@@ -68,18 +70,18 @@ export default function AdminSettings() {
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
 
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30 p-6">
-        <Card className="w-full max-w-md shadow-xl">
+        <Card className="w-full max-w-md shadow-xl border-primary/20">
           <CardHeader className="text-center">
             <ShieldCheck className="h-12 w-12 text-primary mx-auto mb-2" />
-            <CardTitle className="font-headline text-2xl">Admin Authentication</CardTitle>
-            <CardDescription>Enter your local admin credentials to manage the platform.</CardDescription>
+            <CardTitle className="font-headline text-2xl">Admin Portal</CardTitle>
+            <CardDescription>Authenticate via credentials stored during setup to manage the platform.</CardDescription>
           </CardHeader>
-          <form onSubmit={handleLogin}>
+          <form onSubmit={handleLocalLogin}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Username</Label>
@@ -91,7 +93,7 @@ export default function AdminSettings() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button type="submit" className="w-full">Sign In</Button>
+              <Button type="submit" className="w-full">Unlock Dashboard</Button>
             </CardFooter>
           </form>
         </Card>
@@ -104,74 +106,81 @@ export default function AdminSettings() {
       <header className="flex justify-between items-center border-b pb-6">
         <div>
           <h1 className="text-3xl font-bold font-headline flex items-center gap-3">
-            <Settings className="text-primary h-8 w-8" /> System Administration
+            <Settings className="text-primary h-8 w-8" /> System Control Panel
           </h1>
-          <p className="text-muted-foreground">Manage scholarly engines, analytics, and access rights.</p>
+          <p className="text-muted-foreground">Manage scholarly engines, roles, and global parameters.</p>
         </div>
         <Button onClick={handleSave} disabled={saving}>
           {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-          Save Changes
+          Save Configuration
         </Button>
       </header>
 
       <div className="grid gap-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2"><Key className="h-5 w-5 text-primary" /> API Configuration</CardTitle>
+            <CardTitle className="text-lg flex items-center gap-2"><Key className="h-5 w-5 text-primary" /> Research Engine (Gemini)</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Gemini API Key (Live)</Label>
+              <Label>Gemini API Key</Label>
               <Input 
                 type="password" 
-                value={config.geminiApiKey} 
+                value={config?.geminiApiKey || ''} 
                 onChange={e => setConfig({...config, geminiApiKey: e.target.value})} 
               />
-              <p className="text-[10px] text-muted-foreground">Updates made here will take effect immediately for all research flows.</p>
+              <p className="text-[10px] text-muted-foreground">Changes here affect all scholarly AI research flows instantly.</p>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2"><Globe className="h-5 w-5 text-primary" /> Analytics & Tracking</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-2">
-             <div className="space-y-2">
-               <Label>GA4 Measurement ID</Label>
-               <Input value={config.gaMeasurementId} onChange={e => setConfig({...config, gaMeasurementId: e.target.value})} />
-             </div>
-             <div className="space-y-2">
-               <Label>Matomo Site ID</Label>
-               <Input value={config.matomoSiteId} onChange={e => setConfig({...config, matomoSiteId: e.target.value})} />
-             </div>
-             <div className="md:col-span-2 space-y-2">
-               <Label>Matomo Instance URL</Label>
-               <Input value={config.matomoUrl} onChange={e => setConfig({...config, matomoUrl: e.target.value})} />
-             </div>
           </CardContent>
         </Card>
 
         <Card className="border-accent/20 bg-accent/5">
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2 text-accent"><Link2 className="h-5 w-5" /> OAuth Admin Link</CardTitle>
-            <CardDescription>Grant administrative privileges to your current Google account.</CardDescription>
+            <CardTitle className="text-lg flex items-center gap-2 text-accent"><UserCheck className="h-5 w-5" /> Role Management</CardTitle>
+            <CardDescription>Grant specific scholarly permissions to your linked Google account.</CardDescription>
           </CardHeader>
-          <CardContent className="flex items-center justify-between">
-            {user ? (
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
               <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-full border border-accent bg-accent/20 flex items-center justify-center">
-                  <ShieldCheck className="h-6 w-6 text-accent" />
+                <div className="h-10 w-10 rounded-full border border-primary bg-primary/10 flex items-center justify-center">
+                  <ShieldCheck className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <p className="font-bold text-sm">{user.displayName}</p>
-                  <p className="text-xs text-muted-foreground">{user.email}</p>
+                  <p className="font-bold text-sm">System Administrator</p>
+                  <p className="text-xs text-muted-foreground">Full access to settings and user management.</p>
                 </div>
               </div>
-            ) : <p className="text-sm italic">Sign in with Google to enable linking.</p>}
-            <Button variant="outline" className="border-accent text-accent hover:bg-accent hover:text-white" onClick={promoteUserToAdmin} disabled={!user || saving}>
-              Link & Promote
-            </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => promoteUser('admin')} 
+                disabled={!user || saving}
+              >
+                Promote to Admin
+              </Button>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-full border border-accent bg-accent/10 flex items-center justify-center">
+                  <ShieldAlert className="h-6 w-6 text-accent" />
+                </div>
+                <div>
+                  <p className="font-bold text-sm">Wiki Moderator</p>
+                  <p className="text-xs text-muted-foreground">Manage wiki entries, citations, and scholarly peer review.</p>
+                </div>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => promoteUser('moderator')} 
+                disabled={!user || saving}
+              >
+                Promote to Moderator
+              </Button>
+            </div>
+
+            {!user && <p className="text-xs italic text-center text-muted-foreground">Sign in with Google in the main app to enable role promotion.</p>}
           </CardContent>
         </Card>
       </div>

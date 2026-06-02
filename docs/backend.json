@@ -10,7 +10,8 @@
         "displayName": { "type": "string" },
         "email": { "type": "string" },
         "photoURL": { "type": "string" },
-        "isAdmin": { "type": "boolean", "description": "Whether the user has administrative/moderator privileges." },
+        "isAdmin": { "type": "boolean", "description": "Whether the user has administrative privileges." },
+        "isModerator": { "type": "boolean", "description": "Whether the user has moderator privileges for the wiki." },
         "preferences": {
           "type": "object",
           "properties": {
@@ -19,60 +20,45 @@
               "enum": ["googleai/gemini-2.5-flash", "googleai/gemini-2.5-pro-001"],
               "description": "The selected AI engine."
             },
-            "customApiKey": { "type": "string" },
             "preferredBibleVersion": {
               "type": "string",
-              "description": "The user's preferred Bible translation (e.g., kjv, net)."
+              "description": "The user's preferred Bible translation."
             },
             "language": {
               "type": "string",
-              "description": "The user's preferred interface language and dialect."
+              "description": "The user's preferred interface language."
             }
           }
         }
       },
       "required": ["uid"]
     },
-    "SystemSettings": {
-      "title": "System Settings",
-      "description": "Global application configuration stored in Firestore.",
-      "type": "object",
-      "properties": {
-        "geminiApiKey": { "type": "string" },
-        "gaMeasurementId": { "type": "string" },
-        "matomoSiteId": { "type": "string" },
-        "matomoUrl": { "type": "string" },
-        "adminUsername": { "type": "string" },
-        "adminPassword": { "type": "string" },
-        "isConfigured": { "type": "boolean" }
-      }
-    },
-    "SearchLog": {
-      "title": "Search Log",
-      "description": "Log of research queries for administrative analysis.",
-      "type": "object",
-      "properties": {
-        "term": { "type": "string" },
-        "type": { "type": "string", "enum": ["lexicon", "dictionary", "commentary", "scripture", "theology", "timeline"] },
-        "timestamp": { "type": "string", "format": "date-time" },
-        "uid": { "type": "string" }
-      }
-    },
     "WikiEntry": {
       "title": "Wiki Entry",
       "description": "A scholarly wiki article requiring citations and moderation.",
       "type": "object",
       "properties": {
+        "id": { "type": "string" },
         "title": { "type": "string" },
         "content": { "type": "string" },
         "worksCited": { "type": "string" },
-        "bibliography": { "type": "string" },
         "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
         "authorUid": { "type": "string" },
         "authorName": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["title", "content", "worksCited", "bibliography", "status"]
+      "required": ["title", "content", "status", "authorUid"]
+    },
+    "SystemSettings": {
+      "title": "System Settings",
+      "description": "Global application configuration stored in Firestore.",
+      "type": "object",
+      "properties": {
+        "adminUsername": { "type": "string" },
+        "adminPassword": { "type": "string" },
+        "geminiApiKey": { "type": "string" },
+        "isConfigured": { "type": "boolean" }
+      }
     }
   },
   "auth": {
@@ -81,15 +67,11 @@
   "firestore": {
     "/users/{userId}": {
       "schema": "#/backend/entities/UserStudyProfile",
-      "description": "User's study profile and settings."
+      "description": "User's study profile and role flags."
     },
     "/system/config": {
       "schema": "#/backend/entities/SystemSettings",
-      "description": "Global system configuration and admin credentials."
-    },
-    "/search_logs/{logId}": {
-      "schema": "#/backend/entities/SearchLog",
-      "description": "Centralized logs for search analysis."
+      "description": "Global system configuration."
     },
     "/wiki_entries/{entryId}": {
       "schema": "#/backend/entities/WikiEntry",

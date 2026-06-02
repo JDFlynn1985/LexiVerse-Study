@@ -9,7 +9,7 @@ import {
   GoogleAuthProvider, 
   signOut
 } from 'firebase/auth';
-import { doc, setDoc, onSnapshot, collection, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, collection, query, orderBy, addDoc, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { appConfig } from '@/app-config';
 import { useAuth, useFirestore, useUser, useCollection } from '@/firebase';
 import { logSearch } from '@/lib/search-logging';
@@ -66,11 +66,14 @@ import {
   HardDrive,
   FileCode,
   Type,
-  Highlighter
+  Highlighter,
+  MessageSquare,
+  ShieldAlert,
+  GraduationCap
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -85,6 +88,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuCheckboxItem
 } from '@/components/ui/dropdown-menu';
+import { Textarea } from '@/components/ui/textarea';
 
 // AI Flow Imports
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
@@ -104,13 +108,14 @@ import { findOvertReferences } from '@/lib/cross-references';
 import { exportToPDF, exportToWord, exportToMarkdown, exportToRTF, exportToText } from '@/lib/export-service';
 import { exportToGoogleDrive, exportToGoogleDocs } from '@/lib/google-export';
 
-type ViewMode = 'dashboard' | 'lexicon' | 'commentaries' | 'wiki' | 'theology-map' | 'timeline' | 'writing-assistant' | 'integrity' | 'ai-settings' | 'ai-assistant' | 'verse-explorer' | 'compare-translations' | 'research-library';
+type ViewMode = 'dashboard' | 'lexicon' | 'wiki' | 'theology-map' | 'timeline' | 'writing-assistant' | 'ai-settings' | 'ai-assistant' | 'verse-explorer' | 'compare-translations' | 'research-library' | 'moderation';
 
 interface UserProfile {
   uid: string;
   displayName: string;
   email: string;
   isAdmin?: boolean;
+  isModerator?: boolean;
   preferences?: {
     selectedModel: string;
     customApiKey: string;
@@ -119,14 +124,23 @@ interface UserProfile {
   };
 }
 
-function HighlightedText({ text, highlights }: { text: string; highlights: string[] }) {
-  if (!highlights.length) return <p className="text-sm leading-relaxed">{text}</p>;
+interface WikiArticle {
+  id: string;
+  title: string;
+  content: string;
+  worksCited: string;
+  status: 'pending' | 'approved' | 'rejected';
+  authorUid: string;
+  authorName: string;
+  createdAt: string;
+}
 
+function HighlightedText({ text, highlights }: { text: string; highlights: string[] }) {
+  if (!highlights.length) return <p className="text-sm leading-relaxed whitespace-pre-wrap">{text}</p>;
   const escaped = highlights.map(h => h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
   const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
-
   return (
-    <p className="text-sm leading-relaxed">
+    <p className="text-sm leading-relaxed whitespace-pre-wrap">
       {parts.map((part, i) => {
         const isMatch = highlights.some(h => h.toLowerCase() === part.toLowerCase());
         return isMatch ? (
@@ -171,11 +185,16 @@ export default function Home() {
   const [covertLinks, setCovertLinks] = useState<CovertReferenceOutput | null>(null);
 
   const [activeHighlights, setActiveHighlights] = useState<string[]>([]);
-
   const [isRecording, setIsRecording] = useState(false);
-  const [ocrResult, setOcrResult] = useState<string | null>(null);
-
   const [selectedExports, setSelectedExports] = useState<string[]>(['markdown']);
+
+  // Wiki State
+  const [wikiDraft, setWikiDraft] = useState({ title: '', content: '', worksCited: '' });
+  const wikiQuery = useMemo(() => query(collection(db, 'wiki_entries'), orderBy('createdAt', 'desc')), [db]);
+  const { data: wikiArticles } = useCollection<WikiArticle>(wikiQuery);
+
+  const moderationQuery = useMemo(() => query(collection(db, 'wiki_entries'), where('status', '==', 'pending')), [db]);
+  const { data: pendingArticles } = useCollection<WikiArticle>(moderationQuery);
 
   const refreshLocalDocs = useCallback(async () => {
     const docs = await getAllLocalDocuments();
@@ -186,7 +205,6 @@ export default function Home() {
     setMounted(true);
     const savedHistory = localStorage.getItem('lexiverse_history');
     if (savedHistory) setHistory(JSON.parse(savedHistory));
-
     refreshLocalDocs();
     getVersions().then(setAvailableVersions);
   }, [refreshLocalDocs]);
@@ -221,12 +239,16 @@ export default function Home() {
       if (credential?.accessToken) setGoogleAccessToken(credential.accessToken);
       
       const userRef = doc(db, 'users', result.user.uid);
-      setDoc(userRef, { 
-        uid: result.user.uid, 
-        displayName: result.user.displayName, 
-        email: result.user.email,
-        isAdmin: false
-      }, { merge: true });
+      const snap = await getDoc(userRef);
+      if (!snap.exists()) {
+        await setDoc(userRef, { 
+          uid: result.user.uid, 
+          displayName: result.user.displayName, 
+          email: result.user.email,
+          isAdmin: false,
+          isModerator: false
+        });
+      }
       toast({ title: "Logged in", description: `Welcome, ${result.user.displayName}` });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Login Failed", description: error.message });
@@ -267,7 +289,7 @@ export default function Home() {
       setHistory(newHistory.slice(0, 10));
       localStorage.setItem('lexiverse_history', JSON.stringify(newHistory.slice(0, 10)));
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Search failed', description: 'The scholarly engine encountered an error.' });
+      toast({ variant: 'destructive', title: 'Search failed' });
     } finally {
       setIsLoading(false);
     }
@@ -279,42 +301,39 @@ export default function Home() {
     if (text && text.length > 2) {
       if (!activeHighlights.includes(text)) {
         setActiveHighlights([...activeHighlights, text]);
-        toast({ title: "Selection Highlighted", description: "This insight will be emphasized in exports." });
+        toast({ title: "Insight Highlighted" });
       } else {
         setActiveHighlights(activeHighlights.filter(h => h !== text));
-        toast({ title: "Highlight Removed" });
       }
-    } else {
-      toast({ title: "No text selected", description: "Select a word or phrase to highlight it." });
     }
   };
 
-  const handleMultiExport = async () => {
-    if (!assistantResult) return;
+  const submitWikiEntry = async () => {
+    if (!user || !wikiDraft.title || !wikiDraft.content) return;
     setIsLoading(true);
     try {
-      for (const format of selectedExports) {
-        switch (format) {
-          case 'pdf': await exportToPDF(assistantResult, activeHighlights); break;
-          case 'docx': await exportToWord(assistantResult, activeHighlights); break;
-          case 'markdown': await exportToMarkdown(assistantResult, activeHighlights); break;
-          case 'rtf': await exportToRTF(assistantResult, activeHighlights); break;
-          case 'txt': await exportToText(assistantResult, activeHighlights); break;
-          case 'gdrive': 
-            if (googleAccessToken) await exportToGoogleDrive(googleAccessToken, assistantResult);
-            else toast({ title: "Auth Required", description: "Link Google to export to Drive." });
-            break;
-          case 'gdocs': 
-            if (googleAccessToken) await exportToGoogleDocs(googleAccessToken, assistantResult);
-            else toast({ title: "Auth Required", description: "Link Google to export to Docs." });
-            break;
-        }
-      }
-      toast({ title: "Export Successful", description: `Saved to ${selectedExports.length} channel(s).` });
+      await addDoc(collection(db, 'wiki_entries'), {
+        ...wikiDraft,
+        status: 'pending',
+        authorUid: user.uid,
+        authorName: user.displayName || 'Scholar',
+        createdAt: new Date().toISOString()
+      });
+      setWikiDraft({ title: '', content: '', worksCited: '' });
+      toast({ title: "Submission Sent", description: "Your article is awaiting scholarly peer review." });
     } catch (e) {
-      toast({ variant: 'destructive', title: "Export Failed" });
+      toast({ variant: 'destructive', title: "Submission failed" });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const moderateWiki = async (id: string, status: 'approved' | 'rejected') => {
+    try {
+      await updateDoc(doc(db, 'wiki_entries', id), { status });
+      toast({ title: `Article ${status}` });
+    } catch (e) {
+      toast({ variant: 'destructive', title: "Moderation action failed" });
     }
   };
 
@@ -326,7 +345,6 @@ export default function Home() {
         const res = await transcribeAudio({ audioPart: "SGVsbG8gV29ybGQ=" }); 
         setSidebarSearchTerm(res.transcript);
         handleSearch(res.transcript, 'ai-assistant');
-        toast({ title: "Voice Transcription Complete", description: `Researching: "${res.transcript}"` });
       } catch (e) {
         toast({ variant: 'destructive', title: "Voice transcription failed" });
       } finally {
@@ -334,76 +352,7 @@ export default function Home() {
       }
     } else {
       setIsRecording(true);
-      toast({ title: "Listening...", description: "Speak your research query." });
-    }
-  };
-
-  const handleFileSync = async () => {
-    if (!user || !db) {
-      toast({ variant: 'destructive', title: "Auth Required", description: "Please login to sync files to the cloud." });
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const unsynced = localDocuments.filter(d => !d.synced);
-      for (const d of unsynced) {
-        await addDoc(collection(db, `users/${user.uid}/research`), {
-          ...d,
-          synced: true,
-          timestamp: serverTimestamp()
-        });
-        await saveLocalDocument({ ...d, synced: true });
-      }
-      refreshLocalDocs();
-      toast({ title: "Cloud Sync Complete", description: "Your local library is now mirrored in your account." });
-    } catch (e) {
-      toast({ variant: 'destructive', title: "Sync failed" });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleOCR = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64 = reader.result as string;
-      setIsLoading(true);
-      try {
-        const res = await extractTextFromImage({ imagePart: base64 });
-        setOcrResult(res.text);
-        const newDoc: IDBDocument = {
-          id: Date.now().toString(),
-          name: `OCR Extract - ${file.name}`,
-          type: 'ocr',
-          content: res.text,
-          uploadDate: new Date().toLocaleDateString(),
-          synced: false
-        };
-        await saveLocalDocument(newDoc);
-        refreshLocalDocs();
-        setActiveTab('research-library');
-        toast({ title: "OCR Extract Success", description: "Manuscript text identified and saved to local library." });
-      } catch (err) {
-        toast({ variant: 'destructive', title: "OCR processing failed" });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleCovertLinkScan = async (text: string) => {
-    setIsLoading(true);
-    try {
-      const res = await findCovertLinks(text);
-      setCovertLinks(res);
-      toast({ title: "Semantic Analysis Complete", description: `Identified ${res.covertLinks.length} covert theological links.` });
-    } catch (e) {
-      toast({ variant: 'destructive', title: "Semantic scan failed" });
-    } finally {
-      setIsLoading(false);
+      toast({ title: "Listening..." });
     }
   };
 
@@ -433,7 +382,6 @@ export default function Home() {
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  aria-label="Voice search"
                   className={`absolute right-1 top-1 h-7 w-7 ${isRecording ? 'text-red-500 animate-pulse' : ''}`}
                   onClick={handleVoiceSearch}
                 >
@@ -444,23 +392,36 @@ export default function Home() {
           </SidebarHeader>
           <SidebarContent>
             <SidebarGroup>
-              <SidebarGroupLabel>{t.nav.dashboard}</SidebarGroupLabel>
+              <SidebarGroupLabel>Navigation</SidebarGroupLabel>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} tooltip={t.nav.dashboard}>
-                    <LayoutDashboard className="h-5 w-5" /> <span>{t.nav.dashboard}</span>
+                  <SidebarMenuButton isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} tooltip="Dashboard">
+                    <LayoutDashboard className="h-5 w-5" /> <span>Dashboard</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'wiki'} onClick={() => setActiveTab('wiki')} tooltip="Scholarly Wiki">
+                    <GraduationCap className="h-5 w-5" /> <span>Scholarly Wiki</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                {userProfile?.isModerator && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton isActive={activeTab === 'moderation'} onClick={() => setActiveTab('moderation')} tooltip="Moderation Panel">
+                      <ShieldAlert className="h-5 w-5 text-accent" /> <span>Peer Review</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
               </SidebarMenu>
             </SidebarGroup>
 
             <SidebarGroup>
-              <SidebarGroupLabel>{t.nav.ai_hub}</SidebarGroupLabel>
+              <SidebarGroupLabel>AI Research Hub</SidebarGroupLabel>
               <SidebarMenu>
                 {[
-                  { id: 'ai-assistant', label: t.nav.study_assistant, icon: Sparkles },
-                  { id: 'verse-explorer', label: t.nav.verse_explorer, icon: Compass },
-                  { id: 'compare-translations', label: t.nav.translation_compare, icon: Repeat },
+                  { id: 'ai-assistant', label: 'Study Assistant', icon: Sparkles },
+                  { id: 'lexicon', label: 'Lexicon', icon: BookOpen },
+                  { id: 'theology-map', label: 'Theology Map', icon: Network },
+                  { id: 'timeline', label: 'Timeline', icon: Milestone },
                 ].map((item) => (
                   <SidebarMenuItem key={item.id}>
                     <SidebarMenuButton isActive={activeTab === item.id} onClick={() => setActiveTab(item.id as ViewMode)} tooltip={item.label}>
@@ -472,77 +433,47 @@ export default function Home() {
             </SidebarGroup>
             
             <SidebarGroup>
-              <SidebarGroupLabel>{t.nav.library}</SidebarGroupLabel>
+              <SidebarGroupLabel>Repository</SidebarGroupLabel>
               <SidebarMenu>
-                {[
-                  { id: 'research-library', label: "Research Library", icon: Library },
-                  { id: 'lexicon', label: t.nav.lexicon, icon: BookOpen },
-                ].map((item) => (
-                  <SidebarMenuItem key={item.id}>
-                    <SidebarMenuButton isActive={activeTab === item.id} onClick={() => setActiveTab(item.id as ViewMode)} tooltip={item.label}>
-                      <item.icon className="h-5 w-5" /> <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroup>
-
-            <SidebarGroup>
-              <SidebarGroupLabel>{t.nav.synthesis}</SidebarGroupLabel>
-              <SidebarMenu>
-                {[
-                  { id: 'theology-map', label: t.nav.theology_map, icon: Network },
-                  { id: 'timeline', label: t.nav.timeline, icon: Milestone },
-                  { id: 'writing-assistant', label: t.nav.writing_editor, icon: Edit3 },
-                ].map((item) => (
-                  <SidebarMenuItem key={item.id}>
-                    <SidebarMenuButton isActive={activeTab === item.id} onClick={() => setActiveTab(item.id as ViewMode)} tooltip={item.label}>
-                      <item.icon className="h-5 w-5" /> <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'research-library'} onClick={() => setActiveTab('research-library')} tooltip="Local Library">
+                    <Library className="h-5 w-5" /> <span>Local Library</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
           </SidebarContent>
           <SidebarFooter className="p-4 border-t flex flex-col gap-2">
             <div className="flex flex-row items-center justify-between w-full">
               <div className="flex items-center gap-1">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className={`h-8 w-8 ${activeTab === 'ai-settings' ? 'text-primary bg-primary/10' : ''}`}
-                  onClick={() => setActiveTab('ai-settings')}
-                  title={t.nav.settings}
-                  aria-label="Settings"
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
+                {(userProfile?.isAdmin || !user) && (
+                   <Button 
+                     variant="ghost" 
+                     size="icon" 
+                     className="h-8 w-8"
+                     onClick={() => window.open('/admin/settings', '_blank')}
+                   >
+                     <Settings className="h-4 w-4" />
+                   </Button>
+                )}
                 {user ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" aria-label="User account" className="p-0 h-8 w-8 rounded-full overflow-hidden border">
-                        <Image 
-                          src={user.photoURL || defaultAvatar?.imageUrl || ''} 
-                          alt={user.displayName || "User"} 
-                          width={40} 
-                          height={40} 
-                          className="object-cover"
-                          data-ai-hint={defaultAvatar?.imageHint || "user avatar"}
-                        />
+                      <Button variant="ghost" className="p-0 h-8 w-8 rounded-full overflow-hidden border">
+                        <Image src={user.photoURL || defaultAvatar?.imageUrl || ''} alt="User" width={40} height={40} className="object-cover" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
                       <DropdownMenuLabel>{user.displayName}</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => setActiveTab('ai-settings')}><Settings className="h-4 w-4 mr-2" /> {t.nav.settings}</DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleLogout} className="text-destructive"><LogOut className="h-4 w-4 mr-2" /> {t.nav.logout}</DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleLogout} className="text-destructive"><LogOut className="h-4 w-4 mr-2" /> Logout</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 ) : (
-                  <Button variant="outline" size="sm" onClick={handleLogin}>{t.nav.login_google}</Button>
+                  <Button variant="outline" size="sm" onClick={handleLogin}>Login</Button>
                 )}
               </div>
-              <Button variant="ghost" size="icon" aria-label="Toggle theme" className="h-8 w-8" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
                 {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
               </Button>
             </div>
@@ -554,45 +485,29 @@ export default function Home() {
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               {activeTab === 'dashboard' && (
                 <div className="space-y-8">
-                  <header className="flex justify-between items-end">
-                    <div>
-                      <h1 className="text-4xl font-bold font-headline">{t.dashboard.title}</h1>
-                      <p className="text-muted-foreground text-lg">{t.dashboard.subtitle}</p>
-                    </div>
-                    <div className="flex gap-2">
-                       <Button variant="outline" size="sm" className="gap-2" onClick={() => setActiveTab('research-library')}>
-                         <FileUp className="h-4 w-4" /> {t.dashboard.upload_paper}
-                       </Button>
-                       <Button variant="secondary" size="sm" className="gap-2" onClick={handleFileSync}>
-                         <CloudUpload className="h-4 w-4" /> Sync Library
-                       </Button>
-                    </div>
+                  <header>
+                    <h1 className="text-4xl font-bold font-headline">Research Workspace</h1>
+                    <p className="text-muted-foreground text-lg">Integrated AI for advanced biblical scholarship.</p>
                   </header>
 
                   <div className="grid gap-6 md:grid-cols-3">
                     <Card className="md:col-span-2 shadow-md border-primary/10">
                       <CardHeader>
                         <CardTitle className="font-headline flex items-center gap-2">
-                          <Sparkles className="h-5 w-5 text-primary" /> Scholarly AI Workspace
+                          <Sparkles className="h-5 w-5 text-primary" /> Scholarly Workspace
                         </CardTitle>
-                        <CardDescription>Synthesized research combining scripture, commentaries, and your local library.</CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="flex gap-2">
                           <Input 
-                            placeholder="Enter a Greek/Hebrew term or research question..." 
+                            placeholder="Greek/Hebrew term or eschatological question..." 
                             value={assistantTerm} 
                             onChange={e => setAssistantTerm(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && handleSearch(assistantTerm, 'ai-assistant')}
                           />
-                          <Button aria-label="Run assistant search" onClick={() => handleSearch(assistantTerm, 'ai-assistant')} disabled={isLoading}>
-                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                          <Button onClick={() => handleSearch(assistantTerm, 'ai-assistant')} disabled={isLoading}>
+                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                           </Button>
-                        </div>
-                        <div className="flex gap-2 flex-wrap">
-                          <Badge variant="secondary" className="cursor-pointer" onClick={() => setAssistantTerm('λόγος')}>λόγος</Badge>
-                          <Badge variant="secondary" className="cursor-pointer" onClick={() => setAssistantTerm('δικαιοσύνη')}>δικαιοσύνη</Badge>
-                          <Badge variant="secondary" className="cursor-pointer" onClick={() => setAssistantTerm('בְּרֵאשִׁית')}>בְּרֵאשִׁית</Badge>
                         </div>
                       </CardContent>
                     </Card>
@@ -600,111 +515,115 @@ export default function Home() {
                     <Card className="shadow-md border-primary/10">
                       <CardHeader className="pb-3">
                         <CardTitle className="font-headline text-sm flex items-center gap-2">
-                          <History className="h-4 w-4 text-primary" /> {t.dashboard.history}
+                          <History className="h-4 w-4 text-primary" /> Search History
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="p-0">
-                        <ScrollArea className="h-[200px]">
+                        <ScrollArea className="h-[150px]">
                           {history.map(h => (
-                            <div key={h.id} className="p-3 border-b last:border-0 hover:bg-muted/50 transition-colors cursor-pointer group" onClick={() => handleSearch(h.term, h.type as any)}>
-                              <div className="flex justify-between items-start">
-                                <p className="text-xs font-bold truncate max-w-[120px]">{h.term}</p>
-                                <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
-                              </div>
-                              <div className="flex justify-between items-center mt-1">
-                                <Badge variant="secondary" className="text-[8px] uppercase">{h.type.replace('-', ' ')}</Badge>
-                                <p className="text-[8px] text-muted-foreground">{h.date.split(',')[0]}</p>
-                              </div>
+                            <div key={h.id} className="p-3 border-b hover:bg-muted/50 transition-colors cursor-pointer text-xs" onClick={() => handleSearch(h.term, h.type as any)}>
+                              <p className="font-bold truncate">{h.term}</p>
+                              <p className="text-[10px] text-muted-foreground uppercase">{h.type.replace('-', ' ')}</p>
                             </div>
                           ))}
                         </ScrollArea>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="md:col-span-3 shadow-md border-primary/10">
-                      <CardHeader>
-                        <CardTitle className="font-headline text-lg flex items-center gap-2">
-                          <TrendingUp className="h-5 w-5 text-primary" /> Future Research Horizons
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="grid gap-4 md:grid-cols-3">
-                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5">
-                           <Puzzle className="h-5 w-5 text-accent shrink-0 mt-0.5" />
-                           <div>
-                             <p className="text-xs font-bold">Zotero & Mendeley Sync</p>
-                             <p className="text-[10px] text-muted-foreground">Seamlessly import/export bibliographic metadata for citations.</p>
-                           </div>
-                        </div>
-                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5">
-                           <Network className="h-5 w-5 text-accent shrink-0 mt-0.5" />
-                           <div>
-                             <p className="text-xs font-bold">Semantic Vector Search</p>
-                             <p className="text-[10px] text-muted-foreground">Advanced RAG across your entire research library.</p>
-                           </div>
-                        </div>
-                        <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-primary/5">
-                           <Globe className="h-5 w-5 text-accent shrink-0 mt-0.5" />
-                           <div>
-                             <p className="text-xs font-bold">Peer-Reviewed Scholarly Wiki</p>
-                             <p className="text-[10px] text-muted-foreground">Collaborative knowledge base for verified theological research.</p>
-                           </div>
-                        </div>
                       </CardContent>
                     </Card>
                   </div>
                 </div>
               )}
 
-              {activeTab === 'research-library' && (
+              {activeTab === 'wiki' && (
+                <div className="space-y-8">
+                   <header className="flex justify-between items-center">
+                     <div>
+                       <h1 className="text-3xl font-bold font-headline">Scholarly Wiki</h1>
+                       <p className="text-muted-foreground">Collaborative repository of verified theological insights.</p>
+                     </div>
+                     <Tabs defaultValue="browse" className="w-[400px]">
+                       <TabsList className="grid w-full grid-cols-2">
+                         <TabsTrigger value="browse">Browse Wiki</TabsTrigger>
+                         <TabsTrigger value="submit">Submit Entry</TabsTrigger>
+                       </TabsList>
+                       <TabsContent value="browse" className="mt-6">
+                         <div className="space-y-4">
+                           {wikiArticles?.filter(a => a.status === 'approved').map(article => (
+                             <Card key={article.id} className="shadow-sm">
+                               <CardHeader>
+                                 <CardTitle className="text-lg font-headline">{article.title}</CardTitle>
+                                 <CardDescription>By {article.authorName} • {new Date(article.createdAt).toLocaleDateString()}</CardDescription>
+                               </CardHeader>
+                               <CardContent>
+                                 <p className="text-sm line-clamp-3 mb-4">{article.content}</p>
+                                 <Badge variant="outline">Verified Scholarly Content</Badge>
+                               </CardContent>
+                             </Card>
+                           ))}
+                         </div>
+                       </TabsContent>
+                       <TabsContent value="submit" className="mt-6">
+                         <Card>
+                           <CardHeader>
+                             <CardTitle className="text-lg">New Wiki Contribution</CardTitle>
+                             <CardDescription>All submissions undergo peer review by moderators.</CardDescription>
+                           </CardHeader>
+                           <CardContent className="space-y-4">
+                             <div className="space-y-2">
+                               <Label>Title</Label>
+                               <Input value={wikiDraft.title} onChange={e => setWikiDraft({...wikiDraft, title: e.target.value})} />
+                             </div>
+                             <div className="space-y-2">
+                               <Label>Scholarly Synthesis</Label>
+                               <Textarea rows={6} value={wikiDraft.content} onChange={e => setWikiDraft({...wikiDraft, content: e.target.value})} />
+                             </div>
+                             <div className="space-y-2">
+                               <Label>Works Cited (SBL/Turabian)</Label>
+                               <Input value={wikiDraft.worksCited} onChange={e => setWikiDraft({...wikiDraft, worksCited: e.target.value})} />
+                             </div>
+                           </CardContent>
+                           <CardFooter>
+                             <Button className="w-full" onClick={submitWikiEntry} disabled={isLoading || !user}>
+                               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4" />}
+                               Submit for Review
+                             </Button>
+                           </CardFooter>
+                         </Card>
+                       </TabsContent>
+                     </Tabs>
+                   </header>
+                </div>
+              )}
+
+              {activeTab === 'moderation' && userProfile?.isModerator && (
                 <div className="space-y-6">
-                  <header className="flex justify-between items-start">
-                    <div>
-                      <h1 className="text-3xl font-bold font-headline">Research Library</h1>
-                      <p className="text-muted-foreground">Locally persistent scholarly documents (IndexedDB).</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={handleFileSync}><CloudUpload className="h-4 w-4 mr-2" /> Sync to Cloud</Button>
-                      <Label htmlFor="ocr-upload" className="cursor-pointer">
-                        <div className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-2 rounded-md hover:bg-primary/90 transition-colors text-sm font-medium">
-                          <ScanText className="h-4 w-4" /> OCR Extract
-                        </div>
-                        <Input id="ocr-upload" type="file" className="hidden" accept="image/*" onChange={handleOCR} />
-                      </Label>
-                    </div>
+                  <header>
+                    <h1 className="text-3xl font-bold font-headline flex items-center gap-2">
+                      <ShieldAlert className="h-8 w-8 text-accent" /> Peer Review Moderation
+                    </h1>
+                    <p className="text-muted-foreground">Approve or reject scholarly contributions to the wiki.</p>
                   </header>
 
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-lg font-headline flex items-center gap-2">
-                        <Database className="h-5 w-5 text-primary" /> Persistent Local Library
-                      </CardTitle>
-                      <CardDescription>Documents stored in browser IndexedDB for privacy and high performance.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {localDocuments.length === 0 && <p className="text-center py-10 text-muted-foreground italic">No documents found in your local library.</p>}
-                        {localDocuments.map(doc => (
-                          <div key={doc.id} className="flex items-center justify-between p-4 bg-muted/30 rounded-xl border group hover:border-primary/20 transition-all">
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 bg-muted rounded-lg"><FileText className="h-5 w-5 text-muted-foreground" /></div>
-                              <div>
-                                <p className="font-bold text-sm">{doc.name}</p>
-                                <p className="text-[10px] text-muted-foreground uppercase">{doc.type} • {doc.uploadDate} • {doc.synced ? 'Synced' : 'Local Only'}</p>
-                              </div>
-                            </div>
-                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button variant="ghost" size="sm" onClick={() => handleSearch(doc.name, 'ai-assistant')}><Sparkles className="h-4 w-4 mr-1" /> Analyze</Button>
-                              <Button variant="ghost" size="sm" onClick={() => {
-                                deleteLocalDocument(doc.id);
-                                refreshLocalDocs();
-                                toast({ title: "Document Removed" });
-                              }} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                            </div>
+                  <div className="grid gap-6">
+                    {pendingArticles?.map(article => (
+                      <Card key={article.id} className="border-accent/20 bg-accent/5">
+                        <CardHeader>
+                          <CardTitle className="font-headline">{article.title}</CardTitle>
+                          <CardDescription>Author: {article.authorName} ({article.authorUid})</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <p className="text-sm leading-relaxed">{article.content}</p>
+                          <div className="p-3 bg-background rounded border text-xs italic">
+                            <strong>Citations:</strong> {article.worksCited}
                           </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
+                        </CardContent>
+                        <CardFooter className="flex gap-2">
+                          <Button variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => moderateWiki(article.id, 'approved')}>Approve</Button>
+                          <Button variant="destructive" onClick={() => moderateWiki(article.id, 'rejected')}>Reject</Button>
+                        </CardFooter>
+                      </Card>
+                    ))}
+                    {pendingArticles?.length === 0 && <p className="text-center py-12 text-muted-foreground italic">No articles currently awaiting peer review.</p>}
+                  </div>
                 </div>
               )}
 
@@ -721,124 +640,24 @@ export default function Home() {
                           <Button variant="outline" size="sm" onClick={handleHighlightSelection}>
                             <Highlighter className="h-4 w-4 mr-2" /> Highlight Selection
                           </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="outline" size="sm">
-                                <Share2 className="h-4 w-4 mr-2" /> Multi-Export ({selectedExports.length})
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-64">
-                              <DropdownMenuLabel>Select Formats & Channels</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuCheckboxItem 
-                                checked={selectedExports.includes('pdf')} 
-                                onCheckedChange={checked => checked ? setSelectedExports([...selectedExports, 'pdf']) : setSelectedExports(selectedExports.filter(e => e !== 'pdf'))}
-                              >
-                                <FileText className="h-4 w-4 mr-2" /> PDF Document
-                              </DropdownMenuCheckboxItem>
-                              <DropdownMenuCheckboxItem 
-                                checked={selectedExports.includes('docx')} 
-                                onCheckedChange={checked => checked ? setSelectedExports([...selectedExports, 'docx']) : setSelectedExports(selectedExports.filter(e => e !== 'docx'))}
-                              >
-                                <Files className="h-4 w-4 mr-2" /> Word Document (.docx)
-                              </DropdownMenuCheckboxItem>
-                              <DropdownMenuCheckboxItem 
-                                checked={selectedExports.includes('rtf')} 
-                                onCheckedChange={checked => checked ? setSelectedExports([...selectedExports, 'rtf']) : setSelectedExports(selectedExports.filter(e => e !== 'rtf'))}
-                              >
-                                <Type className="h-4 w-4 mr-2" /> Rich Text (.rtf)
-                              </DropdownMenuCheckboxItem>
-                              <DropdownMenuCheckboxItem 
-                                checked={selectedExports.includes('markdown')} 
-                                onCheckedChange={checked => checked ? setSelectedExports([...selectedExports, 'markdown']) : setSelectedExports(selectedExports.filter(e => e !== 'markdown'))}
-                              >
-                                <FileCode className="h-4 w-4 mr-2" /> Markdown (Obsidian)
-                              </DropdownMenuCheckboxItem>
-                              <DropdownMenuCheckboxItem 
-                                checked={selectedExports.includes('txt')} 
-                                onCheckedChange={checked => checked ? setSelectedExports([...selectedExports, 'txt']) : setSelectedExports(selectedExports.filter(e => e !== 'txt'))}
-                              >
-                                <FileText className="h-4 w-4 mr-2" /> Plain Text (.txt)
-                              </DropdownMenuCheckboxItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuCheckboxItem 
-                                checked={selectedExports.includes('gdrive')} 
-                                onCheckedChange={checked => checked ? setSelectedExports([...selectedExports, 'gdrive']) : setSelectedExports(selectedExports.filter(e => e !== 'gdrive'))}
-                              >
-                                <HardDrive className="h-4 w-4 mr-2" /> Google Drive
-                              </DropdownMenuCheckboxItem>
-                              <DropdownMenuCheckboxItem 
-                                checked={selectedExports.includes('gdocs')} 
-                                onCheckedChange={checked => checked ? setSelectedExports([...selectedExports, 'gdocs']) : setSelectedExports(selectedExports.filter(e => e !== 'gdocs'))}
-                              >
-                                <Edit3 className="h-4 w-4 mr-2" /> Google Docs
-                              </DropdownMenuCheckboxItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="bg-primary text-primary-foreground font-bold" onClick={handleMultiExport}>
-                                <Download className="h-4 w-4 mr-2" /> Run Export Process
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent className="pt-6 space-y-8">
-                      <div className="grid gap-6 md:grid-cols-2">
-                        <div className="space-y-4">
-                          <h3 className="text-xs font-bold uppercase tracking-widest text-primary border-b pb-1">Definitions</h3>
-                          <ul className="list-disc pl-5 space-y-2">
-                            {assistantResult.definitions.map((d, i) => <li key={i} className="text-sm italic">{d}</li>)}
-                          </ul>
-                        </div>
-                        <div className="space-y-4">
-                          <h3 className="text-xs font-bold uppercase tracking-widest text-primary border-b pb-1">AI Synthesis</h3>
+                       <div className="space-y-4">
+                          <h3 className="text-xs font-bold uppercase tracking-widest text-primary border-b pb-1">AI Insights</h3>
                           <HighlightedText text={assistantResult.aiInsights} highlights={activeHighlights} />
-                        </div>
-                      </div>
+                       </div>
 
-                      <div className="space-y-4">
-                        <h3 className="text-xs font-bold uppercase tracking-widest text-primary border-b pb-1">Biblical Cross-References</h3>
+                       <div className="space-y-4">
+                        <h3 className="text-xs font-bold uppercase tracking-widest text-primary border-b pb-1">Biblical References</h3>
                         <div className="grid gap-3 md:grid-cols-2">
                           {assistantResult.verseUsages.map((v, i) => (
                             <div key={i} className="p-3 bg-muted/30 rounded-lg flex items-center justify-between group">
                               <span className="text-xs font-medium">{v.text}</span>
-                              <Button variant="ghost" size="icon" aria-label={`Open ${v.text}`} className="h-6 w-6 opacity-0 group-hover:opacity-100" asChild>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" asChild>
                                 <a href={v.url} target="_blank" rel="noopener noreferrer"><Link2 className="h-3 w-3" /></a>
                               </Button>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="flex gap-2 pt-2">
-                           <Button variant="outline" size="sm" onClick={() => {
-                             const overt = findOvertReferences(assistantResult.aiInsights);
-                             toast({ title: "Overt Links Found", description: overt.join(', ') || "No explicit citations detected." });
-                           }}><Link2 className="h-4 w-4 mr-2" /> Scan Overt</Button>
-                           <Button variant="outline" size="sm" onClick={() => handleCovertLinkScan(assistantResult.aiInsights)}><Sparkles className="h-4 w-4 mr-2" /> Scan Covert</Button>
-                        </div>
-                      </div>
-
-                      {covertLinks && (
-                        <div className="p-4 bg-accent/5 rounded-xl border border-accent/20 space-y-4">
-                           <h4 className="text-sm font-bold text-accent flex items-center gap-2"><Sparkles className="h-4 w-4" /> Covert (Semantic) References</h4>
-                           <div className="space-y-3">
-                             {covertLinks.covertLinks.map((link, idx) => (
-                               <div key={idx} className="text-xs border-l-2 border-accent pl-3 space-y-1">
-                                 <p className="font-bold">{link.suggestedScripture}</p>
-                                 <p className="text-muted-foreground italic">"{link.sourceFragment}"</p>
-                                 <p className="text-[10px] text-muted-foreground">{link.theologicalBasis}</p>
-                               </div>
-                             ))}
-                           </div>
-                        </div>
-                      )}
-
-                      <div className="space-y-2">
-                        <h3 className="text-xs font-bold uppercase tracking-widest text-primary border-b pb-1">Bibliography</h3>
-                        <div className="space-y-2">
-                          {assistantResult.bibliography.map((b, i) => (
-                            <div key={i} className="text-xs flex items-center gap-2">
-                              <span className="text-muted-foreground">{i + 1}.</span>
-                              <a href={b.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{b.text}</a>
                             </div>
                           ))}
                         </div>
@@ -851,7 +670,7 @@ export default function Home() {
               {isLoading && (
                 <div className="flex flex-col items-center justify-center py-20 space-y-4">
                   <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                  <p className="text-muted-foreground font-headline animate-pulse">Consulting the digital library...</p>
+                  <p className="text-muted-foreground font-headline animate-pulse">Consulting scholarly records...</p>
                 </div>
               )}
             </div>
