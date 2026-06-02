@@ -53,7 +53,11 @@ import {
   Newspaper,
   PenTool,
   CheckCircle2,
-  Clock
+  Clock,
+  BookMarked,
+  ArrowLeftRight,
+  ShieldCheck,
+  FileText
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -82,7 +86,7 @@ import { transcribeAudio } from '@/ai/flows/transcribe-flow';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 import { getAllLocalDocuments, type IDBDocument } from '@/lib/idb';
 
-type ViewMode = 'dashboard' | 'lexicon' | 'wiki' | 'blog' | 'theology-map' | 'timeline' | 'writing-assistant' | 'ai-settings' | 'ai-assistant' | 'verse-explorer' | 'compare-translations' | 'research-library' | 'moderation';
+type ViewMode = 'dashboard' | 'lexicon' | 'wiki' | 'blog' | 'theology-map' | 'timeline' | 'writing-assistant' | 'academic-integrity' | 'ai-settings' | 'ai-assistant' | 'verse-explorer' | 'compare-translations' | 'research-library' | 'moderation';
 
 interface UserProfile {
   uid: string;
@@ -389,8 +393,9 @@ export default function Home() {
             </div>
           </SidebarHeader>
           <SidebarContent>
+            {/* Main Navigation */}
             <SidebarGroup>
-              <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+              <SidebarGroupLabel>General</SidebarGroupLabel>
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} tooltip="Dashboard">
@@ -407,33 +412,88 @@ export default function Home() {
                     <Newspaper className="h-5 w-5" /> <span>Scholar's Journal</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                {userProfile?.isModerator && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton isActive={activeTab === 'moderation'} onClick={() => setActiveTab('moderation')} tooltip="Moderation Panel">
-                      <ShieldAlert className="h-5 w-5 text-accent" /> <span>Peer Review</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
               </SidebarMenu>
             </SidebarGroup>
 
+            {/* AI Research Hub */}
             <SidebarGroup>
               <SidebarGroupLabel>AI Research Hub</SidebarGroupLabel>
               <SidebarMenu>
-                {[
-                  { id: 'ai-assistant', label: 'Study Assistant', icon: Sparkles },
-                  { id: 'lexicon', label: 'Lexicon', icon: BookOpen },
-                  { id: 'theology-map', label: 'Theology Map', icon: Network },
-                  { id: 'timeline', label: 'Timeline', icon: Milestone },
-                ].map((item) => (
-                  <SidebarMenuItem key={item.id}>
-                    <SidebarMenuButton isActive={activeTab === item.id} onClick={() => setActiveTab(item.id as ViewMode)} tooltip={item.label}>
-                      <item.icon className="h-5 w-5" /> <span>{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'ai-assistant'} onClick={() => setActiveTab('ai-assistant')} tooltip="Study Assistant">
+                    <Sparkles className="h-5 w-5" /> <span>Study Assistant</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'lexicon'} onClick={() => setActiveTab('lexicon')} tooltip="Lexicon Analysis">
+                    <BookOpen className="h-5 w-5" /> <span>Lexicon</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'theology-map'} onClick={() => setActiveTab('theology-map')} tooltip="Theology Concept Map">
+                    <Network className="h-5 w-5" /> <span>Theology Map</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')} tooltip="Historical Timeline">
+                    <Milestone className="h-5 w-5" /> <span>Historical Timeline</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
+
+            {/* Linguistic Tools */}
+            <SidebarGroup>
+              <SidebarGroupLabel>Linguistic Analysis</SidebarGroupLabel>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'verse-explorer'} onClick={() => setActiveTab('verse-explorer')} tooltip="Verse Explorer">
+                    <BookMarked className="h-5 w-5" /> <span>Verse Explorer</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'compare-translations'} onClick={() => setActiveTab('compare-translations')} tooltip="Translation Comparison">
+                    <ArrowLeftRight className="h-5 w-5" /> <span>Compare Versions</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
+
+            {/* Scholarly Synthesis */}
+            <SidebarGroup>
+              <SidebarGroupLabel>Synthesis & Library</SidebarGroupLabel>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'research-library'} onClick={() => setActiveTab('research-library')} tooltip="Research Library">
+                    <Library className="h-5 w-5" /> <span>Research Library</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'writing-assistant'} onClick={() => setActiveTab('writing-assistant')} tooltip="Writing Assistant">
+                    <PenTool className="h-5 w-5" /> <span>Writing Assistant</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'academic-integrity'} onClick={() => setActiveTab('academic-integrity')} tooltip="Integrity Checker">
+                    <ShieldCheck className="h-5 w-5" /> <span>Academic Integrity</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
+
+            {/* Moderation */}
+            {userProfile?.isModerator && (
+              <SidebarGroup>
+                <SidebarGroupLabel>Administration</SidebarGroupLabel>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton isActive={activeTab === 'moderation'} onClick={() => setActiveTab('moderation')} tooltip="Peer Review">
+                      <ShieldAlert className="h-5 w-5 text-accent" /> <span>Peer Review</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroup>
+            )}
           </SidebarContent>
           <SidebarFooter className="p-4 border-t flex flex-col gap-2">
             <div className="flex flex-row items-center justify-between w-full">
@@ -525,6 +585,7 @@ export default function Home() {
                 </div>
               )}
 
+              {/* Other tabs minimal rendering or placeholders */}
               {activeTab === 'wiki' && (
                 <div className="space-y-8">
                    <header className="flex justify-between items-center">
