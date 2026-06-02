@@ -36,7 +36,8 @@ export const enUS = {
     audit: "Governance Audit",
     system_control: "System Control",
     module_governance: "Modules",
-    chat_hub: "Social Chat"
+    chat_hub: "Social Chat",
+    direct_messages: "Direct Messages"
   },
   dashboard: {
     title: "Research Workspace",

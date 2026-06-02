@@ -14,7 +14,7 @@
 'use client';
 
 import React, { memo } from 'react';
-import { MessageSquare, Users, Building2, Send, ShieldAlert } from 'lucide-react';
+import { MessageSquare, Users, Building2, Send, ShieldAlert, MessageCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +40,7 @@ interface ChatViewProps {
   setChatAgreed: (val: boolean) => void;
   handleSendMessage: (e: React.FormEvent) => void;
   chatEndRef: React.RefObject<HTMLDivElement | null>;
+  onInitiateDM?: (peer: { uid: string, displayName: string, photoURL: string }) => void;
 }
 
 export const ChatView = memo(({ 
@@ -54,7 +55,8 @@ export const ChatView = memo(({
   chatAgreed,
   setChatAgreed,
   handleSendMessage, 
-  chatEndRef 
+  chatEndRef,
+  onInitiateDM
 }: ChatViewProps) => {
   const { t } = useLanguage();
 
@@ -105,13 +107,24 @@ export const ChatView = memo(({
                 const isOwn = msg.senderUid === user?.uid;
                 return (
                   <div key={msg.id || i} className={cn("flex gap-3 group", isOwn ? "flex-row-reverse" : "flex-row")}>
-                    <Avatar className="h-9 w-9 shrink-0 border-2 border-background shadow-sm">
-                      <AvatarImage src={msg.senderPhotoURL} />
-                      <AvatarFallback className="bg-primary/10 text-primary text-xs">{msg.senderName?.[0]}</AvatarFallback>
-                    </Avatar>
+                    <div 
+                      className="cursor-pointer transition-transform hover:scale-105"
+                      onClick={() => !isOwn && onInitiateDM?.({ uid: msg.senderUid, displayName: msg.senderName, photoURL: msg.senderPhotoURL })}
+                      title={isOwn ? "Me" : `DM ${msg.senderName}`}
+                    >
+                      <Avatar className="h-9 w-9 shrink-0 border-2 border-background shadow-sm">
+                        <AvatarImage src={msg.senderPhotoURL} />
+                        <AvatarFallback className="bg-primary/10 text-primary text-xs">{msg.senderName?.[0]}</AvatarFallback>
+                      </Avatar>
+                    </div>
                     <div className={cn("flex flex-col max-w-[80%] gap-1", isOwn ? "items-end" : "items-start")}>
                       <div className="flex items-center gap-2 px-1">
-                        <span className="text-[11px] font-bold">{msg.senderName}</span>
+                        <span 
+                          className={cn("text-[11px] font-bold cursor-pointer hover:underline", isOwn ? "" : "text-primary")}
+                          onClick={() => !isOwn && onInitiateDM?.({ uid: msg.senderUid, displayName: msg.senderName, photoURL: msg.senderPhotoURL })}
+                        >
+                          {msg.senderName}
+                        </span>
                         <Badge variant="ghost" className="text-[9px] h-4 px-1.5 uppercase tracking-tighter opacity-60">
                           {msg.senderDesignation}
                         </Badge>
@@ -119,16 +132,26 @@ export const ChatView = memo(({
                       <div className={cn("p-3 rounded-2xl text-sm shadow-sm border relative", isOwn ? "bg-primary text-primary-foreground rounded-tr-none border-primary" : "bg-background rounded-tl-none border-border")}>
                         <p className="leading-relaxed">{msg.content}</p>
                         
-                        {/* Inline DMCA Report Tool */}
-                        {!isOwn && (
-                          <div className="absolute top-0 -right-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                             <DMCADialog 
-                               contentId={msg.id} 
-                               contentType="chat" 
-                               trigger={<Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive"><ShieldAlert className="h-3 w-3" /></Button>}
-                             />
-                          </div>
-                        )}
+                        {/* Inline Tools */}
+                        <div className={cn("absolute top-0 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1", isOwn ? "-left-16" : "-right-16")}>
+                           {!isOwn && (
+                             <>
+                               <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-6 w-6 text-primary hover:bg-primary/10" 
+                                onClick={() => onInitiateDM?.({ uid: msg.senderUid, displayName: msg.senderName, photoURL: msg.senderPhotoURL })}
+                               >
+                                 <MessageCircle className="h-3 w-3" />
+                               </Button>
+                               <DMCADialog 
+                                 contentId={msg.id} 
+                                 contentType="chat" 
+                                 trigger={<Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive"><ShieldAlert className="h-3 w-3" /></Button>}
+                               />
+                             </>
+                           )}
+                        </div>
                       </div>
                       <span className="text-[9px] text-muted-foreground px-1">
                         {msg.createdAt?.seconds ? new Date(msg.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending...'}

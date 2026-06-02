@@ -20,6 +20,7 @@ export type ViewMode =
   | 'archaeology'
   | 'timeline'
   | 'geography'
+  | 'direct-messages'
   | 'wiki-moderation';
 
 export interface UserProfile {

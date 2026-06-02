@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -86,6 +87,7 @@ export default function SetupWizard() {
         let iconName = 'globe';
         if (mod.id === 'dashboard') iconName = 'layout-dashboard';
         else if (mod.id === 'chat') iconName = 'message-square';
+        else if (mod.id === 'direct-messages') iconName = 'message-circle';
         else if (mod.id === 'wiki') iconName = 'graduation-cap';
         else if (mod.id === 'wiki-moderation') iconName = 'user-check';
         else if (mod.id === 'ai-assistant') iconName = 'sparkles';

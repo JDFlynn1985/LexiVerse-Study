@@ -67,6 +67,7 @@ import { DEFAULT_MODULES, GOVERNANCE_MODULES } from '@/config/modules';
 // Modular View Components
 import { DashboardView } from '@/components/views/dashboard-view';
 import { ChatView } from '@/components/views/chat-view';
+import { DirectMessageView } from '@/components/views/direct-message-view';
 import { SynthesisView } from '@/components/views/synthesis-view';
 import { TheologyView } from '@/components/views/theology-view';
 import { LexiconView } from '@/components/views/lexicon-view';
@@ -138,6 +139,7 @@ export default function Home() {
   const [newMessage, setNewMessage] = useState('');
   const [chatAgreed, setChatAgreed] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const [dmRecipient, setDmRecipient] = useState<{ uid: string, displayName: string, photoURL: string } | null>(null);
   
   const [assistantTerm, setAssistantTerm] = useState('');
   const [lexiconResult, setLexiconResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
@@ -263,14 +265,14 @@ export default function Home() {
     const effectiveKey = getEffectiveKey();
     const isLocal = aiPrefs.modelProvider === 'local';
 
-    if (type !== 'chat' && type !== 'verse-explorer' && !effectiveKey && !isLocal) {
+    if (type !== 'chat' && type !== 'direct-messages' && type !== 'verse-explorer' && !effectiveKey && !isLocal) {
       toast({ variant: "destructive", title: "AI Hub Configuration Required", description: "Please supply an API key for the selected provider in your profile." });
       return;
     }
 
     setIsLoading(true);
     setActiveTab(type);
-    if (type !== 'chat') logSearch(db, term, type, user?.uid);
+    if (type !== 'chat' && type !== 'direct-messages') logSearch(db, term, type, user?.uid);
     try {
       const modelString = aiPrefs.selectedModel;
       
@@ -292,7 +294,7 @@ export default function Home() {
       else if (type === 'geography') setGeographyResult(await runGeographyAnalysis({ query: term }));
       else if (type === 'timeline') setTimelineResult(await generateHistoricalTimeline({ topic: term }));
       
-      if (type !== 'chat') {
+      if (type !== 'chat' && type !== 'direct-messages') {
         const newHistory = [{id: Date.now().toString(), type, term, date: new Date().toLocaleString()}, ...historyItems];
         setHistoryItems(newHistory.slice(0, 10));
         localStorage.setItem('lexiverse_history', JSON.stringify(newHistory.slice(0, 10)));
@@ -427,7 +429,8 @@ export default function Home() {
   const renderModularContent = () => {
     switch (activeTab) {
       case 'dashboard': return <DashboardView t={t} effectiveApiKey={getEffectiveKey()} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} />;
-      case 'chat': return <ChatView chatMode={chatMode} setChatMode={setChatMode} userProfile={userProfile} userInstitutionName={userInstitutionName} messages={chatMessages} user={user} newMessage={newMessage} setNewMessage={setNewMessage} chatAgreed={chatAgreed} setChatAgreed={setChatAgreed} handleSendMessage={handleSendMessage} chatEndRef={chatEndRef} />;
+      case 'chat': return <ChatView chatMode={chatMode} setChatMode={setChatMode} userProfile={userProfile} userInstitutionName={userInstitutionName} messages={chatMessages} user={user} newMessage={newMessage} setNewMessage={setNewMessage} chatAgreed={chatAgreed} setChatAgreed={setChatAgreed} handleSendMessage={handleSendMessage} chatEndRef={chatEndRef} onInitiateDM={(peer) => { setDmRecipient(peer); setActiveTab('direct-messages'); }} />;
+      case 'direct-messages': return <DirectMessageView initialRecipient={dmRecipient} />;
       case 'library': return <LibraryView documents={localDocuments} onRefresh={refreshLocalDocs} isLoading={isLoading} />;
       case 'synthesis': return <SynthesisView synthesisText={synthesisText} setSynthesisText={setSynthesisText} handleSynthesisAction={async (a) => {
         setIsLoading(true);
