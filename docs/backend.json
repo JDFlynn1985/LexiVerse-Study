@@ -10,6 +10,8 @@
         "displayName": { "type": "string" },
         "email": { "type": "string" },
         "photoURL": { "type": "string" },
+        "credentials": { "type": "string", "description": "Academic or professional titles (e.g. PhD, MDiv, Seminary Student)." },
+        "bio": { "type": "string", "description": "A brief scholarly biography explaining research interests." },
         "isAdmin": { "type": "boolean", "description": "Whether the user has administrative privileges." },
         "isModerator": { "type": "boolean", "description": "Whether the user has moderator privileges for the wiki and blog." },
         "isTrustedContributor": { "type": "boolean", "description": "Whether the user can post wiki and blog entries without peer review." },

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -62,7 +63,11 @@ import {
   X,
   Eye,
   Edit3,
-  Book
+  Book,
+  User as UserIcon,
+  Save,
+  Camera,
+  Award
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -89,6 +94,7 @@ import {
   SelectValue 
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 // AI Flow Imports
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
@@ -99,12 +105,15 @@ import { transcribeAudio } from '@/ai/flows/transcribe-flow';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 import { getAllLocalDocuments, type IDBDocument } from '@/lib/idb';
 
-type ViewMode = 'dashboard' | 'lexicon' | 'wiki' | 'blog' | 'blog-designer' | 'theology-map' | 'timeline' | 'writing-assistant' | 'academic-integrity' | 'ai-settings' | 'ai-assistant' | 'verse-explorer' | 'compare-translations' | 'research-library' | 'moderation';
+type ViewMode = 'dashboard' | 'lexicon' | 'wiki' | 'blog' | 'blog-designer' | 'theology-map' | 'timeline' | 'writing-assistant' | 'academic-integrity' | 'ai-settings' | 'ai-assistant' | 'verse-explorer' | 'compare-translations' | 'research-library' | 'moderation' | 'profile';
 
 interface UserProfile {
   uid: string;
   displayName: string;
   email: string;
+  photoURL: string;
+  credentials?: string;
+  bio?: string;
   isAdmin?: boolean;
   isModerator?: boolean;
   isTrustedContributor?: boolean;
@@ -192,6 +201,9 @@ export default function Home() {
   const [activeHighlights, setActiveHighlights] = useState<string[]>([]);
   const [isRecording, setIsRecording] = useState(false);
 
+  // Profile Edit State
+  const [profileDraft, setProfileDraft] = useState({ displayName: '', credentials: '', bio: '', photoURL: '' });
+
   // Wiki State
   const [wikiDraft, setWikiDraft] = useState({ title: '', content: '', worksCited: '' });
   const wikiQuery = useMemo(() => query(collection(db, 'wiki_entries'), orderBy('createdAt', 'desc')), [db]);
@@ -249,6 +261,12 @@ export default function Home() {
         if (snapshot.exists()) {
           const data = snapshot.data() as UserProfile;
           setUserProfile(data);
+          setProfileDraft({
+            displayName: data.displayName || '',
+            credentials: data.credentials || '',
+            bio: data.bio || '',
+            photoURL: data.photoURL || user.photoURL || ''
+          });
           if (data.preferences) {
             setAiPrefs({
               selectedModel: data.preferences.selectedModel || 'googleai/gemini-2.5-flash',
@@ -275,6 +293,7 @@ export default function Home() {
           uid: result.user.uid, 
           displayName: result.user.displayName, 
           email: result.user.email,
+          photoURL: result.user.photoURL,
           isAdmin: false,
           isModerator: false,
           isTrustedContributor: false
@@ -290,6 +309,26 @@ export default function Home() {
     await signOut(auth);
     setUserProfile(null);
     toast({ title: "Logged out" });
+    setActiveTab('dashboard');
+  };
+
+  const updateProfile = async () => {
+    if (!user || !db) return;
+    setIsLoading(true);
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        displayName: profileDraft.displayName,
+        credentials: profileDraft.credentials,
+        bio: profileDraft.bio,
+        photoURL: profileDraft.photoURL
+      });
+      toast({ title: "Profile Updated", description: "Your scholarly credentials have been saved." });
+    } catch (e) {
+      toast({ variant: 'destructive', title: "Failed to update profile" });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSearch = async (term: string, type: ViewMode) => {
@@ -347,7 +386,7 @@ export default function Home() {
         ...wikiDraft,
         status: status,
         authorUid: user.uid,
-        authorName: user.displayName || 'Scholar',
+        authorName: userProfile?.displayName || user.displayName || 'Scholar',
         createdAt: new Date().toISOString()
       });
       setWikiDraft({ title: '', content: '', worksCited: '' });
@@ -377,7 +416,7 @@ export default function Home() {
         tags: tags,
         status: status,
         authorUid: user.uid,
-        authorName: user.displayName || 'Scholar',
+        authorName: userProfile?.displayName || user.displayName || 'Scholar',
         createdAt: new Date().toISOString()
       });
       
@@ -564,11 +603,23 @@ export default function Home() {
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" className="p-0 h-8 w-8 rounded-full overflow-hidden border">
-                        <Image src={user.photoURL || defaultAvatar?.imageUrl || ''} alt="User" width={40} height={40} className="object-cover" />
+                        <Avatar className="h-full w-full">
+                          <AvatarImage src={userProfile?.photoURL || user.photoURL || defaultAvatar?.imageUrl} />
+                          <AvatarFallback><UserIcon /></AvatarFallback>
+                        </Avatar>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuLabel>{user.displayName}</DropdownMenuLabel>
+                      <DropdownMenuLabel>
+                        <div className="flex flex-col">
+                          <span>{userProfile?.displayName || user.displayName}</span>
+                          <span className="text-[10px] text-muted-foreground font-normal">{userProfile?.credentials}</span>
+                        </div>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setActiveTab('profile')}>
+                        <UserIcon className="h-4 w-4 mr-2" /> My Profile
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleLogout} className="text-destructive"><LogOut className="h-4 w-4 mr-2" /> Logout</DropdownMenuItem>
                     </DropdownMenuContent>
@@ -632,6 +683,80 @@ export default function Home() {
                           ))}
                         </ScrollArea>
                       </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'profile' && userProfile && (
+                <div className="space-y-8">
+                  <header>
+                    <h1 className="text-3xl font-bold font-headline">Scholarly Profile</h1>
+                    <p className="text-muted-foreground">Manage your academic identity and research credentials.</p>
+                  </header>
+
+                  <div className="grid gap-8 md:grid-cols-3">
+                    <Card className="md:col-span-1 shadow-lg border-primary/10 h-fit">
+                      <CardHeader className="text-center pb-2">
+                        <div className="relative mx-auto w-32 h-32 mb-4 group">
+                          <Avatar className="w-full h-full border-4 border-background shadow-xl">
+                            <AvatarImage src={profileDraft.photoURL} />
+                            <AvatarFallback><UserIcon className="h-12 w-12" /></AvatarFallback>
+                          </Avatar>
+                          <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                            <Camera className="text-white h-6 w-6" />
+                          </div>
+                        </div>
+                        <CardTitle className="font-headline">{userProfile.displayName}</CardTitle>
+                        <CardDescription className="flex items-center justify-center gap-2">
+                          <Award className="h-3 w-3 text-accent" /> {userProfile.credentials || "Awaiting Credentials"}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="text-center">
+                        <p className="text-xs text-muted-foreground italic leading-relaxed">
+                          {userProfile.bio || "No scholarly bio added yet. Share your research focus with the community."}
+                        </p>
+                      </CardContent>
+                      <CardFooter className="flex flex-col gap-2 border-t pt-4">
+                        <div className="w-full flex justify-between text-[10px] font-bold uppercase tracking-tighter text-muted-foreground">
+                          <span>Account Status</span>
+                          <span className="text-primary">{userProfile.isAdmin ? "Administrator" : userProfile.isModerator ? "Moderator" : userProfile.isTrustedContributor ? "Trusted Contributor" : "Scholar"}</span>
+                        </div>
+                      </CardFooter>
+                    </Card>
+
+                    <Card className="md:col-span-2 shadow-lg border-primary/10">
+                      <CardHeader>
+                        <CardTitle className="text-xl font-headline">Identity & Credentials</CardTitle>
+                        <CardDescription>Update your public information for wiki and journal contributions.</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label>Full Name / Display Name</Label>
+                            <Input value={profileDraft.displayName} onChange={e => setProfileDraft({...profileDraft, displayName: e.target.value})} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Academic Credentials (e.g. PhD, MDiv)</Label>
+                            <Input placeholder="PhD Candidate, New Testament Studies" value={profileDraft.credentials} onChange={e => setProfileDraft({...profileDraft, credentials: e.target.value})} />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Photo URL</Label>
+                          <Input placeholder="https://..." value={profileDraft.photoURL} onChange={e => setProfileDraft({...profileDraft, photoURL: e.target.value})} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Scholarly Biography</Label>
+                          <Textarea rows={5} placeholder="Describe your theological focus, research interests, and academic background..." value={profileDraft.bio} onChange={e => setProfileDraft({...profileDraft, bio: e.target.value})} />
+                        </div>
+                      </CardContent>
+                      <CardFooter className="border-t pt-6 flex justify-end gap-3">
+                         <Button variant="ghost" onClick={() => setActiveTab('dashboard')}>Cancel</Button>
+                         <Button onClick={updateProfile} disabled={isLoading}>
+                           {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                           Save Identity
+                         </Button>
+                      </CardFooter>
                     </Card>
                   </div>
                 </div>
