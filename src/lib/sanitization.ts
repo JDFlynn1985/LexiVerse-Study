@@ -1,4 +1,3 @@
-
 /**
  * LexiVerse Explorer
  * Copyright (c) 2026. Licensed under CC BY-NC-SA 4.0.
@@ -32,4 +31,27 @@ export function sanitizeRichText(input: string): string {
     ALLOWED_ATTR: ['href', 'target'],
     ALLOW_PROTOCOL_RELATIVE: false,
   });
+}
+
+/**
+ * Sanitizes filenames to prevent path traversal and XSS.
+ * Removes dangerous characters and limits length.
+ */
+export function sanitizeFilename(filename: string): string {
+  if (!filename) return 'unnamed_document';
+  
+  // 1. Remove HTML tags
+  const noHtml = sanitizeHtml(filename);
+  
+  // 2. Remove path traversal and dangerous characters
+  // Keeps alphanumeric, dots, underscores, and dashes
+  let clean = noHtml.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+  
+  // 3. Prevent hidden files or directory jumps
+  while (clean.startsWith('.') || clean.startsWith('/')) {
+    clean = clean.substring(1);
+  }
+  
+  // 4. Cap length
+  return clean.substring(0, 255) || 'unnamed_document';
 }

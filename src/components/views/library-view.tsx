@@ -3,6 +3,7 @@
 /**
  * @fileOverview Library Hub View.
  * Manage network-isolated research papers for local RAG context.
+ * Enhanced with automated metadata and content sanitization.
  */
 
 import React, { memo, useState } from 'react';
@@ -15,6 +16,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { parseDocument } from '@/lib/document-parser';
 import { saveLocalDocument, deleteLocalDocument, type IDBDocument } from '@/lib/idb';
+import { sanitizeHtml, sanitizeFilename } from '@/lib/sanitization';
 import { cn } from '@/lib/utils';
 
 interface LibraryViewProps {
@@ -34,18 +36,28 @@ export const LibraryView = memo(({ documents, onRefresh, isLoading }: LibraryVie
 
     setIsParsing(true);
     try {
-      const content = await parseDocument(file);
+      // 1. Extract raw content
+      const rawContent = await parseDocument(file);
+      
+      // 2. Apply metadata and content sanitization
+      const cleanName = sanitizeFilename(file.name);
+      const cleanContent = sanitizeHtml(rawContent);
+
       const newDoc: IDBDocument = {
         id: crypto.randomUUID(),
-        name: file.name,
+        name: cleanName,
         type: file.type,
-        content: content,
+        content: cleanContent,
         uploadDate: new Date().toISOString(),
         synced: false
       };
 
+      // 3. Persist to local IndexedDB
       await saveLocalDocument(newDoc);
-      toast({ title: "Paper Added", description: `${file.name} successfully indexed to local library.` });
+      toast({ 
+        title: "Paper Indexed", 
+        description: `${cleanName} successfully sanitized and added to library.` 
+      });
       onRefresh();
     } catch (e: any) {
       toast({ variant: 'destructive', title: "Parsing Failed", description: e.message });
@@ -79,7 +91,7 @@ export const LibraryView = memo(({ documents, onRefresh, isLoading }: LibraryVie
         <div className="relative">
           <Button disabled={isParsing} className="shadow-lg relative overflow-hidden">
             {isParsing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
-            {isParsing ? 'Indexing...' : 'Add Research Paper'}
+            {isParsing ? 'Sanitizing...' : 'Add Research Paper'}
             <input 
               type="file" 
               accept=".pdf,.docx,.txt" 
@@ -152,7 +164,7 @@ export const LibraryView = memo(({ documents, onRefresh, isLoading }: LibraryVie
             </CardContent>
             <CardFooter className="bg-muted/10 p-3 border-t">
                <p className="text-[10px] text-muted-foreground italic">
-                 <strong>Privacy Note:</strong> These documents are stored locally in your browser's IndexedDB and never touch our servers.
+                 <strong>Privacy & Security:</strong> Documents are sanitized and stored locally in your browser's IndexedDB. They never touch LexiVerse or Google servers.
                </p>
             </CardFooter>
           </Card>
