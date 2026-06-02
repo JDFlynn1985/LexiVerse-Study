@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -60,7 +59,10 @@ import {
   FileText,
   Tags,
   Filter,
-  X
+  X,
+  Eye,
+  Edit3,
+  Book
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -86,6 +88,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 
 // AI Flow Imports
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
@@ -96,7 +99,7 @@ import { transcribeAudio } from '@/ai/flows/transcribe-flow';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 import { getAllLocalDocuments, type IDBDocument } from '@/lib/idb';
 
-type ViewMode = 'dashboard' | 'lexicon' | 'wiki' | 'blog' | 'theology-map' | 'timeline' | 'writing-assistant' | 'academic-integrity' | 'ai-settings' | 'ai-assistant' | 'verse-explorer' | 'compare-translations' | 'research-library' | 'moderation';
+type ViewMode = 'dashboard' | 'lexicon' | 'wiki' | 'blog' | 'blog-designer' | 'theology-map' | 'timeline' | 'writing-assistant' | 'academic-integrity' | 'ai-settings' | 'ai-assistant' | 'verse-explorer' | 'compare-translations' | 'research-library' | 'moderation';
 
 interface UserProfile {
   uid: string;
@@ -197,6 +200,7 @@ export default function Home() {
   // Blog State
   const [blogDraft, setBlogDraft] = useState({ title: '', excerpt: '', content: '', category: 'General', tagInput: '' });
   const [blogFilter, setBlogFilter] = useState({ category: 'All', tag: '' });
+  const [blogDesignerTab, setBlogDesignerTab] = useState<'editor' | 'preview'>('editor');
 
   const blogQuery = useMemo(() => {
     let q = query(collection(db, 'blog_posts'), where('status', '==', 'approved'), orderBy('createdAt', 'desc'));
@@ -382,6 +386,7 @@ export default function Home() {
         title: status === 'approved' ? "Post Published" : "Post Submitted", 
         description: status === 'approved' ? "Your post is now live in the journal." : "Your post is awaiting review." 
       });
+      setActiveTab('blog');
     } catch (e) {
       toast({ variant: 'destructive', title: "Blog submission failed" });
     } finally {
@@ -420,6 +425,7 @@ export default function Home() {
   if (!mounted) return null;
 
   const defaultAvatar = PlaceHolderImages.find(img => img.id === 'default-avatar');
+  const hasDesignerAccess = userProfile?.isAdmin || userProfile?.isModerator || userProfile?.isTrustedContributor;
 
   return (
     <SidebarProvider>
@@ -507,9 +513,16 @@ export default function Home() {
                     <Library className="h-5 w-5" /> <span>Research Library</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                {hasDesignerAccess && (
+                  <SidebarMenuItem>
+                    <SidebarMenuButton isActive={activeTab === 'blog-designer'} onClick={() => setActiveTab('blog-designer')} tooltip="Journal Designer">
+                      <PenTool className="h-5 w-5" /> <span>Journal Designer</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
                 <SidebarMenuItem>
                   <SidebarMenuButton isActive={activeTab === 'writing-assistant'} onClick={() => setActiveTab('writing-assistant')} tooltip="Writing Assistant">
-                    <PenTool className="h-5 w-5" /> <span>Writing Assistant</span>
+                    <Edit3 className="h-5 w-5" /> <span>Writing Assistant</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
@@ -690,166 +703,255 @@ export default function Home() {
                       <p className="text-muted-foreground">Academic blog for theological reflections and scholarly news.</p>
                     </div>
                   </header>
-                  <Tabs defaultValue="read" className="w-full">
-                    <TabsList>
-                      <TabsTrigger value="read">Read Journal</TabsTrigger>
-                      <TabsTrigger value="write">New Entry</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="read" className="pt-6">
-                      <div className="flex flex-col md:flex-row gap-6">
-                        {/* Blog Sidebar Filter */}
-                        <aside className="w-full md:w-64 space-y-6">
-                          <Card className="p-4 shadow-sm border-primary/5">
-                            <CardHeader className="p-0 pb-3">
-                              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                                <Filter className="h-4 w-4" /> Filter by Taxonomy
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-0 space-y-4">
-                              <div className="space-y-2">
-                                <Label className="text-xs">Category</Label>
-                                <Select value={blogFilter.category} onValueChange={(val) => setBlogFilter({...blogFilter, category: val})}>
-                                  <SelectTrigger className="h-8 text-xs">
-                                    <SelectValue placeholder="All Categories" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="All">All Categories</SelectItem>
-                                    {BLOG_CATEGORIES.map(cat => (
-                                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="space-y-2">
-                                <Label className="text-xs">Search Tags</Label>
-                                <div className="relative">
-                                  <Input 
-                                    placeholder="Type tag..." 
-                                    className="h-8 text-xs pr-8"
-                                    value={blogFilter.tag}
-                                    onChange={(e) => setBlogFilter({...blogFilter, tag: e.target.value})}
-                                  />
-                                  {blogFilter.tag && (
-                                    <button 
-                                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                      onClick={() => setBlogFilter({...blogFilter, tag: ''})}
-                                    >
-                                      <X className="h-3 w-3" />
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                              {allAvailableTags.length > 0 && (
-                                <div className="space-y-2">
-                                  <Label className="text-xs">Common Tags</Label>
-                                  <div className="flex flex-wrap gap-1">
-                                    {allAvailableTags.slice(0, 8).map(tag => (
-                                      <Badge 
-                                        key={tag} 
-                                        variant={blogFilter.tag === tag ? "default" : "outline"}
-                                        className="text-[10px] cursor-pointer"
-                                        onClick={() => setBlogFilter({...blogFilter, tag: tag === blogFilter.tag ? '' : tag})}
-                                      >
-                                        {tag}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </CardContent>
-                          </Card>
-                        </aside>
 
-                        {/* Blog Feed */}
-                        <div className="flex-1 space-y-6">
-                          {filteredBlogPosts?.map(post => (
-                            <Card key={post.id} className="shadow-md border-primary/5 bg-card/50">
-                              <CardHeader>
-                                <div className="flex justify-between items-start">
-                                  <div>
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20">{post.category}</Badge>
-                                      <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                        <Clock className="h-3 w-3" /> {new Date(post.createdAt).toLocaleDateString()}
-                                      </span>
-                                    </div>
-                                    <CardTitle className="text-2xl font-headline mb-1">{post.title}</CardTitle>
-                                    <CardDescription className="flex items-center gap-2">
-                                      <PenTool className="h-3 w-3" /> {post.authorName}
-                                    </CardDescription>
-                                  </div>
-                                </div>
-                              </CardHeader>
-                              <CardContent>
-                                <p className="text-sm leading-relaxed whitespace-pre-wrap">{post.content}</p>
-                              </CardContent>
-                              <CardFooter className="flex flex-wrap gap-2 border-t pt-4">
-                                <Tags className="h-3 w-3 text-muted-foreground mr-1" />
-                                {post.tags?.map(tag => (
+                  <div className="flex flex-col md:flex-row gap-6">
+                    {/* Blog Sidebar Filter */}
+                    <aside className="w-full md:w-64 space-y-6">
+                      <Card className="p-4 shadow-sm border-primary/5">
+                        <CardHeader className="p-0 pb-3">
+                          <CardTitle className="text-sm font-bold flex items-center gap-2">
+                            <Filter className="h-4 w-4" /> Filter by Taxonomy
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0 space-y-4">
+                          <div className="space-y-2">
+                            <Label className="text-xs">Category</Label>
+                            <Select value={blogFilter.category} onValueChange={(val) => setBlogFilter({...blogFilter, category: val})}>
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue placeholder="All Categories" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="All">All Categories</SelectItem>
+                                {BLOG_CATEGORIES.map(cat => (
+                                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs">Search Tags</Label>
+                            <div className="relative">
+                              <Input 
+                                placeholder="Type tag..." 
+                                className="h-8 text-xs pr-8"
+                                value={blogFilter.tag}
+                                onChange={(e) => setBlogFilter({...blogFilter, tag: e.target.value})}
+                              />
+                              {blogFilter.tag && (
+                                <button 
+                                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                  onClick={() => setBlogFilter({...blogFilter, tag: ''})}
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          {allAvailableTags.length > 0 && (
+                            <div className="space-y-2">
+                              <Label className="text-xs">Common Tags</Label>
+                              <div className="flex flex-wrap gap-1">
+                                {allAvailableTags.slice(0, 8).map(tag => (
                                   <Badge 
                                     key={tag} 
-                                    variant="outline" 
-                                    className="text-[10px] cursor-pointer hover:bg-muted"
-                                    onClick={() => setBlogFilter({...blogFilter, tag})}
+                                    variant={blogFilter.tag === tag ? "default" : "outline"}
+                                    className="text-[10px] cursor-pointer"
+                                    onClick={() => setBlogFilter({...blogFilter, tag: tag === blogFilter.tag ? '' : tag})}
                                   >
-                                    #{tag}
+                                    {tag}
                                   </Badge>
                                 ))}
-                                {(!post.tags || post.tags.length === 0) && <span className="text-[10px] text-muted-foreground italic">No tags</span>}
-                              </CardFooter>
-                            </Card>
-                          ))}
-                          {filteredBlogPosts?.length === 0 && (
-                            <div className="text-center py-12 text-muted-foreground italic bg-muted/20 rounded-xl border border-dashed">
-                              No journal entries matching your criteria.
+                              </div>
                             </div>
                           )}
-                        </div>
-                      </div>
-                    </TabsContent>
-                    <TabsContent value="write" className="pt-6">
-                      <Card className="max-w-2xl mx-auto">
-                        <CardHeader>
-                          <CardTitle>Draft Journal Post</CardTitle>
-                          <CardDescription>Share your research journey or theological reflections.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
-                              <Label>Headline</Label>
-                              <Input placeholder="e.g., The Eschatological Implications of 'Logos'" value={blogDraft.title} onChange={e => setBlogDraft({...blogDraft, title: e.target.value})} />
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Category</Label>
-                              <Select value={blogDraft.category} onValueChange={(val) => setBlogDraft({...blogDraft, category: val})}>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select Category" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {BLOG_CATEGORIES.map(cat => (
-                                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Tags (comma separated)</Label>
-                            <Input placeholder="greek, exegesis, pauline" value={blogDraft.tagInput} onChange={e => setBlogDraft({...blogDraft, tagInput: e.target.value})} />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Academic Reflection</Label>
-                            <Textarea rows={10} placeholder="Type your scholarly content here..." value={blogDraft.content} onChange={e => setBlogDraft({...blogDraft, content: e.target.value})} />
-                          </div>
                         </CardContent>
-                        <CardFooter>
-                          <Button className="w-full" onClick={submitBlogPost} disabled={isLoading || !user}>
-                            {userProfile?.isAdmin || userProfile?.isTrustedContributor ? <><CheckCircle2 className="mr-2 h-4 w-4" /> Publish to Journal</> : <><Clock className="mr-2 h-4 w-4" /> Submit for Review</>}
-                          </Button>
+                      </Card>
+                    </aside>
+
+                    {/* Blog Feed */}
+                    <div className="flex-1 space-y-6">
+                      {filteredBlogPosts?.map(post => (
+                        <Card key={post.id} className="shadow-md border-primary/5 bg-card/50">
+                          <CardHeader>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20">{post.category}</Badge>
+                                  <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                    <Clock className="h-3 w-3" /> {new Date(post.createdAt).toLocaleDateString()}
+                                  </span>
+                                </div>
+                                <CardTitle className="text-2xl font-headline mb-1">{post.title}</CardTitle>
+                                <CardDescription className="flex items-center gap-2">
+                                  <PenTool className="h-3 w-3" /> {post.authorName}
+                                </CardDescription>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{post.content}</p>
+                          </CardContent>
+                          <CardFooter className="flex flex-wrap gap-2 border-t pt-4">
+                            <Tags className="h-3 w-3 text-muted-foreground mr-1" />
+                            {post.tags?.map(tag => (
+                              <Badge 
+                                key={tag} 
+                                variant="outline" 
+                                className="text-[10px] cursor-pointer hover:bg-muted"
+                                onClick={() => setBlogFilter({...blogFilter, tag})}
+                              >
+                                #{tag}
+                              </Badge>
+                            ))}
+                            {(!post.tags || post.tags.length === 0) && <span className="text-[10px] text-muted-foreground italic">No tags</span>}
+                          </CardFooter>
+                        </Card>
+                      ))}
+                      {filteredBlogPosts?.length === 0 && (
+                        <div className="text-center py-12 text-muted-foreground italic bg-muted/20 rounded-xl border border-dashed">
+                          No journal entries matching your criteria.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'blog-designer' && hasDesignerAccess && (
+                <div className="space-y-8">
+                  <header className="flex justify-between items-center">
+                    <div>
+                      <h1 className="text-3xl font-bold font-headline flex items-center gap-3">
+                        <PenTool className="text-primary h-8 w-8" /> Journal Designer
+                      </h1>
+                      <p className="text-muted-foreground">Craft high-impact scholarly reflections with live preview.</p>
+                    </div>
+                    <div className="flex gap-2">
+                       <Button 
+                         variant={blogDesignerTab === 'editor' ? 'default' : 'outline'} 
+                         size="sm"
+                         onClick={() => setBlogDesignerTab('editor')}
+                       >
+                         <Edit3 className="h-4 w-4 mr-2" /> Editor
+                       </Button>
+                       <Button 
+                         variant={blogDesignerTab === 'preview' ? 'default' : 'outline'} 
+                         size="sm"
+                         onClick={() => setBlogDesignerTab('preview')}
+                       >
+                         <Eye className="h-4 w-4 mr-2" /> Live Preview
+                       </Button>
+                    </div>
+                  </header>
+
+                  <div className="grid gap-8">
+                    {blogDesignerTab === 'editor' ? (
+                      <Card className="shadow-xl">
+                        <CardHeader>
+                          <CardTitle>Academic Draft</CardTitle>
+                          <CardDescription>Enter your scholarly content, categories, and tags.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                           <div className="grid gap-6 md:grid-cols-2">
+                             <div className="space-y-2">
+                               <Label>Title / Headline</Label>
+                               <Input 
+                                 placeholder="The Significance of 'Logos' in Hellenistic Context" 
+                                 value={blogDraft.title} 
+                                 onChange={e => setBlogDraft({...blogDraft, title: e.target.value})} 
+                               />
+                             </div>
+                             <div className="space-y-2">
+                               <Label>Primary Category</Label>
+                               <Select value={blogDraft.category} onValueChange={(val) => setBlogDraft({...blogDraft, category: val})}>
+                                 <SelectTrigger>
+                                   <SelectValue placeholder="Select Category" />
+                                 </SelectTrigger>
+                                 <SelectContent>
+                                   {BLOG_CATEGORIES.map(cat => (
+                                     <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                   ))}
+                                 </SelectContent>
+                               </Select>
+                             </div>
+                           </div>
+
+                           <div className="space-y-2">
+                             <Label>Short Excerpt (Scholarly Abstract)</Label>
+                             <Input 
+                               placeholder="A concise summary for the journal feed..." 
+                               value={blogDraft.excerpt} 
+                               onChange={e => setBlogDraft({...blogDraft, excerpt: e.target.value})} 
+                             />
+                           </div>
+
+                           <div className="space-y-2">
+                             <Label>Tags (Comma separated)</Label>
+                             <div className="relative">
+                               <Tags className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                               <Input 
+                                 className="pl-10"
+                                 placeholder="exegesis, hermeneutics, greek" 
+                                 value={blogDraft.tagInput} 
+                                 onChange={e => setBlogDraft({...blogDraft, tagInput: e.target.value})} 
+                               />
+                             </div>
+                           </div>
+
+                           <div className="space-y-2">
+                             <Label>Journal Content</Label>
+                             <Textarea 
+                               rows={12} 
+                               className="font-body text-sm leading-relaxed"
+                               placeholder="Write your scholarly reflection here..." 
+                               value={blogDraft.content} 
+                               onChange={e => setBlogDraft({...blogDraft, content: e.target.value})} 
+                             />
+                           </div>
+                        </CardContent>
+                        <CardFooter className="flex justify-between border-t pt-6">
+                           <p className="text-xs text-muted-foreground italic">
+                             {userProfile?.isTrustedContributor || userProfile?.isAdmin ? "Status: Instant Publishing Enabled" : "Status: Submission requires Peer Review"}
+                           </p>
+                           <Button onClick={submitBlogPost} disabled={isLoading || !blogDraft.title || !blogDraft.content}>
+                             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+                             Submit Research Post
+                           </Button>
                         </CardFooter>
                       </Card>
-                    </TabsContent>
-                  </Tabs>
+                    ) : (
+                      <div className="space-y-6 max-w-3xl mx-auto">
+                        <Card className="shadow-2xl border-primary/10 overflow-hidden">
+                          <div className="bg-primary/5 p-8 border-b text-center">
+                             <Badge variant="outline" className="mb-4 text-primary border-primary/20">{blogDraft.category}</Badge>
+                             <h1 className="text-4xl font-bold font-headline mb-4">{blogDraft.title || "Untitled Scholarly Reflection"}</h1>
+                             <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
+                                <span className="flex items-center gap-1"><PenTool className="h-3 w-3" /> {user?.displayName}</span>
+                                <Separator orientation="vertical" className="h-4" />
+                                <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {new Date().toLocaleDateString()}</span>
+                             </div>
+                          </div>
+                          <CardContent className="p-8">
+                             <p className="text-lg font-medium italic text-muted-foreground mb-8 border-l-4 border-accent/30 pl-4">
+                               {blogDraft.excerpt || "No excerpt provided."}
+                             </p>
+                             <div className="prose prose-sm max-w-none text-foreground leading-loose whitespace-pre-wrap">
+                               {blogDraft.content || "Start writing in the editor to see your scholarly content here..."}
+                             </div>
+                          </CardContent>
+                          <CardFooter className="bg-muted/30 p-8 border-t">
+                             <div className="flex flex-wrap gap-2">
+                               <Tags className="h-4 w-4 text-muted-foreground mr-2" />
+                               {blogDraft.tagInput.split(',').map(tag => tag.trim()).filter(t => t).map((tag, i) => (
+                                 <Badge key={i} variant="secondary" className="text-xs">#{tag}</Badge>
+                               ))}
+                               {!blogDraft.tagInput && <span className="text-xs italic text-muted-foreground">No tags defined</span>}
+                             </div>
+                          </CardFooter>
+                        </Card>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -881,6 +983,7 @@ export default function Home() {
                           </CardFooter>
                         </Card>
                       ))}
+                      {pendingArticles?.length === 0 && <p className="text-sm text-muted-foreground italic">No wiki entries awaiting review.</p>}
                     </section>
 
                     <section className="space-y-4">
@@ -908,6 +1011,7 @@ export default function Home() {
                           </CardFooter>
                         </Card>
                       ))}
+                      {pendingBlogPosts?.length === 0 && <p className="text-sm text-muted-foreground italic">No journal entries awaiting review.</p>}
                     </section>
                   </div>
                 </div>
