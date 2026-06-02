@@ -1,4 +1,6 @@
 
+'use client';
+
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -8,34 +10,44 @@ import { FirebaseErrorListener } from '@/components/firebase-error-listener';
 import { Toaster } from '@/components/ui/toaster';
 import { Analytics } from '@/components/analytics';
 import { CookieConsent } from '@/components/cookie-consent';
+import { useEffect } from 'react';
+import { initializeFirebase } from '@/firebase';
+import { logErrorToFirestore } from '@/lib/error-logging';
 
-export const viewport: Viewport = {
-  themeColor: '#301934',
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-};
-
-export const metadata: Metadata = {
-  title: 'LexiVerse Explorer',
-  description: 'A comprehensive Bible study tool for in-depth word and verse analysis.',
-  manifest: '/manifest.json',
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'default',
-    title: 'LexiVerse',
-  },
-  formatDetection: {
-    telephone: false,
-  },
-};
+// Note: Metadata and Viewport are moved to a separate server component or handled differently in client layouts
+// For this prototype, we'll focus on the client-side error capture logic.
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  
+  useEffect(() => {
+    const handleGlobalError = (event: ErrorEvent) => {
+      const { firestore } = initializeFirebase();
+      logErrorToFirestore(firestore, event.error || event.message, {
+        type: 'runtime'
+      });
+    };
+
+    const handlePromiseRejection = (event: PromiseRejectionEvent) => {
+      const { firestore } = initializeFirebase();
+      logErrorToFirestore(firestore, event.reason, {
+        type: 'runtime',
+        metadata: { isPromiseRejection: true }
+      });
+    };
+
+    window.addEventListener('error', handleGlobalError);
+    window.addEventListener('unhandledrejection', handlePromiseRejection);
+
+    return () => {
+      window.removeEventListener('error', handleGlobalError);
+      window.removeEventListener('unhandledrejection', handlePromiseRejection);
+    };
+  }, []);
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

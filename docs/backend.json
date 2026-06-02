@@ -131,6 +131,22 @@
       },
       "required": ["title", "content", "status", "authorUid"]
     },
+    "ErrorLog": {
+      "title": "Error Log",
+      "description": "A capture of a system or permission error for administrative audit.",
+      "type": "object",
+      "properties": {
+        "message": { "type": "string" },
+        "stack": { "type": "string" },
+        "type": { "type": "string" },
+        "userId": { "type": "string" },
+        "url": { "type": "string" },
+        "userAgent": { "type": "string" },
+        "context": { "type": "object" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["message", "timestamp"]
+    },
     "SystemSettings": {
       "title": "System Settings",
       "description": "Global application configuration.",
@@ -166,6 +182,10 @@
     "/system/config": {
       "schema": "#/backend/entities/SystemSettings",
       "description": "Global system configuration."
+    },
+    "/system/error_logs/{logId}": {
+        "schema": "#/backend/entities/ErrorLog",
+        "description": "Application error logs."
     },
     "/api_keys/{keyId}": {
       "schema": "#/backend/entities/APIKey",
