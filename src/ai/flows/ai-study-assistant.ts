@@ -1,18 +1,12 @@
-'use server';
 /**
+ * LexiVerse Explorer
+ * Copyright (c) 2026 Joshua Flynn (joshuaflynn040@gmail.com).
+ * Licensed under CC BY-NC-SA 4.0.
+ * 
  * @fileOverview Comprehensive AI Study Assistant for in-depth biblical research.
- * 
- * This flow orchestrates the synthesis of multiple data streams—including remote scripture
- * APIs, local research papers (via RAG), and semantic linguistic analysis—into a 
- * structured academic report. It is designed to adopt a formal, mentor-like persona
- * suitable for post-graduate seminary students.
- * 
- * Key Features:
- * - Dynamic model routing (Cloud vs. Local).
- * - RAG (Retrieval-Augmented Generation) using user-provided context.
- * - Formal SBL/Turabian bibliographic generation.
- * - Interactive link generation for external scholarly portals.
  */
+
+'use server';
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
@@ -20,15 +14,11 @@ import { getChapterContent, parseReference } from '@/lib/bible-api';
 
 /**
  * Simulated theological weight from a specialized linguistic model.
- * In a production environment, this would be a separate inference call.
  */
 const brainJsSimulatedInsight = 'Semantic analysis suggests a 94% probability of morphological alignment with archaic root structures and theological pivots.';
 
 /**
  * Aggregates context from available scripture APIs to ground the AI in verified text.
- * 
- * @param term The scripture reference or keyword being investigated.
- * @returns A combined context string containing verified scripture and lexicon stubs.
  */
 const aggregateExternalData = async (term: string): Promise<string> => {
   const parsed = parseReference(term);
@@ -73,7 +63,6 @@ export type AiStudyAssistantOutput = z.infer<typeof AiStudyAssistantOutputSchema
 
 /**
  * The core prompt definition for the study assistant.
- * Utilizes Handlebars templating to inject dynamic context into a rigid scholarly framework.
  */
 const studyAssistantPrompt = ai.definePrompt({
   name: 'studyAssistantPrompt',
@@ -116,7 +105,6 @@ Ensure the response follows the AiStudyAssistantOutputSchema exactly. Structure 
 
 /**
  * Executes the Study Assistant Flow.
- * Handles dynamic API key application and model selection.
  */
 const aiStudyAssistantFlow = ai.defineFlow(
   {
@@ -125,14 +113,12 @@ const aiStudyAssistantFlow = ai.defineFlow(
     outputSchema: AiStudyAssistantOutputSchema,
   },
   async input => {
-    // Priority: User API Key -> System API Key
     if (input.apiKey) {
       process.env.GEMINI_API_KEY = input.apiKey;
     }
 
     const selectedModel = input.model || 'googleai/gemini-2.5-flash';
     
-    // Safety check for cloud models without keys
     if (selectedModel.startsWith('googleai/') && !process.env.GEMINI_API_KEY) {
       throw new Error("AI engine is not configured. Please supply your own Gemini API Key in your profile settings.");
     }

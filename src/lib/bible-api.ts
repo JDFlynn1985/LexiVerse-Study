@@ -1,6 +1,7 @@
 /**
  * LexiVerse Explorer
- * Copyright (c) 2024. Licensed under CC BY-NC-SA 4.0.
+ * Copyright (c) 2026 Joshua Flynn (joshuaflynn040@gmail.com).
+ * Licensed under CC BY-NC-SA 4.0.
  * 
  * @fileOverview Client library for interacting with the bible.helloao.org (Free Use Bible API).
  * 
