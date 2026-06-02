@@ -2,7 +2,17 @@
  * @fileOverview Shared types and constants for the LexiVerse scholarly environment.
  */
 
-export type ViewMode = 'dashboard' | 'lexicon' | 'wiki' | 'ai-assistant' | 'profile' | 'synthesis' | 'theology' | 'manuscripts' | 'chat';
+export type ViewMode = 
+  | 'dashboard' 
+  | 'lexicon' 
+  | 'wiki' 
+  | 'ai-assistant' 
+  | 'profile' 
+  | 'synthesis' 
+  | 'theology' 
+  | 'manuscripts' 
+  | 'chat'
+  | 'boilerplate'; // Added for module development assistance
 
 export interface UserProfile {
   uid: string;

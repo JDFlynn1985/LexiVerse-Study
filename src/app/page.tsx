@@ -45,7 +45,8 @@ import {
   LogOut, 
   Moon, 
   Sun, 
-  User
+  User,
+  Puzzle
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -71,6 +72,7 @@ import { TheologyView } from '@/components/views/theology-view';
 import { LexiconView } from '@/components/views/lexicon-view';
 import { AssistantView } from '@/components/views/assistant-view';
 import { ProfileView } from '@/components/views/profile-view';
+import { BoilerplateView } from '@/components/views/boilerplate-view'; // Added Boilerplate View
 
 // AI & API Imports
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
@@ -79,6 +81,7 @@ import { refineWriting, type WritingAssistantOutput } from '@/ai/flows/writing-a
 import { checkIntegrity, type AcademicIntegrityOutput } from '@/ai/flows/academic-integrity-ai';
 import { formatBibliography, type FormatBibliographyOutput } from '@/ai/flows/format-bibliography-ai';
 import { analyzeTheologicalConcept, type TheologicalConceptOutput } from '@/ai/flows/theological-concept-analysis';
+import { runBoilerplateAnalysis, type BoilerplateOutput } from '@/ai/flows/boilerplate-flow'; // Added Boilerplate Flow
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 import { getAllLocalDocuments, type IDBDocument } from '@/lib/idb';
 
@@ -120,6 +123,8 @@ export default function Home() {
   const [assistantTerm, setAssistantTerm] = useState('');
   const [lexiconResult, setLexiconResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
   const [assistantResult, setAssistantResult] = useState<AiStudyAssistantOutput | null>(null);
+  const [boilerplateResult, setBoilerplateResult] = useState<BoilerplateOutput | null>(null); // Added Boilerplate State
+  
   const [profileDraft, setProfileDraft] = useState({ 
     displayName: '', 
     credentials: '', 
@@ -273,6 +278,9 @@ export default function Home() {
       } else if (type === 'theology') {
         const result = await analyzeTheologicalConcept({ concept: term });
         setTheologyResult(result);
+      } else if (type === 'boilerplate') { // Added Boilerplate Handler
+        const result = await runBoilerplateAnalysis({ query: term });
+        setBoilerplateResult(result);
       }
       if (type !== 'chat') {
         const newHistory = [{id: Date.now().toString(), type, term, date: new Date().toLocaleString()}, ...historyItems];
@@ -446,6 +454,11 @@ export default function Home() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'boilerplate'} onClick={() => setActiveTab('boilerplate')} tooltip="Module Boilerplate">
+                    <Puzzle className="h-5 w-5" /> <span>Module Boilerplate</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
                   <SidebarMenuButton asChild tooltip="API Portal">
                     <Link href="/api-keys">
                         <Key className="h-5 w-5" /> <span>API Portal</span>
@@ -600,6 +613,14 @@ export default function Home() {
                 handleSearch={handleSearch} 
                 isLoading={isLoading} 
                 assistantResult={assistantResult} 
+              />
+            )}
+
+            {activeTab === 'boilerplate' && (
+              <BoilerplateView 
+                isLoading={isLoading}
+                result={boilerplateResult}
+                onSearch={(term) => handleSearch(term, 'boilerplate')}
               />
             )}
 
