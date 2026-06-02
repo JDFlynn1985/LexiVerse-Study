@@ -1154,13 +1154,13 @@ export default function Home() {
                             </div>
                           ))}
                         </CardContent>
+                      </Card>
 
                       <Card className="bg-primary text-primary-foreground">
                         <CardHeader><CardTitle className="text-lg font-headline">Bibliography</CardTitle></CardHeader>
                         <CardContent>
                           <p className="text-[11px] font-mono leading-relaxed whitespace-pre-wrap opacity-80">{lexiconResult.bibliography}</p>
                         </CardContent>
-                      </Card>
                       </Card>
                     </div>
                   </div>
