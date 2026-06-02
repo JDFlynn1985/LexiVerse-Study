@@ -21,3 +21,5 @@ import '@/ai/flows/extract-citations-flow.ts';
 import '@/ai/flows/synoptic-aligner-flow.ts';
 import '@/ai/flows/term-of-the-day-flow.ts';
 import '@/ai/flows/vector-search-flow.ts';
+import '@/ai/flows/debate-simulator-flow.ts';
+import '@/ai/flows/audio-exegesis-flow.ts';

@@ -1,3 +1,4 @@
+
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
@@ -40,7 +41,9 @@ import {
   Archive,
   Clock,
   ArrowLeftRight,
-  Landmark
+  Landmark,
+  Users,
+  Volume2
 } from 'lucide-react';
 
 export const ICON_MAP: Record<string, any> = {
@@ -71,7 +74,9 @@ export const ICON_MAP: Record<string, any> = {
   'archive': Archive,
   'clock': Clock,
   'arrow-left-right': ArrowLeftRight,
-  'landmark': Landmark
+  'landmark': Landmark,
+  'users': Users,
+  'volume-2': Volume2
 };
 
 export function getIconByName(name: string) {

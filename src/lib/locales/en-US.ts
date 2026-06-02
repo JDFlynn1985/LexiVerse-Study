@@ -10,6 +10,8 @@ export const enUS = {
     ai_hub: "AI Research Hub",
     study_assistant: "AI Study Assistant",
     zotero_hub: "Zotero Sync",
+    debate: "Scholarly Dialogues",
+    audio_hub: "Audio Exegesis",
     verse_explorer: "Verse Explorer",
     translation_compare: "Translation Compare",
     licensing_hub: "Licensing Hub",

@@ -2,7 +2,9 @@
 # LexiVerse Explorer: Technical Roadmap
 
 ## ✅ Completed (Production Foundation)
-- [x] **Firestore Vector Search**: Finalized the migration from browser-side keyword ranking to server-side vector embeddings for semantic precision and "Deep RAG" capabilities.
+- [x] **Scholarly Dialogues (Debate Simulator)**: Integrated a historical dialectic simulation tool for dialectic theology study.
+- [x] **Audio Exegesis Hub (TTS)**: Enabled high-fidelity audio synthesis for research reports using Gemini 2.5 Flash.
+- [x] **Firestore Vector Search**: Transitioned to server-side vector embeddings for semantic precision and "Deep RAG" capabilities.
 - [x] **Ollama Local Network Integration**: Finalized support for on-premise model selection and local-only AI research.
 - [x] **Zotero Bidirectional Sync**: Full API integration for collections, moving beyond one-way BibTeX export.
 - [x] **Institutional SSO (SAML/OIDC)**: Enabled enterprise-grade single sign-on for seminary-wide deployments with custom provider support.
