@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -62,7 +61,8 @@ import {
   Share2,
   CheckCircle2,
   HardDrive,
-  FileCode
+  FileCode,
+  Type
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -97,7 +97,7 @@ import { getAllLocalDocuments, saveLocalDocument, deleteLocalDocument, type IDBD
 import { findOvertReferences } from '@/lib/cross-references';
 
 // Export Utils
-import { exportToPDF, exportToWord, exportToMarkdown } from '@/lib/export-service';
+import { exportToPDF, exportToWord, exportToMarkdown, exportToRTF, exportToText } from '@/lib/export-service';
 import { exportToGoogleDrive, exportToGoogleDocs } from '@/lib/google-export';
 
 type ViewMode = 'dashboard' | 'lexicon' | 'commentaries' | 'wiki' | 'theology-map' | 'timeline' | 'writing-assistant' | 'integrity' | 'ai-settings' | 'ai-assistant' | 'verse-explorer' | 'compare-translations' | 'research-library';
@@ -262,6 +262,8 @@ export default function Home() {
           case 'pdf': await exportToPDF(assistantResult); break;
           case 'docx': await exportToWord(assistantResult); break;
           case 'markdown': await exportToMarkdown(assistantResult); break;
+          case 'rtf': await exportToRTF(assistantResult); break;
+          case 'txt': await exportToText(assistantResult); break;
           case 'gdrive': 
             if (googleAccessToken) await exportToGoogleDrive(googleAccessToken, assistantResult);
             else toast({ title: "Auth Required", description: "Link Google to export to Drive." });
@@ -675,8 +677,8 @@ export default function Home() {
                                 <Share2 className="h-4 w-4 mr-2" /> Multi-Export ({selectedExports.length})
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-56">
-                              <DropdownMenuLabel>Select Channels</DropdownMenuLabel>
+                            <DropdownMenuContent className="w-64">
+                              <DropdownMenuLabel>Select Formats & Channels</DropdownMenuLabel>
                               <DropdownMenuSeparator />
                               <DropdownMenuCheckboxItem 
                                 checked={selectedExports.includes('pdf')} 
@@ -688,13 +690,25 @@ export default function Home() {
                                 checked={selectedExports.includes('docx')} 
                                 onCheckedChange={checked => checked ? setSelectedExports([...selectedExports, 'docx']) : setSelectedExports(selectedExports.filter(e => e !== 'docx'))}
                               >
-                                <Files className="h-4 w-4 mr-2" /> Word (.docx)
+                                <Files className="h-4 w-4 mr-2" /> Word Document (.docx)
+                              </DropdownMenuCheckboxItem>
+                              <DropdownMenuCheckboxItem 
+                                checked={selectedExports.includes('rtf')} 
+                                onCheckedChange={checked => checked ? setSelectedExports([...selectedExports, 'rtf']) : setSelectedExports(selectedExports.filter(e => e !== 'rtf'))}
+                              >
+                                <Type className="h-4 w-4 mr-2" /> Rich Text (.rtf)
                               </DropdownMenuCheckboxItem>
                               <DropdownMenuCheckboxItem 
                                 checked={selectedExports.includes('markdown')} 
                                 onCheckedChange={checked => checked ? setSelectedExports([...selectedExports, 'markdown']) : setSelectedExports(selectedExports.filter(e => e !== 'markdown'))}
                               >
                                 <FileCode className="h-4 w-4 mr-2" /> Markdown (Obsidian)
+                              </DropdownMenuCheckboxItem>
+                              <DropdownMenuCheckboxItem 
+                                checked={selectedExports.includes('txt')} 
+                                onCheckedChange={checked => checked ? setSelectedExports([...selectedExports, 'txt']) : setSelectedExports(selectedExports.filter(e => e !== 'txt'))}
+                              >
+                                <FileText className="h-4 w-4 mr-2" /> Plain Text (.txt)
                               </DropdownMenuCheckboxItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuCheckboxItem 
@@ -737,8 +751,10 @@ export default function Home() {
                         <div className="grid gap-3 md:grid-cols-2">
                           {assistantResult.verseUsages.map((v, i) => (
                             <div key={i} className="p-3 bg-muted/30 rounded-lg flex items-center justify-between group">
-                              <span className="text-xs font-medium">{v}</span>
-                              <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100"><Link2 className="h-3 w-3" /></Button>
+                              <span className="text-xs font-medium">{v.text}</span>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" asChild>
+                                <a href={v.url} target="_blank" rel="noopener noreferrer"><Link2 className="h-3 w-3" /></a>
+                              </Button>
                             </div>
                           ))}
                         </div>
@@ -768,7 +784,14 @@ export default function Home() {
 
                       <div className="space-y-2">
                         <h3 className="text-xs font-bold uppercase tracking-widest text-primary border-b pb-1">Bibliography</h3>
-                        <p className="text-xs font-code whitespace-pre-wrap bg-muted/50 p-4 rounded-lg">{assistantResult.bibliography}</p>
+                        <div className="space-y-2">
+                          {assistantResult.bibliography.map((b, i) => (
+                            <div key={i} className="text-xs flex items-center gap-2">
+                              <span className="text-muted-foreground">{i + 1}.</span>
+                              <a href={b.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{b.text}</a>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
