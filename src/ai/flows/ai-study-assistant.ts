@@ -5,7 +5,7 @@
  * Orchestrates scripture term analysis and generates structured academic reports,
  * incorporating user-uploaded research papers as additional context.
  * Adopts an expert scholarly persona speaking to a seminary student.
- * Updated to provide structured links for all citations and verses.
+ * Updated to support dynamic model selection and user-provided API keys.
  */
 
 import { ai } from '@/ai/genkit';
@@ -32,6 +32,8 @@ const aggregateExternalData = async (term: string): Promise<string> => {
 const AiStudyAssistantInputSchema = z.object({
   term: z.string().describe('The scripture term or reference to research.'),
   researchContext: z.array(z.string()).optional().describe('Context from uploaded research papers.'),
+  model: z.string().optional().describe('The AI model to use for this interaction.'),
+  apiKey: z.string().optional().describe('Optional user-provided Gemini API key.'),
 });
 
 export type AiStudyAssistantInput = z.infer<typeof AiStudyAssistantInputSchema>;
@@ -102,9 +104,16 @@ const aiStudyAssistantFlow = ai.defineFlow(
     outputSchema: AiStudyAssistantOutputSchema,
   },
   async input => {
-    // Check for API Configuration Readiness
-    if (!process.env.GEMINI_API_KEY) {
-      throw new Error("AI engine is not configured. Please add a Gemini API Key in System Settings to enable the Study Assistant.");
+    // Dynamic API Key override for prototype
+    if (input.apiKey) {
+      process.env.GEMINI_API_KEY = input.apiKey;
+    }
+
+    const selectedModel = input.model || 'googleai/gemini-2.5-flash';
+    
+    // Check for API Configuration Readiness (only if using cloud model)
+    if (selectedModel.startsWith('googleai/') && !process.env.GEMINI_API_KEY) {
+      throw new Error("AI engine is not configured. Please supply your own Gemini API Key in your profile settings.");
     }
 
     const aggregatedData = await aggregateExternalData(input.term);
@@ -115,7 +124,8 @@ const aiStudyAssistantFlow = ai.defineFlow(
       aggregatedData,
       brainJsInsight: brainJsSimulatedInsight,
       researchContext: researchContextString
-    });
+    }, { model: selectedModel as any });
+    
     return output!;
   }
 );

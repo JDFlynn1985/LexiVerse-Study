@@ -2,7 +2,7 @@
 'use server';
 /**
  * @fileOverview This flow defines and analyzes Greek or Hebrew terms based on Strong's numbers.
- * Enhanced to provide full verse text, contextual nuances, part of speech, and classifications (Person, Place, Event, Promise, Command).
+ * Enhanced to support dynamic model selection and user-provided API keys.
  *
  * - defineAndAnalyzeTerm - A function that takes a Strong's number and retrieves detailed information about the term.
  * - DefineAndAnalyzeTermInput - The input type for the defineAndAnalyzeTerm function.
@@ -15,6 +15,7 @@ import { z } from 'genkit';
 const DefineAndAnalyzeTermInputSchema = z.object({
   strongsNumber: z.string().describe("The Strong's number for the Greek, Hebrew, or Aramaic term (e.g., 'G1234' or 'H5678')."),
   model: z.string().optional().describe('The AI model to use for analysis.'),
+  apiKey: z.string().optional().describe('Optional user-provided Gemini API key.'),
 });
 export type DefineAndAnalyzeTermInput = z.infer<typeof DefineAndAnalyzeTermInputSchema>;
 
@@ -57,13 +58,18 @@ const DefineAndAnalyzeTermOutputSchema = z.object({
 export type DefineAndAnalyzeTermOutput = z.infer<typeof DefineAndAnalyzeTermOutputSchema>;
 
 export async function defineAndAnalyzeTerm(input: DefineAndAnalyzeTermInput): Promise<DefineAndAnalyzeTermOutput> {
-  // Check for API Configuration Readiness
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error("AI engine is not configured. Please add a Gemini API Key in System Settings to enable Lexicon analysis.");
+  // Dynamic API Key override for prototype
+  if (input.apiKey) {
+    process.env.GEMINI_API_KEY = input.apiKey;
   }
 
   const selectedModel = input.model || 'googleai/gemini-2.5-flash';
   
+  // Check for API Configuration Readiness
+  if (selectedModel.startsWith('googleai/') && !process.env.GEMINI_API_KEY) {
+    throw new Error("AI engine is not configured. Please supply your own Gemini API Key in your profile settings.");
+  }
+
   const { output } = await ai.generate({
     model: selectedModel,
     prompt: `You are an expert biblical scholar specializing in ancient languages. Perform a comprehensive analysis of the Strong's number: ${input.strongsNumber}.

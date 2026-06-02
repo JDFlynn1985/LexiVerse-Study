@@ -14,8 +14,10 @@ export const ai = genkit({
       models: [
         { name: 'llama3' },
         { name: 'llama3.1' },
+        { name: 'llama3.2' },
         { name: 'mistral' },
         { name: 'gemma' },
+        { name: 'gemma2' },
         { name: 'phi3' },
         { name: 'codellama' }
       ],
