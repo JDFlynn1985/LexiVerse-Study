@@ -291,65 +291,62 @@ export default function Home() {
             </div>
           </SidebarHeader>
           <SidebarContent>
-            {user ? (
-              <>
-                <SidebarGroup>
-                  <SidebarGroupLabel>General</SidebarGroupLabel>
-                  <SidebarMenu>
-                    {DEFAULT_MODULES.filter(m => m.group === 'general').map(m => (
-                      <SidebarMenuItem key={m.id}>
-                        <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)}>
+            <SidebarGroup>
+              <SidebarGroupLabel>General</SidebarGroupLabel>
+              <SidebarMenu>
+                {DEFAULT_MODULES.filter(m => m.group === 'general').map(m => (
+                  <SidebarMenuItem key={m.id}>
+                    <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)}>
+                      <m.icon className="h-5 w-5" /> 
+                      <span>{t.nav[m.id] || m.id}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroup>
+            <SidebarGroup>
+              <SidebarGroupLabel>{t.nav.ai_hub}</SidebarGroupLabel>
+              <SidebarMenu>
+                {DEFAULT_MODULES.filter(m => m.group === 'ai_hub').map(m => (
+                  <SidebarMenuItem key={m.id}>
+                    <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)}>
+                      <m.icon className="h-5 w-5" /> 
+                      <span>{t.nav[m.id] || m.id}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroup>
+            {userProfile?.isAdmin && (
+              <SidebarGroup>
+                <SidebarGroupLabel>Governance</SidebarGroupLabel>
+                <SidebarMenu>
+                  {GOVERNANCE_MODULES.filter(m => m.adminOnly).map(m => (
+                    <SidebarMenuItem key={m.id}>
+                       <Link href={m.path || '#'}>
+                        <SidebarMenuButton>
                           <m.icon className="h-5 w-5" /> 
                           <span>{t.nav[m.id] || m.id}</span>
                         </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroup>
-                <SidebarGroup>
-                  <SidebarGroupLabel>{t.nav.ai_hub}</SidebarGroupLabel>
-                  <SidebarMenu>
-                    {DEFAULT_MODULES.filter(m => m.group === 'ai_hub').map(m => (
-                      <SidebarMenuItem key={m.id}>
-                        <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)}>
-                          <m.icon className="h-5 w-5" /> 
-                          <span>{t.nav[m.id] || m.id}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroup>
-                {userProfile?.isAdmin && (
-                  <SidebarGroup>
-                    <SidebarGroupLabel>Governance</SidebarGroupLabel>
-                    <SidebarMenu>
-                      {GOVERNANCE_MODULES.filter(m => m.adminOnly).map(m => (
-                        <SidebarMenuItem key={m.id}>
-                           <Link href={m.path || '#'}>
-                            <SidebarMenuButton>
-                              <m.icon className="h-5 w-5" /> 
-                              <span>{t.nav[m.id] || m.id}</span>
-                            </SidebarMenuButton>
-                          </Link>
-                        </SidebarMenuItem>
-                      ))}
-                    </SidebarMenu>
-                  </SidebarGroup>
-                )}
-              </>
-            ) : (
-              <div className="p-6 space-y-4">
-                 <div className="flex flex-col items-center text-center gap-2 opacity-60">
-                   <ShieldCheck className="h-10 w-10 text-primary" />
-                   <p className="text-[10px] font-bold uppercase tracking-widest">Authentication Required</p>
+                      </Link>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroup>
+            )}
+            {!user && (
+              <div className="p-4 mt-auto border-t space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-700">
+                 <div className="flex flex-col items-center text-center gap-1 opacity-60">
+                   <ShieldCheck className="h-6 w-6 text-primary" />
+                   <p className="text-[10px] font-bold uppercase tracking-widest">Scholarly Access</p>
                  </div>
-                 <Button className="w-full text-xs h-11" onClick={() => handleLogin('google')} disabled={isAuthLoading}>
-                   {isAuthLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Globe className="h-4 w-4 mr-2" />}
+                 <Button className="w-full text-[10px] h-9" onClick={() => handleLogin('google')} disabled={isAuthLoading}>
+                   {isAuthLoading ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Globe className="h-3 w-3 mr-2" />}
                    {t.nav.login_google}
                  </Button>
                  {systemConfig?.ssoConfig?.enabled && (
-                   <Button variant="outline" className="w-full text-xs h-11 border-primary/20" onClick={() => handleLogin('institutional')} disabled={isAuthLoading}>
-                     <Building2 className="h-4 w-4 mr-2 text-primary" />
+                   <Button variant="outline" className="w-full text-[10px] h-9 border-primary/20" onClick={() => handleLogin('institutional')} disabled={isAuthLoading}>
+                     <Building2 className="h-3 w-3 mr-2 text-primary" />
                      {systemConfig.ssoConfig.label}
                    </Button>
                  )}
