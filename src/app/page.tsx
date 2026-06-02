@@ -26,6 +26,7 @@ import { useLanguage } from '@/components/language-provider';
 import { getGravatarUrl } from '@/lib/utils';
 import { getIconByName } from '@/lib/icons';
 import { NotificationCenter } from '@/components/notification-center';
+import { sanitizeHtml } from '@/lib/sanitization';
 
 // UI Layout Components
 import { 
@@ -256,31 +257,39 @@ export default function Home() {
   };
 
   const handleSearch = async (term: string, type: ViewMode) => {
-    if (!term.trim()) return;
+    // Sanitize user query
+    const sanitizedTerm = sanitizeHtml(term);
+    if (!sanitizedTerm.trim()) return;
+
     const effectiveKey = getEffectiveKey();
     const isLocal = aiPrefs.modelProvider === 'local';
+    
     if (type !== 'chat' && type !== 'direct-messages' && type !== 'verse-explorer' && !effectiveKey && !isLocal) {
       toast({ variant: "destructive", title: "AI Hub Configuration Required", description: "Please supply an API key for the selected provider in your profile." });
       return;
     }
+    
     setIsLoading(true);
     setActiveTab(type);
-    if (type !== 'chat' && type !== 'direct-messages') logSearch(db, term, type, user?.uid);
+    
+    if (type !== 'chat' && type !== 'direct-messages') logSearch(db, sanitizedTerm, type, user?.uid);
+    
     try {
       const modelString = aiPrefs.selectedModel;
-      if (type === 'lexicon') setLexiconResult(await defineAndAnalyzeTerm({ strongsNumber: term, model: modelString, apiKey: effectiveKey }));
+      if (type === 'lexicon') setLexiconResult(await defineAndAnalyzeTerm({ strongsNumber: sanitizedTerm, model: modelString, apiKey: effectiveKey }));
       else if (type === 'ai-assistant') {
         const allChunks = localDocuments.flatMap(d => chunkText(d.content, d.name));
-        const relevantChunks = selectRelevantChunks(term, allChunks, 8);
+        const relevantChunks = selectRelevantChunks(sanitizedTerm, allChunks, 8);
         const contextExcerpts = relevantChunks.map(c => `[From Paper: ${c.sourceName}]: ${c.text}`);
-        setAssistantResult(await aiStudyAssistant({ term, researchContext: contextExcerpts, model: modelString, apiKey: effectiveKey }));
+        setAssistantResult(await aiStudyAssistant({ term: sanitizedTerm, researchContext: contextExcerpts, model: modelString, apiKey: effectiveKey }));
       }
-      else if (type === 'theology') setTheologyResult(await analyzeTheologicalConcept({ concept: term }));
-      else if (type === 'archaeology') setArchaeologyResult(await runArchaeologyAnalysis({ query: term }));
-      else if (type === 'geography') setGeographyResult(await runGeographyAnalysis({ query: term }));
-      else if (type === 'timeline') setTimelineResult(await generateHistoricalTimeline({ topic: term }));
+      else if (type === 'theology') setTheologyResult(await analyzeTheologicalConcept({ concept: sanitizedTerm }));
+      else if (type === 'archaeology') setArchaeologyResult(await runArchaeologyAnalysis({ query: sanitizedTerm }));
+      else if (type === 'geography') setGeographyResult(await runGeographyAnalysis({ query: sanitizedTerm }));
+      else if (type === 'timeline') setTimelineResult(await generateHistoricalTimeline({ topic: sanitizedTerm }));
+      
       if (type !== 'chat' && type !== 'direct-messages') {
-        const newHistory = [{id: Date.now().toString(), type, term, date: new Date().toLocaleString()}, ...historyItems];
+        const newHistory = [{id: Date.now().toString(), type, term: sanitizedTerm, date: new Date().toLocaleString()}, ...historyItems];
         setHistoryItems(newHistory.slice(0, 10));
         localStorage.setItem('lexiverse_history', JSON.stringify(newHistory.slice(0, 10)));
       }
@@ -290,10 +299,11 @@ export default function Home() {
 
   const handleSaveSession = async (title: string, type: string, data: any) => {
     if (!user || !db) return;
+    const sanitizedTitle = sanitizeHtml(title);
     try {
       const sessionRef = doc(collection(db, 'users', user.uid, 'sessions'));
-      await setDoc(sessionRef, { uid: user.uid, title, type, data, createdAt: serverTimestamp() });
-      toast({ title: "Research Saved", description: `Session '${title}' preserved in workspace.` });
+      await setDoc(sessionRef, { uid: user.uid, title: sanitizedTitle, type, data, createdAt: serverTimestamp() });
+      toast({ title: "Research Saved", description: `Session '${sanitizedTitle}' preserved in workspace.` });
     } catch (e: any) { toast({ variant: 'destructive', title: "Save Failed" }); }
   };
 
@@ -311,7 +321,7 @@ export default function Home() {
 
   const handleSaveDraftToLibrary = async (name: string, content: string) => {
     try {
-      const newDoc: IDBDocument = { id: crypto.randomUUID(), name: `${name}-${new Date().toLocaleDateString()}.txt`, type: 'text/plain', content, uploadDate: new Date().toISOString(), synced: false };
+      const newDoc: IDBDocument = { id: crypto.randomUUID(), name: `${sanitizeHtml(name)}-${new Date().toLocaleDateString()}.txt`, type: 'text/plain', content, uploadDate: new Date().toISOString(), synced: false };
       await saveLocalDocument(newDoc);
       await refreshLocalDocs();
       toast({ title: "Draft Saved", description: "Successfully added to your local library for future RAG context." });
@@ -320,8 +330,22 @@ export default function Home() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !newMessage.trim() || !chatAgreed) return;
-    const messageData = { content: newMessage.trim(), senderUid: user.uid, senderName: userProfile?.displayName || user.displayName, senderPhotoURL: userProfile?.photoURL || user.photoURL, senderDesignation: userProfile?.designation || 'Scholar', senderInstitutionName: userInstitutionName, institutionId: userProfile?.institutionId || 'independent', mode: chatMode, createdAt: serverTimestamp(), status: 'active' };
+    const sanitizedContent = sanitizeHtml(newMessage);
+    if (!user || !sanitizedContent.trim() || !chatAgreed) return;
+
+    const messageData = { 
+      content: sanitizedContent.trim(), 
+      senderUid: user.uid, 
+      senderName: sanitizeHtml(userProfile?.displayName || user.displayName), 
+      senderPhotoURL: userProfile?.photoURL || user.photoURL, 
+      senderDesignation: userProfile?.designation || 'Scholar', 
+      senderInstitutionName: userInstitutionName, 
+      institutionId: userProfile?.institutionId || 'independent', 
+      mode: chatMode, 
+      createdAt: serverTimestamp(), 
+      status: 'active' 
+    };
+
     setNewMessage('');
     try { await addDoc(collection(db, 'messages'), messageData); } 
     catch (e: any) { toast({ variant: 'destructive', title: "Message failed to send" }); }
@@ -330,7 +354,16 @@ export default function Home() {
   const updateProfile = async () => {
     if (!user || !db) return;
     setIsLoading(true);
-    try { await updateDoc(doc(db, 'users', user.uid), { ...profileDraft }); toast({ title: "Profile Updated" }); } 
+    
+    // Sanitize profile inputs
+    const sanitizedDraft = {
+      ...profileDraft,
+      displayName: sanitizeHtml(profileDraft.displayName),
+      bio: sanitizeHtml(profileDraft.bio),
+      credentials: sanitizeHtml(profileDraft.credentials)
+    };
+
+    try { await updateDoc(doc(db, 'users', user.uid), sanitizedDraft); toast({ title: "Profile Updated" }); } 
     catch (e) { toast({ variant: 'destructive', title: "Failed to update profile" }); }
     finally { setIsLoading(false); }
   };

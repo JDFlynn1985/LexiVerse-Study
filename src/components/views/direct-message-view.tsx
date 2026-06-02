@@ -17,6 +17,7 @@ import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp 
 import { useFirestore, useUser } from '@/firebase';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { sanitizeHtml } from '@/lib/sanitization';
 
 interface DirectMessageViewProps {
   initialRecipient?: { uid: string; displayName: string; photoURL: string } | null;
@@ -93,15 +94,16 @@ export const DirectMessageView = memo(({ initialRecipient }: DirectMessageViewPr
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !selectedUser || !newMessage.trim()) return;
+    const sanitized = sanitizeHtml(newMessage);
+    if (!user || !selectedUser || !sanitized.trim()) return;
 
     const msgData = {
-      content: newMessage.trim(),
+      content: sanitized.trim(),
       senderUid: user.uid,
-      senderName: user.displayName || 'Scholar',
+      senderName: sanitizeHtml(user.displayName || 'Scholar'),
       senderPhotoURL: user.photoURL || '',
       receiverUid: selectedUser.uid,
-      receiverName: selectedUser.displayName,
+      receiverName: sanitizeHtml(selectedUser.displayName),
       receiverPhotoURL: selectedUser.photoURL || '',
       participants: [user.uid, selectedUser.uid].sort(),
       createdAt: serverTimestamp()

@@ -41,6 +41,7 @@ import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { useLanguage } from '@/components/language-provider';
 import { DMCADialog } from '@/components/dmca-dialog';
+import { sanitizeHtml, sanitizeRichText } from '@/lib/sanitization';
 
 export default function ScholarlyWiki() {
   const db = useFirestore();
@@ -74,16 +75,25 @@ export default function ScholarlyWiki() {
 
   const handlePropose = async () => {
     if (!user || !proposal.title.trim() || !proposal.content.trim() || !agreedToLicense) return;
+    
     setIsProposing(true);
     try {
+      // Apply specialized sanitization for Wiki content
+      const sanitizedProposal = {
+        title: sanitizeHtml(proposal.title),
+        content: sanitizeRichText(proposal.content),
+        worksCited: sanitizeHtml(proposal.worksCited)
+      };
+
       await addDoc(collection(db, 'wiki_entries'), {
-        ...proposal,
+        ...sanitizedProposal,
         status: 'pending',
         authorUid: user.uid,
-        authorName: user.displayName || 'Anonymous Scholar',
+        authorName: sanitizeHtml(user.displayName || 'Anonymous Scholar'),
         createdAt: serverTimestamp(),
         license: 'CC-BY-4.0'
       });
+
       toast({ title: "Proposal Submitted", description: "Your article has been sent for peer review." });
       setProposal({ title: '', content: '', worksCited: '' });
       setAgreedToLicense(false);

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { initializeFirebase } from '@/firebase';
 import { collection, query, where, getDocs, doc, updateDoc, increment, getDoc } from 'firebase/firestore';
 import { aiStudyAssistant } from '@/ai/flows/ai-study-assistant';
+import { sanitizeHtml } from '@/lib/sanitization';
 
 /**
  * @swagger
@@ -93,7 +94,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Tier rate limit exceeded' }, { status: 429 });
     }
 
-    // 3. Payload Extraction
+    // 3. Payload Extraction & Sanitization
     const body = await req.json();
     const { term, researchContext } = body;
 
@@ -101,10 +102,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required field: term' }, { status: 400 });
     }
 
+    // Server-side input sanitization
+    const sanitizedTerm = sanitizeHtml(term);
+    const sanitizedContext = Array.isArray(researchContext) 
+      ? researchContext.map(ctx => sanitizeHtml(ctx))
+      : [];
+
     // 4. Engine Execution
     const result = await aiStudyAssistant({
-      term,
-      researchContext: researchContext || [],
+      term: sanitizedTerm,
+      researchContext: sanitizedContext,
       model: systemConfig?.defaultModel || 'googleai/gemini-2.5-flash',
       apiKey: systemConfig?.geminiApiKey || undefined
     });

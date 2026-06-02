@@ -51,6 +51,7 @@
     "genkit": "^1.28.0",
     "genkitx-ollama": "latest",
     "ollama": "latest",
+    "isomorphic-dompurify": "^2.20.0",
     "jspdf": "^2.5.2",
     "lucide-react": "^0.475.0",
     "mammoth": "^1.8.0",
