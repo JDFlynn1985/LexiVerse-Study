@@ -111,7 +111,7 @@ All runtime and permission errors are logged to the `error_logs` collection.
 ## 🔌 External Research API
 
 LexiVerse exposes a RESTful API for external scholarly tool integration.
-- **Docs**: `/api-docs` (Swagger UI)
+- **Docs**: `/api/v1/api-docs` (Swagger UI)
 - **Spec**: `/api/doc` (OpenAPI JSON)
 - **Auth**: Bearer tokens provisioned in the **API Portal**.
 

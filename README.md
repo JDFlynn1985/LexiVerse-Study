@@ -36,7 +36,7 @@ npm run dev
 - **[SDK Documentation](docs/SDK_DOCUMENTATION.md)**: Full technical manual for the LexiVerse architecture.
 - **[Module Development Guide](docs/MODULE_GUIDE.md)**: How to build and register new research tools.
 - **[Contributing](CONTRIBUTING.md)**: Guidelines for code and scholarly submissions.
-- **[API Docs](/api-docs)**: Interactive Swagger UI for the Research API (available when running).
+- **[API Docs](/api/v1/api-docs)**: Interactive Swagger UI for the Research API (available when running).
 
 ## 🌍 Accessibility & Privacy
 LexiVerse is committed to WCAG 2.1 AAA standards. Users maintain full control over their data, with granular cookie consent and local-only storage options for sensitive API credentials.
