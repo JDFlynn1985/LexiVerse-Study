@@ -9,7 +9,7 @@ import { aiStudyAssistant } from '@/ai/flows/ai-study-assistant';
  * /api/v1/research:
  *   post:
  *     summary: Execute a scholarly research query
- *     description: Leverages the LexiVerse AI engine and local research papers to synthesize an academic report. Access is rate-limited based on your provisioned tier.
+ *     description: Leverages the LexiVerse AI engine and local research papers to synthesize an academic report. Access is governed by tiered rate limits.
  *     security:
  *       - BearerAuth: []
  *     requestBody:
@@ -50,9 +50,11 @@ import { aiStudyAssistant } from '@/ai/flows/ai-study-assistant';
  *                     remaining:
  *                       type: number
  *       401:
- *         description: Missing or invalid authorization.
+ *         description: Missing or invalid Authorization header.
+ *       403:
+ *         description: API Key is invalid or has been revoked by administration.
  *       429:
- *         description: Tier rate limit exceeded.
+ *         description: Tier rate limit exceeded for the current 24-hour period.
  */
 
 export async function POST(req: NextRequest) {
