@@ -1,8 +1,12 @@
-
 /**
+ * LexiVerse Explorer
+ * Copyright (c) 2024. Licensed under CC BY-NC-SA 4.0.
+ * 
  * @fileOverview Declarative Module Registry for LexiVerse Explorer.
- * Centralizes tool definitions to ensure seamless integration and 
- * prevent architectural fragmentation.
+ * 
+ * This registry defines the baseline scholarly tools available in the platform.
+ * It is consumed by the dashboard orchestrator to render the navigation and
+ * interactive features.
  */
 
 import { 
@@ -22,13 +26,22 @@ import {
 } from 'lucide-react';
 import { ViewMode } from '@/types/scholarly';
 
+/**
+ * Metadata for a LexiVerse module.
+ */
 export interface ModuleDefinition {
+  /** Internal ID matching the ViewMode type. */
   id: ViewMode;
-  labelKey: string; // Key in the locale file (e.g. 'nav.dashboard')
+  /** Translation key for the module label. */
+  labelKey: string; 
+  /** Lucide icon component. */
   icon: any;
+  /** Organizational group for sidebar and dashboard. */
   group: 'general' | 'ai_hub' | 'governance' | 'profile';
+  /** Whether the module requires administrative privileges. */
   adminOnly?: boolean;
-  path?: string; // If it's an external route rather than a dashboard tab
+  /** Path for full-page route modules. If absent, the module renders as a dashboard tab. */
+  path?: string; 
 }
 
 /**
@@ -48,6 +61,9 @@ export const DEFAULT_MODULES: ModuleDefinition[] = [
   { id: 'boilerplate', labelKey: 'nav.boilerplate', icon: Puzzle, group: 'ai_hub' }
 ];
 
+/**
+ * Modules specific to administrative governance and access management.
+ */
 export const GOVERNANCE_MODULES: ModuleDefinition[] = [
   { id: 'profile', labelKey: 'nav.api_portal', icon: Key, group: 'governance', path: '/api-keys' },
   { id: 'dashboard', labelKey: 'nav.admin_api', icon: Key, group: 'governance', adminOnly: true, path: '/admin/api' },

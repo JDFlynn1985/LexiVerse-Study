@@ -1,17 +1,36 @@
+/**
+ * LexiVerse Explorer
+ * Copyright (c) 2024. Licensed under CC BY-NC-SA 4.0.
+ * 
+ * @fileOverview Centralized scholarly error logging service.
+ * 
+ * Provides a standardized way to persist application and permission errors 
+ * to Firestore for administrative audit and debugging.
+ */
 
 'use client';
 
 import { collection, addDoc, serverTimestamp, Firestore } from 'firebase/firestore';
 
+/**
+ * Contextual metadata for an error log.
+ */
 export type ErrorLogContext = {
+  /** The origin or category of the error. */
   type: 'runtime' | 'firebase-permission' | 'api' | 'auth';
+  /** Optional UID of the researcher who encountered the error. */
   userId?: string;
+  /** Arbitrary metadata associated with the event (e.g. Firestore path). */
   metadata?: any;
 };
 
 /**
  * Persists an error to the /error_logs collection in Firestore.
  * This is used for background auditing and developer diagnostics.
+ * 
+ * @param db The Firestore instance.
+ * @param error The error object or message to log.
+ * @param context Metadata about the error environment.
  */
 export function logErrorToFirestore(db: Firestore, error: any, context: ErrorLogContext) {
   if (!db) return;

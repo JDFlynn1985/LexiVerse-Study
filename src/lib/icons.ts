@@ -1,7 +1,11 @@
-
 /**
+ * LexiVerse Explorer
+ * Copyright (c) 2024. Licensed under CC BY-NC-SA 4.0.
+ * 
  * @fileOverview Dynamic Icon Mapping for Lucide React components.
- * This utility allows us to resolve icon components from string names stored in Firestore.
+ * 
+ * This utility allows the application to resolve React icon components 
+ * from string identifiers stored in Firestore module documents.
  */
 
 import { 
@@ -26,6 +30,9 @@ import {
   Globe
 } from 'lucide-react';
 
+/**
+ * Global map of string identifiers to Lucide icon components.
+ */
 export const ICON_MAP: Record<string, any> = {
   'layout-dashboard': LayoutDashboard,
   'message-square': MessageSquare,
@@ -50,7 +57,9 @@ export const ICON_MAP: Record<string, any> = {
 
 /**
  * Resolves an icon component by its string identifier.
- * Returns Globe as a fallback if the icon is not found.
+ * 
+ * @param name The unique identifier for the icon (e.g., 'sparkles').
+ * @returns The Lucide icon component, or Globe as a fallback.
  */
 export function getIconByName(name: string) {
   return ICON_MAP[name] || Globe;

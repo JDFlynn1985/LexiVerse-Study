@@ -1,3 +1,15 @@
+/**
+ * LexiVerse Explorer
+ * Copyright (c) 2024. Licensed under CC BY-NC-SA 4.0.
+ * 
+ * @fileOverview Primary Research Dashboard Orchestrator.
+ * 
+ * This is the central hub of the LexiVerse application. It handles:
+ * - Dynamic view switching between modular scholarly tools.
+ * - Real-time synchronization with Firestore module governance.
+ * - Global state management for AI preferences and local document context.
+ * - Authentication flow and institutional semantic discourse.
+ */
 
 'use client';
 
@@ -75,6 +87,9 @@ import { runBoilerplateAnalysis, type BoilerplateOutput } from '@/ai/flows/boile
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 import { getAllLocalDocuments, type IDBDocument } from '@/lib/idb';
 
+/**
+ * Main Home component orchestrating the scholarly workspace.
+ */
 export default function Home() {
   const { language, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<ViewMode>('dashboard');
@@ -285,7 +300,6 @@ export default function Home() {
     if (modulesLoading) return staticGroup;
 
     // Filter statically defined modules based on dynamic "enabled" status from Firestore
-    // If a module is defined in code but missing from Firestore, it is ENABLED BY DEFAULT
     return staticGroup.filter(m => {
       const dynamic = dynamicModules.find(dm => dm.id === m.id);
       if (dynamic) return dynamic.enabled === true;
@@ -338,14 +352,18 @@ export default function Home() {
                     {m.path ? (
                       <SidebarMenuButton asChild tooltip={getTranslatedLabel(m.labelKey)}>
                         <Link href={m.path}>
-                          <m.icon className="h-5 w-5" /> 
-                          <span>{getTranslatedLabel(m.labelKey)}</span>
+                          <div className="flex items-center gap-2">
+                             <m.icon className="h-5 w-5" /> 
+                             <span>{getTranslatedLabel(m.labelKey)}</span>
+                          </div>
                         </Link>
                       </SidebarMenuButton>
                     ) : (
                       <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)} tooltip={getTranslatedLabel(m.labelKey)}>
-                        <m.icon className="h-5 w-5" /> 
-                        <span>{getTranslatedLabel(m.labelKey)}</span>
+                        <div className="flex items-center gap-2">
+                           <m.icon className="h-5 w-5" /> 
+                           <span>{getTranslatedLabel(m.labelKey)}</span>
+                        </div>
                       </SidebarMenuButton>
                     )}
                   </SidebarMenuItem>
@@ -361,14 +379,18 @@ export default function Home() {
                     {m.path ? (
                       <SidebarMenuButton asChild tooltip={getTranslatedLabel(m.labelKey)}>
                         <Link href={m.path}>
-                          <m.icon className="h-5 w-5" /> 
-                          <span>{getTranslatedLabel(m.labelKey)}</span>
+                          <div className="flex items-center gap-2">
+                             <m.icon className="h-5 w-5" /> 
+                             <span>{getTranslatedLabel(m.labelKey)}</span>
+                          </div>
                         </Link>
                       </SidebarMenuButton>
                     ) : (
                       <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)} tooltip={getTranslatedLabel(m.labelKey)}>
-                        <m.icon className="h-5 w-5" /> 
-                        <span>{getTranslatedLabel(m.labelKey)}</span>
+                        <div className="flex items-center gap-2">
+                           <m.icon className="h-5 w-5" /> 
+                           <span>{getTranslatedLabel(m.labelKey)}</span>
+                        </div>
                       </SidebarMenuButton>
                     )}
                   </SidebarMenuItem>
@@ -386,14 +408,18 @@ export default function Home() {
                       {m.path ? (
                         <SidebarMenuButton asChild tooltip={getTranslatedLabel(m.labelKey)}>
                           <Link href={m.path}>
-                            <m.icon className="h-5 w-5" /> 
-                            <span>{getTranslatedLabel(m.labelKey)}</span>
+                            <div className="flex items-center gap-2">
+                               <m.icon className="h-5 w-5" /> 
+                               <span>{getTranslatedLabel(m.labelKey)}</span>
+                            </div>
                           </Link>
                         </SidebarMenuButton>
                       ) : (
                         <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)} tooltip={getTranslatedLabel(m.labelKey)}>
-                          <m.icon className="h-5 w-5" /> 
-                          <span>{getTranslatedLabel(m.labelKey)}</span>
+                          <div className="flex items-center gap-2">
+                             <m.icon className="h-5 w-5" /> 
+                             <span>{getTranslatedLabel(m.labelKey)}</span>
+                          </div>
                         </SidebarMenuButton>
                       )}
                     </SidebarMenuItem>
