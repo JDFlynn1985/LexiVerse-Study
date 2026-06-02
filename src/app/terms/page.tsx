@@ -69,31 +69,50 @@ export default function TermsOfUse() {
 
         <Card className="shadow-sm border-primary/10">
           <CardHeader>
-            <CardTitle className="font-headline text-xl">4. User-Generated Content & Licensing</CardTitle>
+            <CardTitle className="font-headline text-xl">4. Ownership and Licensing of Your Content</CardTitle>
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
-            <p>
-              To foster a collaborative and open scholarly environment, all user-generated content (UGC)—including wiki articles, research annotations, and community discourse—is automatically licensed under the <strong>Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)</strong> license.
-            </p>
-            
-            <div className="grid gap-6 md:grid-cols-2 mt-4">
-              <div className="space-y-2 p-4 bg-muted/30 rounded-lg border">
-                <h4 className="font-bold text-sm uppercase text-primary">Rights You Grant</h4>
-                <p className="text-xs leading-relaxed">
-                  You grant LexiVerse and its community a non-exclusive, worldwide, royalty-free license to copy, redistribute, remix, transform, and build upon your content for <strong>non-commercial</strong> research purposes, provided appropriate credit is given.
+            <div className="space-y-6">
+              <div>
+                <h5 className="font-bold text-primary mb-2">1. Ownership and Licensing of Your Content</h5>
+                <p>
+                  You retain ownership of all text, images, videos, or other materials you submit to our platform ("User Content"). However, by submitting User Content to the platform, you agree to make it available to the public under the terms of the Creative Commons Attribution 4.0 International License (CC BY 4.0).
                 </p>
               </div>
-              <div className="space-y-2 p-4 bg-muted/30 rounded-lg border">
-                <h4 className="font-bold text-sm uppercase text-accent">Rights You Retain</h4>
-                <p className="text-xs leading-relaxed">
-                  You retain full ownership of your original research. You maintain your moral rights, including the right to be identified as the author. As this license is non-exclusive, you may also choose to license your original work under different terms elsewhere.
+
+              <div>
+                <h5 className="font-bold text-primary mb-2">2. What This Means for You and Others</h5>
+                <div className="space-y-3">
+                  <p>
+                    <strong className="text-foreground">Grant to the Platform and Public:</strong> You grant us, and all other users of this platform, a worldwide, royalty-free, non-exclusive, perpetual license to share, copy, distribute, transmit, adapt, and build upon your content for any purpose, including commercial purposes.
+                  </p>
+                  <p>
+                    <strong className="text-foreground">Attribution Required:</strong> Anyone who uses, remixes, or distributes your content must give you appropriate credit, provide a link to the CC BY 4.0 license, and indicate if changes were made.
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <h5 className="font-bold text-primary mb-2">3. Your Warranties</h5>
+                <p>
+                  By submitting content, you represent and warrant that you own the rights to the content, or have obtained all necessary permissions, to grant this CC BY 4.0 license. You agree not to submit any content that infringes upon the copyright, trademark, or intellectual property rights of any third party.
+                </p>
+              </div>
+
+              <div className="pt-4 border-t">
+                <p className="italic text-xs text-muted-foreground flex items-center gap-1">
+                  For full details on how this license operates, please review the 
+                  <a 
+                    href="https://creativecommons.org/licenses/by/4.0/legalcode" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="text-primary font-bold underline inline-flex items-center gap-1"
+                  >
+                    Creative Commons CC BY 4.0 Legal Code <ExternalLink className="h-3 w-3" />
+                  </a>.
                 </p>
               </div>
             </div>
-
-            <p className="mt-4 pt-4 border-t italic text-xs">
-              For more information, please review the <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode" target="_blank" rel="noopener noreferrer" className="text-primary font-bold underline inline-flex items-center gap-1">Full Official License Text <ExternalLink className="h-3 w-3" /></a>.
-            </p>
           </CardContent>
         </Card>
 
@@ -133,7 +152,7 @@ export default function TermsOfUse() {
         </div>
 
         <footer className="text-center text-muted-foreground text-xs pt-8">
-          <p>© 2024 LexiVerse Explorer. Supporting the Scholarly Community.</p>
+          <p>© 2026 Joshua Flynn. Supporting the Scholarly Community.</p>
         </footer>
       </div>
     </div>
