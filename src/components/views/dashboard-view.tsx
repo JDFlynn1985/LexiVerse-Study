@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { memo, useState, useRef, useEffect } from 'react';
@@ -13,15 +14,7 @@ import { ViewMode, AIProvider } from '@/types/scholarly';
 import { useToast } from '@/hooks/use-toast';
 import { transcribeAudio } from '@/ai/flows/transcribe-flow';
 import { getTermOfTheDay, type VocabularyOutput } from '@/ai/flows/term-of-the-day-flow';
-import { 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip as RechartsTooltip, 
-  ResponsiveContainer, 
-  AreaChart, 
-  Area 
-} from 'recharts';
+import { Label } from '@/components/ui/label';
 
 interface DashboardViewProps {
   t: any;
@@ -144,9 +137,16 @@ export const DashboardView = memo(({
     else if (val === 'mistral') defaultModel = 'mistral/mistral-large-latest';
     else if (val === 'deepseek') defaultModel = 'deepseek/deepseek-chat';
     else if (val === 'xai') defaultModel = 'xai/grok-beta';
-    else if (val === 'local') defaultModel = systemConfig?.localModelList?.[0] || 'llama3';
+    else if (val === 'local') {
+      const localModels = systemConfig?.localModelList || [];
+      defaultModel = localModels.length > 0 ? `ollama/${localModels[0]}` : 'ollama/llama3';
+    }
     
     setAiPrefs({ ...aiPrefs, modelProvider: val, selectedModel: defaultModel });
+  };
+
+  const handleModelChange = (val: string) => {
+    setAiPrefs({ ...aiPrefs, selectedModel: val });
   };
 
   const ActiveProviderIcon = PROVIDERS.find(p => p.id === aiPrefs.modelProvider)?.icon || Globe;
@@ -180,22 +180,43 @@ export const DashboardView = memo(({
                 <CardDescription>Synthesize deep theological insights from your digital library.</CardDescription>
               </div>
               
-              <div className="flex items-center gap-2 bg-muted/50 p-1.5 rounded-lg border">
-                <Select value={aiPrefs.modelProvider} onValueChange={handleProviderChange}>
-                  <SelectTrigger className="h-8 w-[130px] text-[10px] uppercase font-bold tracking-widest border-none bg-transparent shadow-none focus:ring-0">
-                    <div className="flex items-center gap-1.5">
-                      <ActiveProviderIcon className="h-3 w-3" />
-                      <SelectValue placeholder="Provider" />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PROVIDERS.map(p => (
-                      <SelectItem key={p.id} value={p.id} className="text-[10px] font-bold">
-                        {p.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="flex items-center gap-3 bg-muted/50 p-1.5 rounded-lg border">
+                <div className="space-y-1">
+                  <Label className="text-[8px] uppercase opacity-50 px-1">Provider</Label>
+                  <Select value={aiPrefs.modelProvider} onValueChange={handleProviderChange}>
+                    <SelectTrigger className="h-8 w-[130px] text-[10px] uppercase font-bold tracking-widest border-none bg-transparent shadow-none focus:ring-0">
+                      <div className="flex items-center gap-1.5">
+                        <ActiveProviderIcon className="h-3 w-3" />
+                        <SelectValue placeholder="Provider" />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROVIDERS.map(p => (
+                        <SelectItem key={p.id} value={p.id} className="text-[10px] font-bold">
+                          {p.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {aiPrefs.modelProvider === 'local' && (
+                  <div className="space-y-1 border-l pl-2">
+                    <Label className="text-[8px] uppercase opacity-50 px-1">Local Model</Label>
+                    <Select value={aiPrefs.selectedModel} onValueChange={handleModelChange}>
+                      <SelectTrigger className="h-8 w-[110px] text-[10px] uppercase font-bold tracking-widest border-none bg-transparent shadow-none focus:ring-0">
+                        <SelectValue placeholder="Model" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(systemConfig?.localModelList || ['llama3', 'mistral']).map((m: string) => (
+                          <SelectItem key={m} value={`ollama/${m}`} className="text-[10px] font-mono">
+                            {m}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             </div>
           </CardHeader>

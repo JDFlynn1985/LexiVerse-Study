@@ -4,10 +4,10 @@
 This report provides a quantitative overview of the application's codebase as of the current build.
 
 ## 📊 Summary
-- **Total Files**: 151
-- **Total Lines of Code**: 15,800
+- **Total Files**: 153
+- **Total Lines of Code**: 16,100
 - **Status**: Production-Ready / Scholarly Beta
-- **Unfinished Features Remaining**: 2
+- **Unfinished Features Remaining**: 1
 
 ---
 
@@ -16,7 +16,7 @@ This report provides a quantitative overview of the application's codebase as of
 | Extension | File Count | Description |
 |-----------|------------|-------------|
 | `.tsx`    | 88         | React Views, UI Components, and Layouts |
-| `.ts`     | 64         | AI Flows, Firestore Utilities, and Services |
+| `.ts`     | 65         | AI Flows, Firestore Utilities, and Services |
 | `.json`   | 8          | Backend Schemas and Configuration |
 | `.md`     | 11         | Documentation and Developer Guides |
 | `.html`   | 24         | Static GitHub Pages Docs |
@@ -31,6 +31,7 @@ The dashboard is fully modular. Recent additions include the **Zotero Hub**, **C
 ### 🤖 AI Research Hub (`src/ai`)
 - **Flows**: 28 expert-guided paths for scripture analysis, citation extraction, and multimodal processing.
 - **Grounding**: Real-time scripture fetching, verified commentary aggregation, and structured lexicon fetching.
+- **Local Support**: Integrated Ollama models for local-network isolated research.
 
 ### 🛡️ Scholarly Governance
 - **Security**: Strict Firestore Rules mapping to `UserStudyProfile` designations.

@@ -7,6 +7,7 @@
 - [x] **Structured Lexicon Fetching**: Transitioned from AI-simulated Strong's data to a tool-grounded retrieval system with a dedicated API connector.
 - [x] **Verified Commentary Aggregator**: Integrated a structured aggregator for primary historical scholarly works (JFB, Henry, Calvin).
 - [x] **Bible Version Licensing Hub**: Implemented a secure flow for accessing modern copyrighted translations (NIV, ESV, etc.).
+- [x] **Ollama Local Network Integration**: Finalized support for on-premise model selection and local-only AI research.
 - [x] **Attributed Multi-Document RAG**: Citing specific papers in AI synthesis using filename references.
 - [x] **Notification Engine**: Real-time peer-review alerts and discourse notifications.
 - [x] **Voice Research Hub**: Multimodal voice transcription for dictated theological queries.
@@ -20,8 +21,5 @@
 ## 📄 Document Management (Advanced RAG)
 - [ ] **Firestore Vector Search**: Migrate from browser-side keyword ranking to server-side vector embeddings for semantic precision.
 
-## 🧪 Advanced Infrastructure
-- [ ] **Ollama Progress Streaming**: Implement WebSockets for real-time pull progress of local models to prevent UI timeouts.
-
 ---
-*Last Audit: February 2024. Only 2 primary architectural features remain.*
+*Last Audit: February 2024. Only 1 primary architectural feature remains.*

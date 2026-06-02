@@ -213,24 +213,37 @@ export default function Home() {
     logSearch(db, sanitizedTerm, activeType, user?.uid);
     
     try {
-      if (activeType === 'lexicon') setLexiconResult(await defineAndAnalyzeTerm({ strongsNumber: sanitizedTerm }));
+      if (activeType === 'lexicon') {
+        setLexiconResult(await defineAndAnalyzeTerm({ 
+          strongsNumber: sanitizedTerm,
+          model: aiPrefs.selectedModel,
+          apiKey: aiPrefs.googleKey || undefined 
+        }));
+      }
       else if (activeType === 'ai-assistant') {
         const allChunks = localDocuments.flatMap(d => chunkText(d.content, d.name));
         const relevantChunks = selectRelevantChunks(sanitizedTerm, allChunks, 8);
         const contextExcerpts = relevantChunks.map(c => `[From Paper: ${c.sourceName}]: ${c.text}`);
-        setAssistantResult(await aiStudyAssistant({ term: sanitizedTerm, researchContext: contextExcerpts }));
+        setAssistantResult(await aiStudyAssistant({ 
+          term: sanitizedTerm, 
+          researchContext: contextExcerpts,
+          model: aiPrefs.selectedModel,
+          apiKey: aiPrefs.googleKey || undefined
+        }));
       }
       else if (activeType === 'theology') setTheologyResult(await analyzeTheologicalConcept({ concept: sanitizedTerm }));
       else if (activeType === 'archaeology') setArchaeologyResult(await runArchaeologyAnalysis({ query: sanitizedTerm }));
       else if (activeType === 'geography') setGeographyResult(await runGeographyAnalysis({ query: sanitizedTerm }));
       else if (activeType === 'timeline') setTimelineResult(await generateHistoricalTimeline({ topic: sanitizedTerm }));
-    } catch (error: any) { toast({ variant: 'destructive', title: 'Research Engine Error' }); }
+    } catch (error: any) { 
+      toast({ variant: 'destructive', title: 'Research Engine Error', description: error.message }); 
+    }
     finally { setIsLoading(false); }
   };
 
   const renderModularContent = () => {
     switch (activeTab) {
-      case 'dashboard': return <DashboardView t={t} effectiveApiKey={undefined} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={DEFAULT_MODULES} momentumData={momentumData} />;
+      case 'dashboard': return <DashboardView t={t} effectiveApiKey={aiPrefs.googleKey || systemConfig?.geminiApiKey} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={DEFAULT_MODULES} momentumData={momentumData} />;
       case 'chat': return <ChatView chatMode={chatMode} setChatMode={setChatMode} userProfile={userProfile} userInstitutionName={""} messages={chatMessages} user={user} newMessage={newMessage} setNewMessage={setNewMessage} chatAgreed={chatAgreed} setChatAgreed={setChatAgreed} handleSendMessage={() => {}} chatEndRef={chatEndRef} onInitiateDM={(peer) => { setDmRecipient(peer); setActiveTab('direct-messages'); }} />;
       case 'direct-messages': return <DirectMessageView initialRecipient={dmRecipient} />;
       case 'library': return <LibraryView documents={localDocuments} onRefresh={refreshLocalDocs} isLoading={isLoading} />;
@@ -247,7 +260,7 @@ export default function Home() {
       case 'timeline': return <TimelineView isLoading={isLoading} result={timelineResult} onSearch={(term) => handleSearch(term, 'timeline')} />;
       case 'licensing-hub': return <LicensingHubView />;
       case 'commentaries': return <CommentaryView />;
-      default: return <DashboardView t={t} effectiveApiKey={undefined} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={DEFAULT_MODULES} momentumData={momentumData} />;
+      default: return <DashboardView t={t} effectiveApiKey={aiPrefs.googleKey || systemConfig?.geminiApiKey} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={DEFAULT_MODULES} momentumData={momentumData} />;
     }
   };
 
@@ -296,6 +309,23 @@ export default function Home() {
                     ))}
                   </SidebarMenu>
                 </SidebarGroup>
+                {userProfile?.isAdmin && (
+                  <SidebarGroup>
+                    <SidebarGroupLabel>Governance</SidebarGroupLabel>
+                    <SidebarMenu>
+                      {GOVERNANCE_MODULES.filter(m => m.adminOnly).map(m => (
+                        <SidebarMenuItem key={m.id}>
+                           <Link href={m.path || '#'}>
+                            <SidebarMenuButton>
+                              <m.icon className="h-5 w-5" /> 
+                              <span>{t.nav[m.id] || m.id}</span>
+                            </SidebarMenuButton>
+                          </Link>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </SidebarGroup>
+                )}
               </>
             ) : (
               <div className="p-6 space-y-4">
