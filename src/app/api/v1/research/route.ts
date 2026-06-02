@@ -11,6 +11,8 @@ import { sanitizeHtml } from '@/lib/sanitization';
  *   post:
  *     summary: Execute a scholarly research query
  *     description: Leverages the LexiVerse AI engine and local research papers to synthesize an academic report. Access is governed by tiered rate limits.
+ *     tags:
+ *       - Research
  *     security:
  *       - BearerAuth: []
  *     requestBody:
@@ -62,7 +64,6 @@ export async function POST(req: NextRequest) {
   const { firestore } = initializeFirebase();
   const authHeader = req.headers.get('Authorization');
 
-  // Authentication Check
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return NextResponse.json({ error: 'Missing or invalid Authorization header' }, { status: 401 });
   }
@@ -70,7 +71,6 @@ export async function POST(req: NextRequest) {
   const apiKeyString = authHeader.split(' ')[1];
 
   try {
-    // 1. API Key Validation & Governance
     const keysRef = collection(firestore, 'api_keys');
     const q = query(keysRef, where('key', '==', apiKeyString), where('revoked', '==', false));
     const querySnapshot = await getDocs(q);
@@ -82,19 +82,16 @@ export async function POST(req: NextRequest) {
     const keyDoc = querySnapshot.docs[0];
     const keyData = keyDoc.data();
 
-    // 2. Tiered Rate Limit Verification
     const configSnap = await getDoc(doc(firestore, 'system', 'config'));
     const systemConfig = configSnap.data();
     const tiers = systemConfig?.apiTiers || [];
     const userTier = tiers.find((t: any) => t.name === keyData.tier);
-    
     const dailyLimit = userTier?.requestsPerDay || 10; 
     
     if (keyData.usageCount >= dailyLimit) {
       return NextResponse.json({ error: 'Tier rate limit exceeded' }, { status: 429 });
     }
 
-    // 3. Payload Extraction & Sanitization
     const body = await req.json();
     const { term, researchContext } = body;
 
@@ -102,13 +99,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required field: term' }, { status: 400 });
     }
 
-    // Server-side input sanitization
     const sanitizedTerm = sanitizeHtml(term);
     const sanitizedContext = Array.isArray(researchContext) 
       ? researchContext.map(ctx => sanitizeHtml(ctx))
       : [];
 
-    // 4. Engine Execution
     const result = await aiStudyAssistant({
       term: sanitizedTerm,
       researchContext: sanitizedContext,
@@ -116,7 +111,6 @@ export async function POST(req: NextRequest) {
       apiKey: systemConfig?.geminiApiKey || undefined
     });
 
-    // 5. Usage Analytics Update
     await updateDoc(doc(firestore, 'api_keys', keyDoc.id), {
       usageCount: increment(1),
       lastUsedAt: new Date().toISOString()
@@ -133,7 +127,7 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     return NextResponse.json({ 
-      error: error.message || 'Internal server error during research processing' 
+      error: error.message || 'Internal server error' 
     }, { status: 500 });
   }
 }

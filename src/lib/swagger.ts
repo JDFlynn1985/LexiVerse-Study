@@ -4,6 +4,7 @@ import { createSwaggerSpec } from 'next-swagger-doc';
 /**
  * @fileOverview Configuration for Automated OpenAPI Specification Generation.
  * Scans API routes for JSDoc comments and generates a standard Swagger document.
+ * Updated for API v1.1 with Lexicon and Synoptic endpoints.
  */
 
 export const getApiDocs = async () => {
@@ -13,8 +14,8 @@ export const getApiDocs = async () => {
       openapi: '3.0.0',
       info: {
         title: 'LexiVerse Scholarly Research API',
-        version: '1.0.0',
-        description: 'Advanced RESTful API for external scholarly research integration with LexiVerse Explorer. This API allows third-party tools to leverage the LexiVerse AI engine and RAG context.',
+        version: '1.1.0',
+        description: 'Advanced RESTful API for external scholarly research integration. This API allows third-party tools to leverage the LexiVerse AI engine, grounded lexical data, and Gospel alignment tools.',
         contact: {
           name: 'LexiVerse Engineering',
           url: 'https://lexiverse.app',
@@ -63,6 +64,35 @@ export const getApiDocs = async () => {
                 },
                 description: 'SBL-style bibliographic entries.'
               }
+            }
+          },
+          LexiconOutput: {
+            type: 'object',
+            properties: {
+              number: { type: 'string' },
+              word: { type: 'string' },
+              transliteration: { type: 'string' },
+              definition: { type: 'string' },
+              morphology: { type: 'string' },
+              occurrences: { type: 'number' }
+            }
+          },
+          SynopticOutput: {
+            type: 'object',
+            properties: {
+              eventName: { type: 'string' },
+              alignments: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    gospel: { type: 'string' },
+                    reference: { type: 'string' },
+                    keyNuance: { type: 'string' }
+                  }
+                }
+              },
+              theologicalSynthesis: { type: 'string' }
             }
           }
         }

@@ -47,26 +47,26 @@
         </aside>
 
         <section class="prose">
-            <h1>API Reference (v1)</h1>
-            <p>External scholarly tools and institutional scripts can integrate with the LexiVerse research engine using our RESTful API.</p>
+            <h1>API Reference (v1.1)</h1>
+            <p>The LexiVerse API allows external scholarly tools to leverage our research engine and grounded data sets. Version 1.1 introduces dedicated linguistic and synoptic endpoints.</p>
             
             <h2>Authentication</h2>
             <p>All requests must include a Bearer token in the <code>Authorization</code> header. Tokens can be generated in the <strong>API Portal</strong>.</p>
             <pre><code>Authorization: Bearer lv_...</code></pre>
 
-            <h2>Primary Endpoint</h2>
-            <h3>POST /api/v1/research</h3>
+            <h2>Available Endpoints</h2>
+            
+            <h3>1. POST /api/v1/research</h3>
             <p>Executes a synthesized scholarly analysis query, optionally grounded in RAG context.</p>
 
-            <h3>Tiered Rate Limits</h3>
-            <ul>
-                <li><strong>Basic</strong>: 20 queries / 24 hrs.</li>
-                <li><strong>Scholar</strong>: 100 queries / 24 hrs.</li>
-                <li><strong>Institution</strong>: 5000 queries / 24 hrs.</li>
-            </ul>
+            <h3>2. GET /api/v1/lexicon</h3>
+            <p>Retrieves verified linguistic data for a Strong's Number (e.g., <code>?number=G3056</code>).</p>
+
+            <h3>3. POST /api/v1/synoptic</h3>
+            <p>Maps a biblical event across the four Gospel traditions for comparative tradition analysis.</p>
 
             <div class="docs-footer">
-                <span>Version: 1.0.0</span>
+                <span>Version: 1.1.0 (OpenAPI 3.0)</span>
                 <a href="index.html" style="color: inherit;">Back to Index</a>
             </div>
         </section>
