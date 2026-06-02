@@ -1,35 +1,40 @@
-# LexiVerse Localization Guide: Adding New Dialects
 
-LexiVerse Explorer uses a structured i18n system to ensure theological and academic terminology is accurate across different regional dialects.
+# LexiVerse Localization Guide: Automated i18nexus Workflow
 
-## 📂 File Structure
-Localization dictionaries are stored in `src/lib/locales/`.
-- `template.ts`: The baseline master dictionary.
-- `en-US.ts`, `es-MX.ts`, etc.: Regional implementations.
-- `src/lib/locales.ts`: The registry file.
+LexiVerse Explorer utilizes **i18nexus** to automate internationalization. This allows scholarly and academic terminology to be managed in a central cloud console and synced directly to the application.
 
-## 🛠️ Step-by-Step implementation
-To add support for a new language (e.g., German - `de-DE`):
+## 📂 Architecture
+- **Source of Truth**: [i18nexus Console](https://i18nexus.com/)
+- **Integration Layer**: `i18next` + `react-i18next`
+- **Fallback**: Static dictionaries in `src/lib/locales/`
 
-1.  **Create implementation**: Copy `src/lib/locales/template.ts` to `src/lib/locales/de-DE.ts`.
-2.  **Translate Values**: Replace the bracketed placeholders with the target language.
-    - *Note*: Ensure theological terms (e.g., "Justification", "Exegesis") match local scholarly standards.
-3.  **Register Locale**: Add the new file to the `locales` object in `src/lib/locales.ts`:
-    ```typescript
-    import { deDE } from './locales/de-DE';
-    export const locales = {
-      // ...
-      'de-DE': deDE,
-    };
-    ```
-4.  **Add to Selector**: Add the language to the `availableLanguages` array in the same file to enable it in the Profile settings.
+## 🛠️ How to Sync Translations
+
+### 1. Update in i18nexus
+1. Log in to your i18nexus project.
+2. Add or modify strings (e.g., adding a new theological term like "Eschatology").
+3. Publish your changes.
+
+### 2. Configure API Key
+Ensure your environment variable is set:
+```bash
+NEXT_PUBLIC_I18NEXUS_API_KEY=your_key_here
+```
+
+### 3. Local Development
+During development, the app fetches the latest strings directly from the i18nexus API via `src/lib/i18n.ts`.
+
+### 4. Adding New Dialects
+To support a new regional dialect:
+1. Enable the language in the i18nexus project settings.
+2. Register the language code in `src/lib/locales.ts` and `src/lib/i18n.ts`.
 
 ## 🏗️ Use in Components
-Use the `useLanguage` hook to access strings:
+Accessing translations remains unchanged to ensure backward compatibility:
 ```tsx
 const { t } = useLanguage();
 return <h1>{t.nav.dashboard}</h1>;
 ```
 
 ## 🌍 Automatic Detection
-The `LanguageProvider` automatically detects the user's browser locale. If a regional match (e.g., `en-GB`) is not found, it falls back to the primary language code (`en`) before defaulting to `en-US`.
+The `LanguageDetector` plugin automatically identifies the researcher's browser locale and applies the most relevant supported dialect.

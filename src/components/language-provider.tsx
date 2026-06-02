@@ -1,7 +1,15 @@
+
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { I18nextProvider, useTranslation } from 'react-i18next';
+import i18n from '@/lib/i18n';
 import { locales, LocaleType } from '@/lib/locales';
+
+/**
+ * @fileOverview Language Provider integrated with i18nexus and i18next.
+ * Maintains backward compatibility for existing object-style translation access.
+ */
 
 interface LanguageContextType {
   language: LocaleType;
@@ -12,50 +20,43 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
+  const { t: i18nT, i18n: i18nInstance } = useTranslation();
   const [language, setLanguageState] = useState<LocaleType>('en-US');
 
   useEffect(() => {
     const savedLang = localStorage.getItem('lexiverse_lang') as LocaleType;
-    
-    if (savedLang && locales[savedLang]) {
+    if (savedLang) {
       setLanguageState(savedLang);
-    } else {
-      // Automatic detection logic
-      const systemLang = navigator.language; // e.g., 'en-US', 'es-AR', 'fr-FR'
-      const supportedLocales = Object.keys(locales) as LocaleType[];
-      
-      // 1. Try exact match (e.g., 'en-GB' -> 'en-GB')
-      if (locales[systemLang as LocaleType]) {
-        setLanguageState(systemLang as LocaleType);
-      } 
-      else {
-        // 2. Try matching the primary language code (e.g., 'es-AR' -> 'es-MX' or 'es-ES')
-        const primaryCode = systemLang.split('-')[0]; // 'es', 'en', 'fr'
-        const dialectMatch = supportedLocales.find(l => l.startsWith(primaryCode));
-        
-        if (dialectMatch) {
-          setLanguageState(dialectMatch);
-        } else {
-          // 3. Final default
-          setLanguageState('en-US');
-        }
-      }
+      i18nInstance.changeLanguage(savedLang);
     }
-  }, []);
+  }, [i18nInstance]);
 
   const setLanguage = (lang: LocaleType) => {
-    if (locales[lang]) {
-      setLanguageState(lang);
-      localStorage.setItem('lexiverse_lang', lang);
-    }
+    setLanguageState(lang);
+    i18nInstance.changeLanguage(lang);
+    localStorage.setItem('lexiverse_lang', lang);
   };
 
-  const t = locales[language];
+  /**
+   * Helper to return the entire translation tree as an object for backward compatibility.
+   * This prevents needing to refactor all `t.nav.dashboard` style accesses.
+   */
+  const getLegacyTranslationObject = () => {
+    // Return current resource bundle or fallback to local static bundle
+    const bundle = i18nInstance.getResourceBundle(language, 'translation') || locales[language];
+    return bundle;
+  };
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
-      {children}
-    </LanguageContext.Provider>
+    <I18nextProvider i18n={i18n}>
+      <LanguageContext.Provider value={{ 
+        language, 
+        setLanguage, 
+        t: getLegacyTranslationObject() 
+      }}>
+        {children}
+      </LanguageContext.Provider>
+    </I18nextProvider>
   );
 }
 
