@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -137,32 +138,6 @@ interface UserProfile {
   };
 }
 
-interface WikiArticle {
-  id: string;
-  title: string;
-  content: string;
-  worksCited: string;
-  status: 'pending' | 'approved' | 'rejected';
-  authorUid: string;
-  authorName: string;
-  createdAt: string;
-}
-
-interface BlogPost {
-  id: string;
-  title: string;
-  excerpt: string;
-  content: string;
-  category: string;
-  status: 'pending' | 'approved' | 'rejected';
-  authorUid: string;
-  authorName: string;
-  createdAt: string;
-  tags?: string[];
-}
-
-const BLOG_CATEGORIES = ["Linguistics", "Theology", "History", "Archaeology", "Hermeneutics", "General"];
-
 export default function Home() {
   const { language, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<ViewMode>('dashboard');
@@ -199,14 +174,6 @@ export default function Home() {
   const [assistantResult, setAssistantResult] = useState<AiStudyAssistantOutput | null>(null);
 
   const [profileDraft, setProfileDraft] = useState({ displayName: '', credentials: '', bio: '', photoURL: '' });
-  
-  const wikiQuery = useMemo(() => query(collection(db, 'wiki_entries'), orderBy('createdAt', 'desc')), [db]);
-  const { data: wikiArticles } = useCollection<WikiArticle>(wikiQuery);
-
-  const blogQuery = useMemo(() => {
-    return query(collection(db, 'blog_posts'), where('status', '==', 'approved'), orderBy('createdAt', 'desc'));
-  }, [db]);
-  const { data: rawBlogPosts } = useCollection<BlogPost>(blogQuery);
 
   const refreshLocalDocs = useCallback(async () => {
     const docs = await getAllLocalDocuments();
@@ -491,19 +458,6 @@ export default function Home() {
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
-
-            {(userProfile?.isAdmin || userProfile?.isModerator) && (
-              <SidebarGroup>
-                <SidebarGroupLabel>Administration</SidebarGroupLabel>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton isActive={activeTab === 'moderation'} onClick={() => setActiveTab('moderation')} tooltip="Moderation Queue">
-                      <ShieldAlert className="h-5 w-5" /> <span>Moderation</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroup>
-            )}
           </SidebarContent>
           <SidebarFooter className="p-4 border-t flex flex-col gap-2">
             {networkMode === 'local-only' && (
@@ -714,7 +668,7 @@ export default function Home() {
                       </Card>
 
                       <Card className="shadow-lg border-primary/10">
-                        <CardHeader><CardTitle className="text-xl font-headline">Identify & Credentials</CardTitle></CardHeader>
+                        <CardHeader><CardTitle className="text-xl font-headline">Identity & Credentials</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
                           <div className="grid gap-4 md:grid-cols-2">
                             <div className="space-y-2">
@@ -735,21 +689,6 @@ export default function Home() {
                       </Card>
                     </div>
                   </div>
-                </div>
-              )}
-
-              {!['dashboard', 'profile'].includes(activeTab) && (
-                <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4 text-center">
-                  <div className="p-6 bg-primary/5 rounded-full border-2 border-primary/10">
-                    <Sparkles className="h-12 w-12 text-primary opacity-20" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold font-headline">{activeTab.replace('-', ' ').toUpperCase()}</h2>
-                    <p className="text-muted-foreground">Select a term or passage to begin scholarly analysis in this module.</p>
-                  </div>
-                  {!effectiveApiKey && aiPrefs.modelProvider === 'google' && (
-                     <Badge variant="destructive">AI CONFIGURATION REQUIRED</Badge>
-                  )}
                 </div>
               )}
             </div>

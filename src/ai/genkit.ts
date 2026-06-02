@@ -6,6 +6,7 @@ import { ollama } from 'genkitx-ollama';
 /**
  * Genkit instance configured with Google AI and Ollama for local inference.
  * Supports multiple local models as specified in system settings.
+ * The serverAddress can be configured via environment variables for local network deployments.
  */
 export const ai = genkit({
   plugins: [
