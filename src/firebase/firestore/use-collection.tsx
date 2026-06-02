@@ -1,19 +1,20 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Query, 
   onSnapshot, 
   QuerySnapshot, 
   DocumentData,
-  FirestoreError
 } from 'firebase/firestore';
+import { errorEmitter } from '../error-emitter';
+import { FirestorePermissionError } from '../errors';
 
 export function useCollection<T = DocumentData>(query: Query<T> | null) {
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<FirestoreError | null>(null);
+  const [error, setError] = useState<FirestorePermissionError | null>(null);
 
   useEffect(() => {
     if (!query) {
@@ -26,14 +27,19 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
       query,
       (snapshot: QuerySnapshot<T>) => {
         const docs = snapshot.docs.map((doc) => ({
-          ...doc.data(),
+          ...(doc.data() as T),
           id: doc.id,
         }));
         setData(docs);
         setLoading(false);
       },
-      (err) => {
-        setError(err);
+      async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+          path: (query as any)._query?.path?.toString() || 'collection',
+          operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        setError(permissionError);
         setLoading(false);
       }
     );

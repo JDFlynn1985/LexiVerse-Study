@@ -1,0 +1,17 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "default-avatar",
+      "description": "Default scholarly user avatar",
+      "imageUrl": "https://picsum.photos/seed/scholar/200/200",
+      "imageHint": "user avatar"
+    },
+    {
+      "id": "manuscript-placeholder",
+      "description": "Ancient manuscript texture",
+      "imageUrl": "https://picsum.photos/seed/manuscript/600/400",
+      "imageHint": "ancient manuscript"
+    }
+  ]
+}

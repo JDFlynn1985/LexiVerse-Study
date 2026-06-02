@@ -1,7 +1,9 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTheme } from 'next-themes';
+import Image from 'next/image';
 import { 
   signInWithPopup, 
   GoogleAuthProvider, 
@@ -12,6 +14,7 @@ import { appConfig } from '@/app-config';
 import { useAuth, useFirestore, useUser, useCollection } from '@/firebase';
 import { logSearch } from '@/lib/search-logging';
 import { useLanguage } from '@/components/language-provider';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 import { 
   Sidebar, 
@@ -116,13 +119,9 @@ interface UserProfile {
   };
 }
 
-/**
- * Component to render text with highlighting.
- */
 function HighlightedText({ text, highlights }: { text: string; highlights: string[] }) {
   if (!highlights.length) return <p className="text-sm leading-relaxed">{text}</p>;
 
-  // Regex to match all highlight strings
   const escaped = highlights.map(h => h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
   const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
 
@@ -155,7 +154,6 @@ export default function Home() {
   const [localDocuments, setLocalDocuments] = useState<IDBDocument[]>([]);
   const [availableVersions, setAvailableVersions] = useState<BibleVersion[]>([]);
 
-  // User Preferences State
   const [aiPrefs, setAiPrefs] = useState({
     selectedModel: 'googleai/gemini-2.5-flash',
     customApiKey: '',
@@ -163,25 +161,20 @@ export default function Home() {
     language: language
   });
 
-  // Sidebar Quick Search State
   const [sidebarSearchTerm, setSidebarSearchTerm] = useState('');
   const [assistantTerm, setAssistantTerm] = useState('');
 
-  // Search Results States
   const [lexiconResult, setLexiconResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
   const [theoResult, setTheoResult] = useState<TheologicalConceptOutput | null>(null);
   const [timelineResult, setTimelineResult] = useState<HistoricalTimelineOutput | null>(null);
   const [assistantResult, setAssistantResult] = useState<AiStudyAssistantOutput | null>(null);
   const [covertLinks, setCovertLinks] = useState<CovertReferenceOutput | null>(null);
 
-  // Highlighting State
   const [activeHighlights, setActiveHighlights] = useState<string[]>([]);
 
-  // Multimodal States
   const [isRecording, setIsRecording] = useState(false);
   const [ocrResult, setOcrResult] = useState<string | null>(null);
 
-  // Multi-Export State
   const [selectedExports, setSelectedExports] = useState<string[]>(['markdown']);
 
   const refreshLocalDocs = useCallback(async () => {
@@ -251,7 +244,7 @@ export default function Home() {
     if (!term.trim()) return;
     setIsLoading(true);
     setActiveTab(type);
-    setActiveHighlights([]); // Reset highlights for new search
+    setActiveHighlights([]);
     logSearch(db, term, type, user?.uid);
     try {
       let result;
@@ -416,6 +409,8 @@ export default function Home() {
 
   if (!mounted) return null;
 
+  const defaultAvatar = PlaceHolderImages.find(img => img.id === 'default-avatar');
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
@@ -438,6 +433,7 @@ export default function Home() {
                 <Button 
                   variant="ghost" 
                   size="icon" 
+                  aria-label="Voice search"
                   className={`absolute right-1 top-1 h-7 w-7 ${isRecording ? 'text-red-500 animate-pulse' : ''}`}
                   onClick={handleVoiceSearch}
                 >
@@ -517,14 +513,22 @@ export default function Home() {
                   className={`h-8 w-8 ${activeTab === 'ai-settings' ? 'text-primary bg-primary/10' : ''}`}
                   onClick={() => setActiveTab('ai-settings')}
                   title={t.nav.settings}
+                  aria-label="Settings"
                 >
                   <Settings className="h-4 w-4" />
                 </Button>
                 {user ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="p-0 h-8 w-8 rounded-full overflow-hidden border">
-                        <img src={user.photoURL || `https://picsum.photos/seed/${user.uid}/40/40`} alt="" />
+                      <Button variant="ghost" aria-label="User account" className="p-0 h-8 w-8 rounded-full overflow-hidden border">
+                        <Image 
+                          src={user.photoURL || defaultAvatar?.imageUrl || ''} 
+                          alt={user.displayName || "User"} 
+                          width={40} 
+                          height={40} 
+                          className="object-cover"
+                          data-ai-hint={defaultAvatar?.imageHint || "user avatar"}
+                        />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
@@ -538,7 +542,7 @@ export default function Home() {
                   <Button variant="outline" size="sm" onClick={handleLogin}>{t.nav.login_google}</Button>
                 )}
               </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+              <Button variant="ghost" size="icon" aria-label="Toggle theme" className="h-8 w-8" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
                 {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
               </Button>
             </div>
@@ -546,7 +550,7 @@ export default function Home() {
         </Sidebar>
 
         <SidebarInset>
-          <main className="container max-w-5xl mx-auto py-10 px-6 min-h-screen">
+          <main id="main-content" className="container max-w-5xl mx-auto py-10 px-6 min-h-screen">
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               {activeTab === 'dashboard' && (
                 <div className="space-y-8">
@@ -581,7 +585,7 @@ export default function Home() {
                             onChange={e => setAssistantTerm(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && handleSearch(assistantTerm, 'ai-assistant')}
                           />
-                          <Button onClick={() => handleSearch(assistantTerm, 'ai-assistant')} disabled={isLoading}>
+                          <Button aria-label="Run assistant search" onClick={() => handleSearch(assistantTerm, 'ai-assistant')} disabled={isLoading}>
                             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                           </Button>
                         </div>
@@ -798,7 +802,7 @@ export default function Home() {
                           {assistantResult.verseUsages.map((v, i) => (
                             <div key={i} className="p-3 bg-muted/30 rounded-lg flex items-center justify-between group">
                               <span className="text-xs font-medium">{v.text}</span>
-                              <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" asChild>
+                              <Button variant="ghost" size="icon" aria-label={`Open ${v.text}`} className="h-6 w-6 opacity-0 group-hover:opacity-100" asChild>
                                 <a href={v.url} target="_blank" rel="noopener noreferrer"><Link2 className="h-3 w-3" /></a>
                               </Button>
                             </div>
