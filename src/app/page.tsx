@@ -386,14 +386,18 @@ export default function Home() {
                    <ShieldCheck className="h-6 w-6 text-primary" />
                    <p className="text-[10px] font-bold uppercase tracking-widest">Scholarly Access</p>
                  </div>
-                 <Button className="w-full text-[10px] h-9" onClick={() => handleLogin('google')} disabled={isAuthLoading}>
-                   {isAuthLoading ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : <Globe className="h-3 w-3 mr-2" />}
-                   {t.nav.login_google}
+                 <Button className="w-full text-[10px] h-9" asChild>
+                   <Link href="/login">
+                     <Globe className="h-3 w-3 mr-2" />
+                     {t.nav.login_google}
+                   </Link>
                  </Button>
                  {systemConfig?.ssoConfig?.enabled && (
-                   <Button variant="outline" className="w-full text-[10px] h-9 border-primary/20" onClick={() => handleLogin('institutional')} disabled={isAuthLoading}>
-                     <Building2 className="h-3 w-3 mr-2 text-primary" />
-                     {systemConfig.ssoConfig.label}
+                   <Button variant="outline" className="w-full text-[10px] h-9 border-primary/20" asChild>
+                     <Link href="/login">
+                        <Building2 className="h-3 w-3 mr-2 text-primary" />
+                        {systemConfig.ssoConfig.label}
+                     </Link>
                    </Button>
                  )}
               </div>
@@ -417,8 +421,10 @@ export default function Home() {
                        <User className="h-4 w-4 mr-2" /> Profile
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => signOut(auth)}>
-                       <LogOut className="h-4 w-4 mr-2" /> Sign Out
+                    <DropdownMenuItem asChild>
+                       <Link href="/logout">
+                          <LogOut className="h-4 w-4 mr-2" /> Sign Out
+                       </Link>
                     </DropdownMenuItem>
                  </DropdownMenuContent>
                </DropdownMenu>
@@ -442,11 +448,11 @@ export default function Home() {
                 <div className="flex items-center gap-4">
                    {!user ? (
                      <div className="flex items-center gap-2">
-                       <Button variant="ghost" size="sm" className="text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-primary" onClick={() => handleLogin('google')} disabled={isAuthLoading}>
-                         Sign In
+                       <Button variant="ghost" size="sm" className="text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-primary" asChild>
+                         <Link href="/login">Sign In</Link>
                        </Button>
-                       <Button size="sm" className="text-xs font-bold uppercase tracking-widest shadow-lg" onClick={() => handleLogin('google')} disabled={isAuthLoading}>
-                         Sign Up
+                       <Button size="sm" className="text-xs font-bold uppercase tracking-widest shadow-lg" asChild>
+                         <Link href="/signup">Sign Up</Link>
                        </Button>
                      </div>
                    ) : (
@@ -463,9 +469,9 @@ export default function Home() {
                          variant="ghost" 
                          size="sm" 
                          className="text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-destructive"
-                         onClick={() => signOut(auth)}
+                         asChild
                        >
-                         Sign Out
+                         <Link href="/logout">Sign Out</Link>
                        </Button>
                        <Avatar className="h-8 w-8 border-2 border-background shadow-sm ml-2 hidden sm:flex">
                          <AvatarImage src={user.photoURL || getGravatarUrl(user.email || '')} />
