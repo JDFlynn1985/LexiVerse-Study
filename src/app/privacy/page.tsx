@@ -45,10 +45,10 @@ export default function PrivacyPolicy() {
             <div className="p-4 bg-primary/5 rounded-lg border border-primary/10">
               <div className="flex items-center gap-2 mb-2">
                 <AlertTriangle className="h-4 w-4 text-primary" />
-                <p className="text-sm font-bold text-primary">Clause 1.1: Verification Requirement</p>
+                <p className="text-sm font-bold text-primary">Clause 1.1: Verification & Compliance</p>
               </div>
               <p className="text-xs text-muted-foreground italic leading-relaxed">
-                We collect and store your date of birth during registration solely for the purpose of age verification. Access to scholarly resources and profile creation is strictly prohibited for individuals under this age. Accounts created with birth dates indicating the user is under 15 will be blocked from creation or terminated upon discovery to safeguard minors and preserve the scholarly nature of the platform.
+                We collect and store your date of birth during registration solely for the purpose of age verification. Access to scholarly resources and profile creation is restricted to individuals 15 years of age or older. This policy is implemented to ensure absolute compliance with global data protection regulations (such as GDPR and COPPA) regarding the processing of personal data for young adults. Accounts created with birth dates indicating the user is under 15 will be blocked from creation or terminated upon discovery to safeguard minors and ensure regulatory compliance.
               </p>
             </div>
           </CardContent>

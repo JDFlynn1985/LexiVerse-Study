@@ -45,7 +45,7 @@ export default function TermsOfUse() {
             </p>
             <div className="p-4 bg-muted/50 rounded-lg border-l-4 border-primary">
               <p className="font-bold text-primary mb-1 uppercase text-[10px] tracking-widest">Clause 1.1: Minimum Age Requirement</p>
-              <p className="text-sm">By using this Platform, you represent and warrant that you are at least <strong>15 years of age</strong>. Access to scholarly resources and profile creation is strictly prohibited for individuals under this age. Accounts found to be in violation of this clause will be terminated immediately without notice to ensure compliance with international data protection regulations.</p>
+              <p className="text-sm">By using this Platform, you represent and warrant that you are at least <strong>15 years of age</strong>. Access to scholarly resources and profile creation is strictly prohibited for individuals under this age. This policy is strictly enforced to ensure full compliance with global data protection regulations and international standards for the processing of sensitive personal data. Accounts found to be in violation of this clause will be terminated immediately without notice to safeguard the integrity of the research community and maintain regulatory compliance.</p>
             </div>
           </CardContent>
         </Card>
