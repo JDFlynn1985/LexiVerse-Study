@@ -15,7 +15,6 @@ import {
   BookOpen, 
   Feather, 
   Puzzle,
-  User,
   Key,
   School,
   Settings
@@ -31,6 +30,10 @@ export interface ModuleDefinition {
   path?: string; // If it's an external route rather than a dashboard tab
 }
 
+/**
+ * SCHOLARLY_MODULES - The single source of truth for the LexiVerse toolset.
+ * Adding an entry here automatically updates the sidebar and mobile nav.
+ */
 export const SCHOLARLY_MODULES: ModuleDefinition[] = [
   { id: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard, group: 'general' },
   { id: 'chat', labelKey: 'nav.chat_hub', icon: MessageSquare, group: 'general' },

@@ -1,60 +1,53 @@
 
-# LexiVerse Module Development Guide
+# LexiVerse Native Module Development Guide
 
-This guide explains how to extend LexiVerse Explorer by creating new scholarly modules or research views while maintaining architectural integrity.
+This guide details the **Unified Architecture** for LexiVerse Explorer. Unlike traditional modularity which isolates code into separate apps or heavy packages, LexiVerse uses a **Native Integration Pattern**. Modules are treated as first-class citizens of the core app.
 
-## 🏛️ Architectural Overview
+## 🏛️ Native Integration Philosophy
 
-The application follows a **Declarative Modular Pattern**. Instead of hardcoding navigation and orchestration, modules are registered in a central registry.
-
-### Directory Structure
-- `src/components/views/`: Logic and UI for specific modules (e.g., `lexicon-view.tsx`).
-- `src/config/modules.ts`: The **Central Registry** for all system tools.
-- `src/types/scholarly.ts`: Shared types, including the `ViewMode` enum.
-- `src/app/page.tsx`: The orchestrator that dynamically renders views based on the registry.
+1.  **Zero Isolation**: Modules live in `src/components/views/` and `src/ai/flows/`. They are part of the main bundle.
+2.  **Shared Foundation**: Modules MUST use existing packages (`lucide-react`, `genkit`, `firebase`, `recharts`, `shadcn/ui`).
+3.  **Inherited Context**: Every module automatically receives the global `language`, `theme`, `auth`, and `firestore` context via standard hooks.
 
 ---
 
-## 🛠️ Building a New Module
+## 🛠️ The 3-Step "Native Merge" Process
 
-### 1. Register the View Type
-Add your module's unique ID to the `ViewMode` type in `src/types/scholarly.ts`:
-```typescript
-export type ViewMode = 'dashboard' | 'lexicon' | 'my-new-module' | ...;
+### 1. Define UI Component (`src/components/views/`)
+Create a new file (e.g., `my-tool-view.tsx`). 
+- **Requirement**: Wrap in `React.memo` to maintain LexiVerse performance standards.
+- **Requirement**: Use `@/components/ui/` for all primitives.
+
+```tsx
+'use client';
+import React, { memo } from 'react';
+import { useLanguage } from '@/components/language-provider';
+// ... UI imports
+export const MyToolView = memo((props: any) => {
+  const { t } = useLanguage();
+  return (/* JSX */);
+});
 ```
 
-### 2. Add to the Central Registry
-Open `src/config/modules.ts` and add your module metadata to `SCHOLARLY_MODULES`. This automatically handles sidebar registration.
+### 2. Register Metadata (`src/config/modules.ts`)
+Add your tool to the `SCHOLARLY_MODULES` array. This handles sidebar icons, labels (via `src/lib/locales`), and grouping.
+
 ```typescript
-{ id: 'my-new-module', labelKey: 'nav.my_tool', icon: Sparkles, group: 'ai_hub' }
+{ id: 'my-tool', labelKey: 'nav.my_tool', icon: Sparkles, group: 'ai_hub' }
 ```
 
-### 3. Create the View Component
-Create `src/components/views/[module-id]-view.tsx`. Use standard components to ensure zero-bloat.
-
-### 4. Zero-Bloat Policy 🚫
-**DO NOT add new node packages.** LexiVerse already includes:
-- **UI**: ShadCN (Radix UI), Tailwind CSS, Lucide Icons.
-- **AI**: Genkit 1.x, Google Generative AI, Ollama.
-- **Data**: Firebase (Firestore, Auth), IndexedDB.
-- **Charts**: Recharts.
-- **Export**: jsPDF, Docx, Mammoth.
-
-If you need a feature, check if it can be built with existing libraries first.
+### 3. Connect to Orchestrator (`src/app/page.tsx`)
+Import your component and add it to the `MODULAR_VIEWS` map. This is the only place where the UI meets the state.
 
 ---
 
-## 🤖 Integrating AI Flows
+## 🚫 The "Zero-Bloat" Checklist
 
-1.  Define a new flow in `src/ai/flows/[name].ts` using Genkit 1.x.
-2.  Register the flow in `src/ai/dev.ts`.
-3.  Call the flow wrapper from `src/app/page.tsx` within the global `handleSearch` or a local handler.
+Before adding a new feature, check if it can be built with:
+- **Icons**: `lucide-react` (Already installed).
+- **AI**: `genkit` + `google-genai` (Already installed).
+- **Charts**: `recharts` (Already installed).
+- **Export**: `jspdf` + `docx` (Already installed).
+- **Tables**: `shadcn/ui/table` (Already installed).
 
----
-
-## 📏 Best Practices
-
-1.  **Memoization**: Wrap view components in `React.memo` to prevent re-renders when other tools update.
-2.  **Localization**: All UI text MUST be added to `src/lib/locales/en-US.ts` (and other dialects).
-3.  **Governance**: If the tool is for admins, set `adminOnly: true` in the module registry.
-4.  **Stability**: Use `useMemoFirebase` for any custom Firestore queries inside your view.
+**DO NOT** run `npm install` for alternative UI kits or icon sets. Use the Native Foundation.
