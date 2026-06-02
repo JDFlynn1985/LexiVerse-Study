@@ -1,4 +1,3 @@
-
 /**
  * LexiVerse Explorer
  * Copyright (c) 2024. Licensed under CC BY-NC-SA 4.0.
@@ -28,31 +27,20 @@ import {
   NotebookPen,
   Globe,
   UserCheck,
-  Archive
+  Archive,
+  ListFilter
 } from 'lucide-react';
 import { ViewMode } from '@/types/scholarly';
 
-/**
- * Metadata for a LexiVerse module.
- */
 export interface ModuleDefinition {
-  /** Internal ID matching the ViewMode type. */
-  id: ViewMode;
-  /** Translation key for the module label. */
+  id: ViewMode | 'synoptic' | 'citation-scanner';
   labelKey: string; 
-  /** Lucide icon component. */
   icon: any;
-  /** Organizational group for sidebar and dashboard. */
   group: 'general' | 'ai_hub' | 'governance' | 'profile';
-  /** Whether the module requires administrative privileges. */
   adminOnly?: boolean;
-  /** Path for full-page route modules. If absent, the module renders as a dashboard tab. */
   path?: string; 
 }
 
-/**
- * DEFAULT_MODULES - The baseline set of scholarly tools.
- */
 export const DEFAULT_MODULES: ModuleDefinition[] = [
   { id: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard, group: 'general' },
   { id: 'chat', labelKey: 'nav.chat_hub', icon: MessageSquare, group: 'general' },
@@ -63,6 +51,8 @@ export const DEFAULT_MODULES: ModuleDefinition[] = [
   
   { id: 'ai-assistant', labelKey: 'nav.study_assistant', icon: Sparkles, group: 'ai_hub' },
   { id: 'verse-explorer', labelKey: 'nav.verse_explorer', icon: NotebookPen, group: 'ai_hub' },
+  { id: 'synoptic', labelKey: 'nav.synoptic', icon: Layers, group: 'ai_hub' },
+  { id: 'citation-scanner', labelKey: 'nav.citation_scanner', icon: ListFilter, group: 'ai_hub' },
   { id: 'translation-compare', labelKey: 'nav.translation_compare', icon: ArrowLeftRight, group: 'ai_hub' },
   { id: 'geography', labelKey: 'nav.geography', icon: Globe, group: 'ai_hub' },
   { id: 'theology', labelKey: 'nav.theology_map', icon: History, group: 'ai_hub' },
@@ -73,9 +63,6 @@ export const DEFAULT_MODULES: ModuleDefinition[] = [
   { id: 'archaeology', labelKey: 'nav.archaeology', icon: MapIcon, group: 'ai_hub' }
 ];
 
-/**
- * Modules specific to administrative governance and access management.
- */
 export const GOVERNANCE_MODULES: ModuleDefinition[] = [
   { id: 'profile', labelKey: 'nav.api_portal', icon: Key, group: 'governance', path: '/api-keys' },
   { id: 'wiki-moderation', labelKey: 'nav.wiki_moderation', icon: UserCheck, group: 'governance', adminOnly: true, path: '/admin/wiki' },

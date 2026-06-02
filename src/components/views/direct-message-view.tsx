@@ -1,10 +1,9 @@
-
 'use client';
 
 /**
  * @fileOverview Direct Messaging View.
  * Enables private peer-to-peer scholarly discourse.
- * Enhanced with Colleague Search for discovering other scholars.
+ * Enhanced with Colleague Search and Automated Notifications.
  */
 
 import React, { memo, useState, useEffect, useRef } from 'react';
@@ -38,7 +37,6 @@ export const DirectMessageView = memo(({ initialRecipient }: DirectMessageViewPr
   const [isSearching, setIsSearching] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Fetch unique conversations for the current user
   useEffect(() => {
     if (!db || !user) return;
 
@@ -72,7 +70,6 @@ export const DirectMessageView = memo(({ initialRecipient }: DirectMessageViewPr
     return () => unsub();
   }, [db, user]);
 
-  // Fetch messages for selected user
   useEffect(() => {
     if (!db || !user || !selectedUser) {
       setChatMessages([]);
@@ -105,7 +102,6 @@ export const DirectMessageView = memo(({ initialRecipient }: DirectMessageViewPr
 
     setIsSearching(true);
     try {
-      // Basic search on displayName
       const q = query(
         collection(db, 'users'),
         where('displayName', '>=', val),
@@ -140,7 +136,18 @@ export const DirectMessageView = memo(({ initialRecipient }: DirectMessageViewPr
 
     setNewMessage('');
     try {
+      // 1. Send the Message
       await addDoc(collection(db, 'direct_messages'), msgData);
+      
+      // 2. Create Notification for Receiver
+      await addDoc(collection(db, 'users', selectedUser.uid, 'notifications'), {
+        userId: selectedUser.uid,
+        title: "New Private Message",
+        message: `${user.displayName || 'A scholar'} sent you a direct message.`,
+        type: 'peer_interaction',
+        read: false,
+        createdAt: serverTimestamp()
+      });
     } catch (e) {
       console.error("DM Send failed", e);
     }
@@ -150,7 +157,6 @@ export const DirectMessageView = memo(({ initialRecipient }: DirectMessageViewPr
 
   return (
     <div className="h-[calc(100vh-12rem)] flex gap-6 animate-in fade-in duration-500">
-      {/* Sidebar: Conversations */}
       <Card className="w-80 flex flex-col shadow-lg border-primary/10 overflow-hidden">
         <CardHeader className="bg-primary/5 py-4 border-b">
           <div className="flex justify-between items-center">
@@ -199,9 +205,6 @@ export const DirectMessageView = memo(({ initialRecipient }: DirectMessageViewPr
                           </div>
                         </div>
                       ))}
-                      {userSearchTerm && !isSearching && searchResults.length === 0 && (
-                        <p className="text-center text-xs text-muted-foreground py-10 italic">No scholars found matching "{userSearchTerm}".</p>
-                      )}
                     </div>
                   </ScrollArea>
                 </div>
@@ -231,18 +234,11 @@ export const DirectMessageView = memo(({ initialRecipient }: DirectMessageViewPr
                   </div>
                 </div>
               ))}
-              {conversations.length === 0 && (
-                <div className="p-10 text-center opacity-30 italic text-xs space-y-2">
-                   <Users className="h-8 w-8 mx-auto" />
-                   <p>No active threads.</p>
-                </div>
-              )}
             </div>
           </ScrollArea>
         </CardContent>
       </Card>
 
-      {/* Main Chat Area */}
       <Card className="flex-1 flex flex-col shadow-xl border-primary/10 overflow-hidden bg-card/30 backdrop-blur-sm">
         {selectedUser ? (
           <>
@@ -257,9 +253,6 @@ export const DirectMessageView = memo(({ initialRecipient }: DirectMessageViewPr
                   <p className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold">Secure Private Discourse</p>
                 </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setSelectedUser(null)} className="md:hidden">
-                 <ArrowLeft className="h-4 w-4" />
-              </Button>
             </CardHeader>
             <CardContent className="flex-1 p-0 overflow-hidden">
               <ScrollArea className="h-full px-6 py-6">
@@ -270,9 +263,6 @@ export const DirectMessageView = memo(({ initialRecipient }: DirectMessageViewPr
                       <div key={msg.id || i} className={cn("flex gap-2", isOwn ? "flex-row-reverse" : "flex-row")}>
                         <div className={cn("max-w-[75%] p-3 rounded-2xl text-sm shadow-sm border", isOwn ? "bg-primary text-primary-foreground rounded-tr-none border-primary" : "bg-background rounded-tl-none border-border")}>
                           {msg.content}
-                          <div className={cn("text-[8px] mt-1 opacity-60", isOwn ? "text-right" : "text-left")}>
-                            {msg.createdAt?.seconds ? new Date(msg.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '...'}
-                          </div>
                         </div>
                       </div>
                     );
@@ -298,10 +288,7 @@ export const DirectMessageView = memo(({ initialRecipient }: DirectMessageViewPr
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center space-y-4 opacity-20 py-20">
             <MessageCircle className="h-20 w-20" />
-            <div>
-              <h3 className="text-xl font-headline font-bold">Select a Colleague</h3>
-              <p className="text-sm italic">Initiate private discourse with other scholars.</p>
-            </div>
+            <h3 className="text-xl font-headline font-bold">Select a Colleague</h3>
           </div>
         )}
       </Card>

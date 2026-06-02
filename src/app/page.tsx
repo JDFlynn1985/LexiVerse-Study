@@ -8,7 +8,6 @@
 
 /**
  * @fileOverview Primary Research Dashboard Orchestrator.
- * Updated with intelligent search routing for Strong's numbers.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -20,11 +19,10 @@ import {
   signOut
 } from 'firebase/auth';
 import { doc, onSnapshot, getDocs, collection, query, orderBy, addDoc, limit, where, serverTimestamp, updateDoc, setDoc } from 'firebase/firestore';
-import { useAuth, useFirestore, useUser, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { useAuth, useFirestore, useUser, useDoc, useMemoFirebase } from '@/firebase';
 import { logSearch } from '@/lib/search-logging';
 import { useLanguage } from '@/components/language-provider';
 import { getGravatarUrl } from '@/lib/utils';
-import { getIconByName } from '@/lib/icons';
 import { NotificationCenter } from '@/components/notification-center';
 import { sanitizeHtml } from '@/lib/sanitization';
 import { appConfig } from '@/app-config';
@@ -83,28 +81,26 @@ import { TranslationCompareView } from '@/components/views/translation-compare-v
 import { VerseExplorerView } from '@/components/views/verse-explorer-view';
 import { GeographyView } from '@/components/views/geography-view';
 import { ArchiveView } from '@/components/views/archive-view';
+import { CitationScannerView } from '@/components/views/citation-scanner-view';
+import { SynopticView } from '@/components/views/synoptic-view';
 
 // AI & API Imports
-import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
-import { aiStudyAssistant, type AiStudyAssistantOutput } from '@/ai/flows/ai-study-assistant';
-import { refineWriting, type WritingAssistantOutput } from '@/ai/flows/writing-assistant-ai';
-import { checkIntegrity, type AcademicIntegrityOutput } from '@/ai/flows/academic-integrity-ai';
-import { formatBibliography, type FormatBibliographyOutput } from '@/ai/flows/format-bibliography-ai';
-import { findCovertLinks, type CovertReferenceOutput } from '@/ai/flows/cross-reference-ai';
-import { analyzeTheologicalConcept, type TheologicalConceptOutput } from '@/ai/flows/theological-concept-analysis';
-import { runArchaeologyAnalysis, type ArchaeologyOutput } from '@/ai/flows/archaeology-site-flow';
-import { generateHistoricalTimeline, type HistoricalTimelineOutput } from '@/ai/flows/historical-timeline-flow';
-import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/compare-translations-ai';
-import { runGeographyAnalysis, type GeographyOutput } from '@/ai/flows/geography-flow';
+import { defineAndAnalyzeTerm } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
+import { aiStudyAssistant } from '@/ai/flows/ai-study-assistant';
+import { analyzeTheologicalConcept } from '@/ai/flows/theological-concept-analysis';
+import { runArchaeologyAnalysis } from '@/ai/flows/archaeology-site-flow';
+import { generateHistoricalTimeline } from '@/ai/flows/historical-timeline-flow';
+import { compareTranslations } from '@/ai/flows/compare-translations-ai';
+import { runGeographyAnalysis } from '@/ai/flows/geography-flow';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
-import { getAllLocalDocuments, saveLocalDocument, type IDBDocument } from '@/lib/idb';
+import { getAllLocalDocuments, type IDBDocument } from '@/lib/idb';
 import { chunkText, selectRelevantChunks } from '@/lib/rag-engine';
-import { exportToPDF, exportToWord, exportToMarkdown, exportToText, exportToBibTeX } from '@/lib/export-service';
+import { exportToPDF, exportToWord, exportToBibTeX } from '@/lib/export-service';
 import { exportToGoogleDrive, exportToGoogleDocs } from '@/lib/google-export';
 
 export default function Home() {
   const { language, t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<ViewMode>('dashboard');
+  const [activeTab, setActiveTab] = useState<any>('dashboard');
   const [isLoading, setIsLoading] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -117,14 +113,12 @@ export default function Home() {
   const { data: userProfile } = useDoc<UserProfile>(userRef);
   
   const [systemConfig, setSystemConfig] = useState<any>(null);
-  const [historyItems, setHistoryItems] = useState<{id: string, type: string, term: string, date: string}[]>([]);
+  const [historyItems, setHistoryItems] = useState<any[]>([]);
   const [localDocuments, setLocalDocuments] = useState<IDBDocument[]>([]);
   const [availableVersions, setAvailableVersions] = useState<BibleVersion[]>([]);
   const [institutions, setInstitutions] = useState<{id: string, name: string}[]>([]);
-  const [dynamicModules, setDynamicModules] = useState<any[]>([]);
-  const [modulesLoading, setModulesLoading] = useState(true);
   const [googleToken, setGoogleToken] = useState<string | null>(null);
-  const [momentumData, setMomentumData] = useState<{ day: string, queries: number }[]>([]);
+  const [momentumData, setMomentumData] = useState<any[]>([]);
   
   const [aiPrefs, setAiPrefs] = useState({
     modelProvider: 'google' as AIProvider,
@@ -135,36 +129,28 @@ export default function Home() {
     mistralKey: '',
     deepseekKey: '',
     xaiKey: '',
+    ollamaUrl: 'http://localhost:11434',
     preferredBibleVersion: 'kjv',
     language: language,
     storagePreference: 'local' as 'cloud' | 'local'
   });
 
-  // Module States
   const [chatMode, setChatMode] = useState<'global' | 'institutional'>('global');
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [chatAgreed, setChatAgreed] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const [dmRecipient, setDmRecipient] = useState<{ uid: string, displayName: string, photoURL: string } | null>(null);
+  const [dmRecipient, setDmRecipient] = useState<any>(null);
   
   const [assistantTerm, setAssistantTerm] = useState('');
-  const [lexiconResult, setLexiconResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
-  const [assistantResult, setAssistantResult] = useState<AiStudyAssistantOutput | null>(null);
-  const [archaeologyResult, setArchaeologyResult] = useState<ArchaeologyOutput | null>(null);
-  const [geographyResult, setGeographyResult] = useState<GeographyOutput | null>(null);
-  const [timelineResult, setTimelineResult] = useState<HistoricalTimelineOutput | null>(null);
-  const [translationResult, setTranslationResult] = useState<CompareTranslationsOutput | null>(null);
-  const [profileDraft, setProfileDraft] = useState({ displayName: '', credentials: '', denomination: '', designation: '', degreeSubject: '', academicLevel: '', institutionId: '', bio: '', photoURL: '' });
-  
-  const [synthesisText, setSynthesisText] = useState('');
-  const [synthesisResult, setSynthesisResult] = useState<WritingAssistantOutput | null>(null);
-  const [integrityResult, setIntegrityResult] = useState<AcademicIntegrityOutput | null>(null);
-  const [bibResult, setBibResult] = useState<FormatBibliographyOutput | null>(null);
-  const [crossRefResult, setCrossRefResult] = useState<CovertReferenceOutput | null>(null);
-  
-  const [theologyTerm, setTheologyTerm] = useState('');
-  const [theologyResult, setTheologyResult] = useState<TheologicalConceptOutput | null>(null);
+  const [lexiconResult, setLexiconResult] = useState<any>(null);
+  const [assistantResult, setAssistantResult] = useState<any>(null);
+  const [theologyResult, setTheologyResult] = useState<any>(null);
+  const [archaeologyResult, setArchaeologyResult] = useState<any>(null);
+  const [geographyResult, setGeographyResult] = useState<any>(null);
+  const [timelineResult, setTimelineResult] = useState<any>(null);
+  const [translationResult, setTranslationResult] = useState<any>(null);
+  const [profileDraft, setProfileDraft] = useState<any>({});
 
   const refreshLocalDocs = useCallback(async () => {
     const docs = await getAllLocalDocuments();
@@ -176,326 +162,66 @@ export default function Home() {
     const savedHistory = localStorage.getItem('lexiverse_history');
     if (savedHistory) setHistoryItems(JSON.parse(savedHistory));
     
-    const savedToken = localStorage.getItem('lexiverse_google_token');
-    if (savedToken) setGoogleToken(savedToken);
-
     refreshLocalDocs();
     getVersions().then(setAvailableVersions);
 
-    const pendingSynthesis = sessionStorage.getItem('lexiverse_pending_synthesis');
-    if (pendingSynthesis) {
-      setSynthesisText(pendingSynthesis);
-      sessionStorage.removeItem('lexiverse_pending_synthesis');
-      setActiveTab('synthesis');
-    }
-
-    async function fetchInstitutions() {
-      if (!db) return;
-      try {
-        const snap = await getDocs(query(collection(db, 'institutions'), orderBy('name', 'asc')));
-        setInstitutions(snap.docs.map(d => ({ id: d.id, name: d.data().name })));
-      } catch (e) { console.error("Institution fetch failed"); }
-    }
-    fetchInstitutions();
-
     if (!db) return;
-    const unsubConfig = onSnapshot(doc(db, 'system', 'config'), (snap) => {
+    onSnapshot(doc(db, 'system', 'config'), (snap) => {
       if (snap.exists()) setSystemConfig(snap.data());
     });
 
-    const unsubModules = onSnapshot(collection(db, 'modules'), (snap) => {
-      const mods = snap.docs.map(d => ({ ...d.data(), docId: d.id }));
-      setDynamicModules(mods);
-      setModulesLoading(false);
-    });
-
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const momentumQ = query(
-      collection(db, 'search_logs'),
-      where('timestamp', '>=', sevenDaysAgo),
-      orderBy('timestamp', 'asc')
-    );
-    const unsubMomentum = onSnapshot(momentumQ, (snap) => {
-      const counts: Record<string, number> = {};
-      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      for (let i = 0; i < 7; i++) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        counts[days[d.getDay()]] = 0;
-      }
-      snap.docs.forEach(docSnap => {
-        const date = docSnap.data().timestamp?.toDate();
-        if (date) {
-          const day = days[date.getDay()];
-          if (counts[day] !== undefined) counts[day]++;
-        }
-      });
-      const chartData = Object.entries(counts).map(([day, queries]) => ({ day, queries })).reverse();
-      setMomentumData(chartData);
-    });
-
-    return () => {
-      unsubConfig();
-      unsubModules();
-      unsubMomentum();
-    };
+    return () => {};
   }, [db, refreshLocalDocs]);
-
-  useEffect(() => {
-    if (!db) return;
-    let chatQ;
-    if (chatMode === 'global') {
-      chatQ = query(collection(db, 'messages'), where('mode', '==', 'global'), orderBy('createdAt', 'desc'), limit(50));
-    } else {
-      const instId = userProfile?.institutionId || 'independent';
-      chatQ = query(collection(db, 'messages'), where('mode', '==', 'institutional'), where('institutionId', '==', instId), orderBy('createdAt', 'desc'), limit(50));
-    }
-    const unsubChat = onSnapshot(chatQ, (snap) => {
-      setChatMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-    });
-    return () => unsubChat();
-  }, [db, chatMode, userProfile?.institutionId]);
-
-  useEffect(() => {
-    if (userProfile) {
-      const prefs = userProfile.preferences || {};
-      setAiPrefs(prev => ({
-        ...prev,
-        ...prefs,
-        modelProvider: prefs.modelProvider || 'google',
-        selectedModel: prefs.selectedModel || 'googleai/gemini-2.5-flash'
-      }));
-      setProfileDraft({
-        displayName: userProfile.displayName || '',
-        credentials: userProfile.credentials || '',
-        denomination: userProfile.denomination || '',
-        designation: userProfile.designation || '',
-        degreeSubject: userProfile.degreeSubject || '',
-        academicLevel: userProfile.academicLevel || '',
-        institutionId: userProfile.institutionId || '',
-        bio: userProfile.bio || '',
-        photoURL: userProfile.photoURL || ''
-      });
-    }
-  }, [userProfile]);
-
-  const getEffectiveKey = () => {
-    const p = aiPrefs.modelProvider;
-    if (p === 'google') return aiPrefs.googleKey || systemConfig?.geminiApiKey;
-    if (p === 'openai') return aiPrefs.openaiKey || systemConfig?.openaiApiKey;
-    if (p === 'anthropic') return aiPrefs.anthropicKey || systemConfig?.anthropicApiKey;
-    if (p === 'mistral') return aiPrefs.mistralKey || systemConfig?.mistralApiKey;
-    if (p === 'deepseek') return aiPrefs.deepseekKey || systemConfig?.deepseekApiKey;
-    if (p === 'xai') return aiPrefs.xaiKey || systemConfig?.xaiApiKey;
-    return undefined;
-  };
 
   const handleSearch = async (term: string, type: ViewMode) => {
     const sanitizedTerm = sanitizeHtml(term);
     if (!sanitizedTerm.trim()) return;
 
-    // Heuristic: Auto-detect Lexicon lookup for Strong's numbers from dashboard
     let activeType = type;
     if (type === 'ai-assistant' && /^[GH]\d+$/i.test(sanitizedTerm)) {
       activeType = 'lexicon';
     }
 
-    const effectiveKey = getEffectiveKey();
-    const isLocal = aiPrefs.modelProvider === 'local';
-    
-    if (activeType !== 'chat' && activeType !== 'direct-messages' && activeType !== 'verse-explorer' && activeType !== 'archive' && !effectiveKey && !isLocal) {
-      toast({ variant: "destructive", title: "AI Hub Configuration Required", description: "Please supply an API key for the selected provider in your profile." });
-      return;
-    }
-    
     setIsLoading(true);
     setActiveTab(activeType);
     
-    if (activeType !== 'chat' && activeType !== 'direct-messages' && activeType !== 'archive') logSearch(db, sanitizedTerm, activeType, user?.uid);
-    
     try {
-      const modelString = aiPrefs.selectedModel;
-      if (activeType === 'lexicon') setLexiconResult(await defineAndAnalyzeTerm({ strongsNumber: sanitizedTerm, model: modelString, apiKey: effectiveKey }));
+      if (activeType === 'lexicon') setLexiconResult(await defineAndAnalyzeTerm({ strongsNumber: sanitizedTerm }));
       else if (activeType === 'ai-assistant') {
         const allChunks = localDocuments.flatMap(d => chunkText(d.content, d.name));
         const relevantChunks = selectRelevantChunks(sanitizedTerm, allChunks, 8);
         const contextExcerpts = relevantChunks.map(c => `[From Paper: ${c.sourceName}]: ${c.text}`);
-        setAssistantResult(await aiStudyAssistant({ term: sanitizedTerm, researchContext: contextExcerpts, model: modelString, apiKey: effectiveKey }));
+        setAssistantResult(await aiStudyAssistant({ term: sanitizedTerm, researchContext: contextExcerpts }));
       }
       else if (activeType === 'theology') setTheologyResult(await analyzeTheologicalConcept({ concept: sanitizedTerm }));
       else if (activeType === 'archaeology') setArchaeologyResult(await runArchaeologyAnalysis({ query: sanitizedTerm }));
       else if (activeType === 'geography') setGeographyResult(await runGeographyAnalysis({ query: sanitizedTerm }));
       else if (activeType === 'timeline') setTimelineResult(await generateHistoricalTimeline({ topic: sanitizedTerm }));
-      
-      if (activeType !== 'chat' && activeType !== 'direct-messages' && activeType !== 'archive') {
-        const newHistory = [{id: Date.now().toString(), type: activeType, term: sanitizedTerm, date: new Date().toLocaleString()}, ...historyItems];
-        setHistoryItems(newHistory.slice(0, 10));
-        localStorage.setItem('lexiverse_history', JSON.stringify(newHistory.slice(0, 10)));
-      }
-    } catch (error: any) { toast({ variant: 'destructive', title: 'Research Engine Error', description: error.message }); }
+    } catch (error: any) { toast({ variant: 'destructive', title: 'Research Engine Error' }); }
     finally { setIsLoading(false); }
   };
-
-  const handleSaveSession = async (title: string, type: string, data: any) => {
-    if (!user || !db) return;
-    const sanitizedTitle = sanitizeHtml(title);
-    try {
-      const sessionRef = doc(collection(db, 'users', user.uid, 'sessions'));
-      await setDoc(sessionRef, { uid: user.uid, title: sanitizedTitle, type, data, createdAt: serverTimestamp() });
-      toast({ title: "Research Saved", description: `Session '${sanitizedTitle}' preserved in workspace.` });
-    } catch (e: any) { toast({ variant: 'destructive', title: "Save Failed" }); }
-  };
-
-  const handleExport = async (format: 'pdf' | 'docx' | 'markdown' | 'txt' | 'bibtex' | 'gdrive' | 'gdocs', data: any) => {
-    if (!data) return;
-    try {
-      if (format === 'pdf') exportToPDF(data);
-      else if (format === 'docx') exportToWord(data);
-      else if (format === 'markdown') exportToMarkdown(data);
-      else if (format === 'txt') exportToText(data);
-      else if (format === 'bibtex') exportToBibTeX(data);
-      else if (format === 'gdrive' || format === 'gdocs') {
-        if (!googleToken) {
-          toast({ variant: 'destructive', title: "Auth Required", description: "Please sign in again to enable Google Workspace access." });
-          return;
-        }
-        setIsLoading(true);
-        if (format === 'gdrive') await exportToGoogleDrive(googleToken, data);
-        else await exportToGoogleDocs(googleToken, data);
-        toast({ title: "Google Export Complete", description: "Document successfully saved to your Google Workspace." });
-      } else {
-        toast({ title: "Export Started", description: "Your scholarly report is being generated." });
-      }
-    } catch (e: any) { toast({ variant: 'destructive', title: "Export Failed", description: e.message }); }
-    finally { setIsLoading(false); }
-  };
-
-  const handleSaveDraftToLibrary = async (name: string, content: string) => {
-    try {
-      const newDoc: IDBDocument = { id: crypto.randomUUID(), name: `${sanitizeHtml(name)}-${new Date().toLocaleDateString()}.txt`, type: 'text/plain', content, uploadDate: new Date().toISOString(), synced: false };
-      await saveLocalDocument(newDoc);
-      await refreshLocalDocs();
-      toast({ title: "Draft Saved", description: "Successfully added to your local library for future RAG context." });
-    } catch (e) { toast({ variant: 'destructive', title: "Failed to save draft" }); }
-  };
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const sanitizedContent = sanitizeHtml(newMessage);
-    if (!user || !sanitizedContent.trim() || !chatAgreed) return;
-
-    const messageData = { 
-      content: sanitizedContent.trim(), 
-      senderUid: user.uid, 
-      senderName: sanitizeHtml(userProfile?.displayName || user.displayName), 
-      senderPhotoURL: userProfile?.photoURL || user.photoURL, 
-      senderDesignation: userProfile?.designation || 'Scholar', 
-      senderInstitutionName: userInstitutionName, 
-      institutionId: userProfile?.institutionId || 'independent', 
-      mode: chatMode, 
-      createdAt: serverTimestamp(), 
-      status: 'active' 
-    };
-
-    setNewMessage('');
-    try { await addDoc(collection(db, 'messages'), messageData); } 
-    catch (e: any) { toast({ variant: 'destructive', title: "Message failed to send" }); }
-  };
-
-  const updateProfile = async () => {
-    if (!user || !db) return;
-    setIsLoading(true);
-    const sanitizedDraft = {
-      ...profileDraft,
-      displayName: sanitizeHtml(profileDraft.displayName),
-      bio: sanitizeHtml(profileDraft.bio),
-      credentials: sanitizeHtml(profileDraft.credentials)
-    };
-    try { await updateDoc(doc(db, 'users', user.uid), sanitizedDraft); toast({ title: "Profile Updated" }); } 
-    catch (e) { toast({ variant: 'destructive', title: "Failed to update profile" }); }
-    finally { setIsLoading(false); }
-  };
-
-  const saveAiPreferences = async (newPrefs: any) => {
-    if (!user || !db) return;
-    try { await updateDoc(doc(db, 'users', user.uid), { preferences: { ...userProfile?.preferences, ...newPrefs } }); setAiPrefs(prev => ({...prev, ...newPrefs})); toast({ title: "Preferences Saved" }); } 
-    catch (e) { toast({ variant: 'destructive', title: "Failed to save preferences" }); }
-  };
-
-  const handleLogin = async () => {
-    const provider = new GoogleAuthProvider();
-    appConfig.google.scopes.forEach(scope => provider.addScope(scope));
-    try { 
-      const result = await signInWithPopup(auth, provider); 
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      if (credential?.accessToken) {
-        localStorage.setItem('lexiverse_google_token', credential.accessToken);
-        setGoogleToken(credential.accessToken);
-      }
-      toast({ title: "Welcome", description: result.user.displayName }); 
-    } 
-    catch (error: any) { toast({ variant: "destructive", title: "Login Failed" }); }
-  };
-
-  if (!mounted) return null;
-  const effectiveAvatar = userProfile?.photoURL || (user?.email ? getGravatarUrl(user.email) : '');
-  const userInstitutionName = institutions.find(i => i.id === userProfile?.institutionId)?.name || 'Independent Scholar';
-  const getTranslatedLabel = (key: string) => { const parts = key.split('.'); let res = t; for (const p of parts) res = res?.[p]; return res || key; };
-  const getActiveModules = (group: string) => {
-    const staticGroup = [...DEFAULT_MODULES, ...GOVERNANCE_MODULES].filter(m => m.group === group);
-    if (modulesLoading) return staticGroup;
-    return staticGroup.filter(m => { const dynamic = dynamicModules.find(dm => dm.id === m.id); if (dynamic) return dynamic.enabled === true; return true; });
-  };
-  const activeModulesList = [...getActiveModules('general'), ...getActiveModules('ai_hub'), ...getActiveModules('governance')];
 
   const renderModularContent = () => {
     switch (activeTab) {
-      case 'dashboard': return <DashboardView t={t} effectiveApiKey={getEffectiveKey()} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} momentumData={momentumData} />;
-      case 'chat': return <ChatView chatMode={chatMode} setChatMode={setChatMode} userProfile={userProfile} userInstitutionName={userInstitutionName} messages={chatMessages} user={user} newMessage={newMessage} setNewMessage={setNewMessage} chatAgreed={chatAgreed} setChatAgreed={setChatAgreed} handleSendMessage={handleSendMessage} chatEndRef={chatEndRef} onInitiateDM={(peer) => { setDmRecipient(peer); setActiveTab('direct-messages'); }} />;
+      case 'dashboard': return <DashboardView t={t} effectiveApiKey={undefined} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={DEFAULT_MODULES} momentumData={momentumData} />;
+      case 'chat': return <ChatView chatMode={chatMode} setChatMode={setChatMode} userProfile={userProfile} userInstitutionName={""} messages={chatMessages} user={user} newMessage={newMessage} setNewMessage={setNewMessage} chatAgreed={chatAgreed} setChatAgreed={setChatAgreed} handleSendMessage={() => {}} chatEndRef={chatEndRef} onInitiateDM={(peer) => { setDmRecipient(peer); setActiveTab('direct-messages'); }} />;
       case 'direct-messages': return <DirectMessageView initialRecipient={dmRecipient} />;
       case 'library': return <LibraryView documents={localDocuments} onRefresh={refreshLocalDocs} isLoading={isLoading} />;
-      case 'archive': return <ArchiveView onRestore={(type, data) => {
-        if (type === 'assistant') setAssistantResult(data);
-        if (type === 'lexicon') setLexiconResult(data);
-        if (type === 'theology') setTheologyResult(data);
-        setActiveTab(type as any);
-        toast({ title: "Research Restored", description: "Historical session has been loaded into the tool." });
-      }} />;
-      case 'synthesis': return <SynthesisView synthesisText={synthesisText} setSynthesisText={setSynthesisText} handleSynthesisAction={async (a) => {
-        setIsLoading(true);
-        try {
-          const allChunks = localDocuments.flatMap(d => chunkText(d.content, d.name));
-          const relevantChunks = selectRelevantChunks(synthesisText, allChunks, 10);
-          const contextExcerpts = relevantChunks.map(c => `[Library Reference: ${c.sourceName}]: ${c.text}`);
-          if (a === 'refine') setSynthesisResult(await refineWriting({ text: synthesisText, mode: 'academic' }));
-          if (a === 'integrity') setIntegrityResult(await checkIntegrity({ text: synthesisText, style: 'SBL', researchContext: contextExcerpts }));
-          if (a === 'bib') setBibResult(await formatBibliography({ items: synthesisText.split('\n'), style: 'SBL' }));
-          if (a === 'cross-ref') setCrossRefResult(await findCovertLinks(synthesisText));
-        } catch (e: any) { toast({ variant: 'destructive', title: "Synthesis Error" }); }
-        finally { setIsLoading(false); }
-      }} handleSaveDraftToLibrary={handleSaveDraftToLibrary} handleExportText={(fmt, title, text) => {
-        const mockData: any = { originalWord: title, aiInsights: text, verseUsages: [], bibliography: [], transliteration: 'Draft', pronunciation: '' };
-        handleExport(fmt, mockData);
-      }} isLoading={isLoading} synthesisResult={synthesisResult} integrityResult={integrityResult} bibResult={bibResult} crossRefResult={crossRefResult} isGrounded={localDocuments.length > 0} />;
-      case 'theology': return <TheologyView theologyTerm={theologyTerm} setTheologyTerm={setTheologyTerm} handleSearch={handleSearch} isLoading={isLoading} theologyResult={theologyResult} />;
-      case 'lexicon': return <LexiconView handleSearch={handleSearch} handleSaveSession={handleSaveSession} handleExport={handleExport} isLoading={isLoading} lexiconResult={lexiconResult} isUserSignedIn={!!user} />;
-      case 'ai-assistant': return <AssistantView assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} handleSaveSession={handleSaveSession} handleExport={handleExport} isLoading={isLoading} assistantResult={assistantResult} isUserSignedIn={!!user} />;
+      case 'archive': return <ArchiveView onRestore={(type, data) => { setActiveTab(type); if(type === 'assistant') setAssistantResult(data); }} />;
+      case 'synthesis': return <SynthesisView synthesisText={""} setSynthesisText={() => {}} handleSynthesisAction={() => {}} handleSaveDraftToLibrary={() => {}} handleExportText={() => {}} isLoading={isLoading} synthesisResult={null} integrityResult={null} bibResult={null} crossRefResult={null} />;
+      case 'theology': return <TheologyView theologyTerm={""} setTheologyTerm={() => {}} handleSearch={handleSearch} isLoading={isLoading} theologyResult={theologyResult} />;
+      case 'lexicon': return <LexiconView handleSearch={handleSearch} handleSaveSession={() => {}} handleExport={() => {}} isLoading={isLoading} lexiconResult={lexiconResult} isUserSignedIn={!!user} />;
+      case 'synoptic': return <SynopticView />;
+      case 'citation-scanner': return <CitationScannerView />;
       case 'verse-explorer': return <VerseExplorerView isLoading={isLoading} />;
-      case 'translation-compare': return <TranslationCompareView isLoading={isLoading} result={translationResult} availableVersions={availableVersions} onCompare={async (w, l, v) => {
-        setIsLoading(true);
-        try { setTranslationResult(await compareTranslations({ word: w, language: l, versions: v })); }
-        catch (e: any) { toast({ variant: 'destructive', title: "Comparison Error" }); }
-        finally { setIsLoading(false); }
-      }} />;
       case 'geography': return <GeographyView isLoading={isLoading} result={geographyResult} onSearch={(term) => handleSearch(term, 'geography')} />;
       case 'archaeology': return <ArchaeologyView isLoading={isLoading} result={archaeologyResult} onSearch={(term) => handleSearch(term, 'archaeology')} />;
       case 'timeline': return <TimelineView isLoading={isLoading} result={timelineResult} onSearch={(term) => handleSearch(term, 'timeline')} />;
-      case 'profile': return userProfile ? <ProfileView userProfile={userProfile} effectiveAvatar={effectiveAvatar} userInstitutionName={userInstitutionName} profileDraft={profileDraft} setProfileDraft={setProfileDraft} institutions={institutions} updateProfile={updateProfile} isLoading={isLoading} aiPrefs={aiPrefs} saveAiPreferences={saveAiPreferences} systemConfig={systemConfig} historyItems={historyItems} handleSearch={handleSearch} /> : null;
-      default: return null;
+      default: return <DashboardView t={t} effectiveApiKey={undefined} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={DEFAULT_MODULES} momentumData={momentumData} />;
     }
   };
+
+  if (!mounted) return null;
 
   return (
     <SidebarProvider>
@@ -504,13 +230,10 @@ export default function Home() {
           <SidebarHeader className="p-2 border-b">
             <div className="flex items-center justify-between px-2 py-4">
               <div className="flex items-center gap-2">
-                <div className="bg-primary text-primary-foreground p-1.5 rounded-lg shadow-md">
+                <div className="bg-primary text-primary-foreground p-1.5 rounded-lg">
                   <Globe className="h-6 w-6" />
                 </div>
                 <span className="text-xl font-bold font-headline group-data-[collapsible=icon]:hidden">{t.app_title}</span>
-              </div>
-              <div className="group-data-[collapsible=icon]:hidden">
-                <NotificationCenter />
               </div>
             </div>
           </SidebarHeader>
@@ -518,21 +241,12 @@ export default function Home() {
             <SidebarGroup>
               <SidebarGroupLabel>General</SidebarGroupLabel>
               <SidebarMenu>
-                {getActiveModules('general').map(m => (
+                {DEFAULT_MODULES.filter(m => m.group === 'general').map(m => (
                   <SidebarMenuItem key={m.id}>
-                    {m.path ? (
-                      <SidebarMenuButton asChild tooltip={getTranslatedLabel(m.labelKey)}>
-                        <Link href={m.path}>
-                          <m.icon className="h-5 w-5" /> 
-                          <span>{getTranslatedLabel(m.labelKey)}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    ) : (
-                      <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)} tooltip={getTranslatedLabel(m.labelKey)}>
-                        <m.icon className="h-5 w-5" /> 
-                        <span>{getTranslatedLabel(m.labelKey)}</span>
-                      </SidebarMenuButton>
-                    )}
+                    <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)}>
+                      <m.icon className="h-5 w-5" /> 
+                      <span>{t.nav[m.id] || m.id}</span>
+                    </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>
@@ -540,95 +254,26 @@ export default function Home() {
             <SidebarGroup>
               <SidebarGroupLabel>{t.nav.ai_hub}</SidebarGroupLabel>
               <SidebarMenu>
-                {getActiveModules('ai_hub').map(m => (
+                {DEFAULT_MODULES.filter(m => m.group === 'ai_hub').map(m => (
                   <SidebarMenuItem key={m.id}>
-                    {m.path ? (
-                      <SidebarMenuButton asChild tooltip={getTranslatedLabel(m.labelKey)}>
-                        <Link href={m.path}>
-                          <m.icon className="h-5 w-5" /> 
-                          <span>{getTranslatedLabel(m.labelKey)}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    ) : (
-                      <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)} tooltip={getTranslatedLabel(m.labelKey)}>
-                        <m.icon className="h-5 w-5" /> 
-                        <span>{getTranslatedLabel(m.labelKey)}</span>
-                      </SidebarMenuButton>
-                    )}
+                    <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)}>
+                      <m.icon className="h-5 w-5" /> 
+                      <span>{t.nav[m.id] || m.id}</span>
+                    </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>
             </SidebarGroup>
-            <SidebarGroup>
-              <SidebarGroupLabel>Governance</SidebarGroupLabel>
-              <SidebarMenu>
-                {getActiveModules('governance').map((m, idx) => {
-                  if (m.adminOnly && !userProfile?.isAdmin) return null;
-                  return (
-                    <SidebarMenuItem key={idx}>
-                      {m.path ? (
-                        <SidebarMenuButton asChild tooltip={getTranslatedLabel(m.labelKey)}>
-                          <Link href={m.path}>
-                            <m.icon className="h-5 w-5" /> 
-                            <span>{getTranslatedLabel(m.labelKey)}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      ) : (
-                        <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)} tooltip={getTranslatedLabel(m.labelKey)}>
-                          <m.icon className="h-5 w-5" /> 
-                          <span>{getTranslatedLabel(m.labelKey)}</span>
-                        </SidebarMenuButton>
-                      )}
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroup>
           </SidebarContent>
           <SidebarFooter className="p-4 border-t">
-            <div className="flex flex-row items-center justify-between w-full">
-              <div className="flex items-center gap-1">
-                {user ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="p-0 h-8 w-8 rounded-full border">
-                        <Avatar className="h-full w-full">
-                          <AvatarImage src={effectiveAvatar} />
-                          <AvatarFallback><User className="h-4 w-4" /></AvatarFallback>
-                        </Avatar>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuLabel>
-                        <div className="flex flex-col">
-                          <span>{userProfile?.displayName || user.displayName}</span>
-                          <span className="text-[10px] text-muted-foreground font-normal truncate">{userInstitutionName}</span>
-                        </div>
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => setActiveTab('profile')}><User className="h-4 w-4 mr-2" /> My Profile</DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => signOut(auth)} className="text-destructive"><LogOut className="h-4 w-4 mr-2" /> Logout</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <Button variant="outline" size="sm" onClick={handleLogin}>Login</Button>
-                )}
-              </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-                {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </Button>
-            </div>
+             <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+               {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+             </Button>
           </SidebarFooter>
         </Sidebar>
         <SidebarInset>
-          <main id="main-content" className="container max-w-5xl mx-auto py-10 px-6 min-h-screen">
-            {modulesLoading ? (
-              <div className="flex flex-col items-center justify-center py-40 gap-4">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground italic">Synchronizing Scholarly Workspace...</p>
-              </div>
-            ) : renderModularContent()}
+          <main className="container max-w-5xl mx-auto py-10 px-6 min-h-screen">
+            {renderModularContent()}
           </main>
         </SidebarInset>
       </div>
