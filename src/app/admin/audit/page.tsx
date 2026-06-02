@@ -2,7 +2,7 @@
 
 /**
  * @fileOverview Governance Audit Dashboard.
- * Enhanced with Top Research Topics visualization.
+ * Enhanced with automated resolution metadata and DMCA logs.
  */
 
 import { useState, useEffect, useMemo } from 'react';
@@ -42,6 +42,7 @@ import {
   Cell 
 } from 'recharts';
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 
 export default function GovernanceAudit() {
   const db = useFirestore();
@@ -63,7 +64,7 @@ export default function GovernanceAudit() {
       const [errSnap, searchSnap, dmcaSnap] = await Promise.all([
         getDocs(query(collection(db, 'error_logs'), orderBy('timestamp', 'desc'), limit(50))),
         getDocs(query(collection(db, 'search_logs'), orderBy('timestamp', 'desc'), limit(500))),
-        getDocs(query(collection(db, 'dmca_complaints'), orderBy('createdAt', 'desc'), limit(20)))
+        getDocs(query(collection(db, 'dmca_complaints'), orderBy('createdAt', 'desc'), limit(50)))
       ]);
 
       setErrors(errSnap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -106,9 +107,14 @@ export default function GovernanceAudit() {
       await updateDoc(doc(db, 'dmca_complaints', complaintId), {
         status: 'resolved',
         resolvedAt: serverTimestamp(),
-        resolvedBy: user?.uid
+        resolvedBy: user?.displayName || user?.uid || 'Admin'
       });
-      setComplaints(prev => prev.map(c => c.id === complaintId ? { ...c, status: 'resolved' } : c));
+      setComplaints(prev => prev.map(c => c.id === complaintId ? { 
+        ...c, 
+        status: 'resolved', 
+        resolvedAt: { seconds: Date.now() / 1000 }, 
+        resolvedBy: user?.displayName || 'Admin' 
+      } : c));
       toast({ title: "Complaint Resolved" });
     } catch (e) {
       toast({ variant: 'destructive', title: "Action Failed" });
@@ -337,8 +343,15 @@ export default function GovernanceAudit() {
                       <div className="text-sm p-4 border rounded-lg bg-background font-serif italic shadow-inner">
                         "{dmca.infringementDescription}"
                       </div>
-                      <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground">
-                        <User className="h-3 w-3" /> Signed: <span className="text-foreground font-bold">{dmca.digitalSignature}</span>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2 text-[10px] font-mono text-muted-foreground">
+                          <User className="h-3 w-3" /> Signed: <span className="text-foreground font-bold">{dmca.digitalSignature}</span>
+                        </div>
+                        {dmca.status === 'resolved' && (
+                          <div className="p-2 bg-green-50 rounded border border-green-100 text-[10px] text-green-700 font-bold">
+                             RESOLVED BY: {dmca.resolvedBy} at {new Date(dmca.resolvedAt?.seconds * 1000).toLocaleString()}
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                     <div className="p-4 bg-muted/30 border-t flex justify-end gap-2">

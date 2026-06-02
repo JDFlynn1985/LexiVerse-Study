@@ -40,6 +40,7 @@ export const TheologyView = memo(({
   const chartData = theologyResult?.historicalDevelopment.map((dev, idx) => ({
     period: dev.period,
     development: dev.keyDevelopment,
+    influence: dev.influenceScore || 50,
     figures: dev.notableFigures.length,
     index: idx + 1,
     label: dev.period.split(' ')[0]
@@ -86,14 +87,14 @@ export const TheologyView = memo(({
 
                 <div className="space-y-4">
                   <h4 className="font-bold text-xs uppercase text-primary flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4" /> Development Density Map
+                    <TrendingUp className="h-4 w-4" /> Influence Density Map
                   </h4>
-                  <div className="h-48 w-full bg-muted/20 rounded-xl border p-4">
+                  <div className="h-56 w-full bg-muted/20 rounded-xl border p-4">
                     <ResponsiveContainer width="100%" height="100%">
                       <ScatterChart margin={{ top: 10, right: 20, bottom: 0, left: -20 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
                         <XAxis dataKey="index" hide />
-                        <YAxis dataKey="figures" hide />
+                        <YAxis dataKey="influence" name="Influence" hide domain={[0, 100]} />
                         <ZAxis range={[50, 400]} />
                         <ChartTooltip 
                           cursor={{ strokeDasharray: '3 3' }}
@@ -103,6 +104,7 @@ export const TheologyView = memo(({
                               return (
                                 <div className="bg-background border rounded-lg p-3 shadow-xl max-w-[200px]">
                                   <p className="text-[10px] font-bold uppercase text-primary mb-1">{data.period}</p>
+                                  <p className="text-[11px] mb-1 font-bold">Influence: {data.influence}/100</p>
                                   <p className="text-[11px] italic leading-tight">"{data.development.substring(0, 80)}..."</p>
                                 </div>
                               );
@@ -112,16 +114,16 @@ export const TheologyView = memo(({
                         />
                         <Scatter data={chartData} fill="hsl(var(--primary))">
                           {chartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fillOpacity={0.6 + (index * 0.1)} />
+                            <Cell key={`cell-${index}`} fillOpacity={0.4 + (entry.influence / 150)} />
                           ))}
                         </Scatter>
                       </ScatterChart>
                     </ResponsiveContainer>
-                    <div className="flex justify-between px-2 text-[8px] font-bold text-muted-foreground uppercase mt-2">
-                      <span>Patristic</span>
-                      <span>Medieval</span>
-                      <span>Reformation</span>
-                      <span>Modern</span>
+                    <div className="flex justify-between px-2 text-[8px] font-bold text-muted-foreground uppercase mt-2 tracking-widest">
+                      <span>Patristic Era</span>
+                      <span>Medieval Era</span>
+                      <span>Reformation Era</span>
+                      <span>Modern Era</span>
                     </div>
                   </div>
                 </div>
@@ -134,7 +136,10 @@ export const TheologyView = memo(({
                     {theologyResult.historicalDevelopment.map((dev: any, i: number) => (
                       <div key={i} className="relative">
                         <div className="absolute -left-[31px] top-1 h-4 w-4 rounded-full bg-primary border-4 border-background" />
-                        <h5 className="font-bold text-lg">{dev.period}</h5>
+                        <div className="flex items-center justify-between mb-1">
+                           <h5 className="font-bold text-lg">{dev.period}</h5>
+                           <Badge variant="outline" className="text-[8px] h-5 px-2">INFLUENCE: {dev.influenceScore}</Badge>
+                        </div>
                         <p className="text-sm text-muted-foreground mb-3 leading-relaxed">{dev.keyDevelopment}</p>
                         <div className="flex flex-wrap gap-1">
                           {dev.notableFigures.map((fig: string) => (

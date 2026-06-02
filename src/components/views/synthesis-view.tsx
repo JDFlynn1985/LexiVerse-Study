@@ -1,7 +1,7 @@
 'use client';
 
 import React, { memo } from 'react';
-import { Feather, Sparkles, ShieldCheck, ListFilter, Loader2, Link as LinkIcon, Save, Download, FileText, CheckCircle2, Database } from 'lucide-react';
+import { Feather, Sparkles, ShieldCheck, ListFilter, Loader2, Link as LinkIcon, Save, Download, FileText, CheckCircle2, Database, ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -53,7 +53,7 @@ export const SynthesisView = memo(({
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <header className="flex justify-between items-end">
+      <header className="flex justify-between items-end border-b pb-6">
         <div>
           <h1 className="text-3xl font-bold font-headline flex items-center gap-3">
             <Feather className="h-8 w-8 text-primary" /> Writing Hub
@@ -124,9 +124,6 @@ export const SynthesisView = memo(({
             <Button variant="outline" onClick={() => handleSynthesisAction('cross-ref')} disabled={isLoading || !synthesisText.trim()}>
                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <LinkIcon className="mr-2 h-4 w-4" />} Cross-Ref Scan
             </Button>
-            <Button variant="outline" onClick={() => handleSynthesisAction('bib')} disabled={isLoading || !synthesisText.trim()}>
-              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ListFilter className="mr-2 h-4 w-4" />} Format Bib
-            </Button>
           </div>
         </div>
         <div className="space-y-6">
@@ -138,11 +135,25 @@ export const SynthesisView = memo(({
               <TabsTrigger value="bib">Bib</TabsTrigger>
             </TabsList>
             <TabsContent value="results" className="mt-4">
-              <Card className="min-h-[400px]">
-                <CardContent className="pt-6">
+              <Card className="min-h-[400px] flex flex-col">
+                <CardContent className="pt-6 flex-1">
                   {synthesisResult ? (
-                    <div className="space-y-6">
-                      <p className="whitespace-pre-wrap leading-relaxed text-sm font-serif">{synthesisResult.improvedText}</p>
+                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                      <div className="flex justify-between items-center bg-muted/50 p-3 rounded-lg border">
+                         <div className="flex items-center gap-2">
+                           <Sparkles className="h-4 w-4 text-primary" />
+                           <span className="text-xs font-bold uppercase tracking-widest">Academic Refinement Ready</span>
+                         </div>
+                         <Button 
+                           variant="outline" 
+                           size="sm" 
+                           className="h-7 text-[10px] gap-1 bg-background"
+                           onClick={() => setSynthesisText(synthesisResult.improvedText)}
+                         >
+                           Apply Changes <ChevronRight className="h-3 w-3" />
+                         </Button>
+                      </div>
+                      <p className="whitespace-pre-wrap leading-relaxed text-sm font-serif italic text-foreground/70">{synthesisResult.improvedText}</p>
                       <Separator />
                       <div className="space-y-2">
                         <h4 className="font-bold text-xs uppercase text-primary">Corrections Made</h4>
@@ -225,18 +236,21 @@ export const SynthesisView = memo(({
             <TabsContent value="bib" className="mt-4">
                <Card className="min-h-[400px]">
                 <CardContent className="pt-6">
-                  {bibResult ? (
-                    <div className="space-y-6">
+                  <div className="space-y-4">
+                    <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => handleSynthesisAction('bib')} disabled={isLoading || !synthesisText.trim()}>
+                       <ListFilter className="h-4 w-4" /> Generate SBL Bibliography
+                    </Button>
+                    {bibResult ? (
                       <div className="p-4 bg-muted/50 rounded-lg border font-mono text-sm leading-relaxed whitespace-pre-wrap shadow-inner">
                         {bibResult.formattedOutput}
                       </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground italic">
-                      <ListFilter className="h-10 w-10 mb-2 opacity-20" />
-                      <p>Provide source names and click 'Format Bib'.</p>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground italic opacity-50">
+                        <ListFilter className="h-10 w-10 mb-2" />
+                        <p className="text-center text-xs">Enter source list in the draft area and generate.</p>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>

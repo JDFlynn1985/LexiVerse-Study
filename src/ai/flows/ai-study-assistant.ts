@@ -12,39 +12,27 @@
 
 /**
  * @fileOverview Comprehensive AI Study Assistant for in-depth biblical research.
- * Features Attributed Multi-Document RAG synthesis.
+ * Features Attributed Multi-Document RAG synthesis and real-time scripture grounding.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { getChapterContent, parseReference } from '@/lib/bible-api';
+import { getChapterContent, parseReference, getVerseText } from '@/lib/bible-api';
 
 /**
  * Performs a Morphological alignment check using linguistic heuristics.
- * Predicts the "theological weight" based on morphological patterns.
  */
 async function performNeuromorphicAnalysis(term: string): Promise<string> {
   const normalized = term.toLowerCase().trim();
-  
   const weights: Record<string, number> = {
-    'l': 0.15, 'o': 0.1, 'g': 0.12, // logos
-    't': 0.1, 'h': 0.1, 'e': 0.08, // theos
-    'a': 0.05, 'b': 0.12, // abba
-    'r': 0.07, 's': 0.07 // general Greek endings
+    'l': 0.15, 'o': 0.1, 'g': 0.12, 't': 0.1, 'h': 0.1, 'e': 0.08, 'a': 0.05, 'b': 0.12, 'r': 0.07, 's': 0.07
   };
-
   let theologicalWeight = 0;
-  const chars = normalized.split('');
-  
-  chars.forEach(char => {
-    if (weights[char]) {
-      theologicalWeight += weights[char];
-    }
+  normalized.split('').forEach(char => {
+    if (weights[char]) theologicalWeight += weights[char];
   });
-
   const finalWeight = Math.min(0.98, (theologicalWeight / 0.8) + (Math.random() * 0.1));
-
-  return `Morphological alignment check: ${Math.round(finalWeight * 100)}% probability of archaic root structure alignment. Heuristic analysis suggests significant theological pivot potential based on phonetic morphology.`;
+  return `Morphological alignment check: ${Math.round(finalWeight * 100)}% probability of archaic root structure alignment.`;
 }
 
 /**
@@ -54,9 +42,26 @@ const aggregateExternalData = async (term: string): Promise<string> => {
   const parsed = parseReference(term);
   let bibleText = "";
   if (parsed) {
-    const data = await getChapterContent('kjv', parsed.bookName, parsed.chapter);
-    if (data) {
-      bibleText = `[SCRIPTURE CONTEXT]: Verified passage text found in library.\n`;
+    try {
+      if (parsed.verse) {
+        const text = await getVerseText('kjv', term);
+        if (text) bibleText = `[PRIMARY SOURCE TEXT]: "${text}" (${term})\n`;
+      } else {
+        const data = await getChapterContent('kjv', parsed.bookName, parsed.chapter);
+        if (data) {
+          const extractText = (nodes: any[]): string => {
+            return nodes.map(node => {
+              if (node.text) return node.text;
+              if (node.content && Array.isArray(node.content)) return extractText(node.content);
+              return "";
+            }).join(' ');
+          };
+          const fullText = extractText(data.chapter as any);
+          bibleText = `[PRIMARY SOURCE CONTEXT - ${term}]: ${fullText.substring(0, 1500)}...\n`;
+        }
+      }
+    } catch (e) {
+      bibleText = `[SOURCE NOTE]: Found scripture reference ${term} but could not extract raw text.\n`;
     }
   }
   return `${bibleText}Lexicon data for '${term}'\nCommentary notes on ${term}\nEtymological roots and cross-references extracted from scholarly logs.`;
@@ -64,16 +69,16 @@ const aggregateExternalData = async (term: string): Promise<string> => {
 
 const AiStudyAssistantInputSchema = z.object({
   term: z.string().describe('The scripture term or reference to research.'),
-  researchContext: z.array(z.string()).optional().describe('Context from uploaded research papers used for RAG (includes [Paper Name] prefixes).'),
+  researchContext: z.array(z.string()).optional().describe('Context from uploaded research papers used for RAG.'),
   model: z.string().optional().describe('The specific AI model identifier to use.'),
-  apiKey: z.string().optional().describe('Optional user-provided Gemini API key to override system defaults.'),
+  apiKey: z.string().optional().describe('Optional user-provided API key to override system defaults.'),
 });
 
 export type AiStudyAssistantInput = z.infer<typeof AiStudyAssistantInputSchema>;
 
 const LinkableItemSchema = z.object({
   text: z.string().describe('Display text for the scholarly reference.'),
-  url: z.string().describe('Direct URI to the external resource (e.g., BlueLetterBible).'),
+  url: z.string().describe('Direct URI to the external resource.'),
 });
 
 const AiStudyAssistantOutputSchema = z.object({
@@ -85,15 +90,12 @@ const AiStudyAssistantOutputSchema = z.object({
   commentaryInsights: z.string().describe('Synthesized insights from historical commentaries.'),
   verseUsages: z.array(LinkableItemSchema).describe('List of pertinent verses with direct links.'),
   translationVariations: z.array(z.string()).describe('How the term varies across major Bible versions.'),
-  aiInsights: z.string().describe('Synthesized research analysis for the scholar. Use citations if researchContext is provided.'),
+  aiInsights: z.string().describe('Synthesized research analysis. Use citations if researchContext is provided.'),
   bibliography: z.array(LinkableItemSchema).describe('Formal bibliography entries with source links.'),
 });
 
 export type AiStudyAssistantOutput = z.infer<typeof AiStudyAssistantOutputSchema>;
 
-/**
- * The core prompt definition for the study assistant.
- */
 const studyAssistantPrompt = ai.definePrompt({
   name: 'studyAssistantPrompt',
   input: {
@@ -109,7 +111,6 @@ const studyAssistantPrompt = ai.definePrompt({
   },
   prompt: `You are an AI Study Assistant for seminary students. 
 Your task is to synthesize the following aggregated data into a comprehensive academic report.
-Always speak to the user as if they are a dedicated seminary student, maintaining high academic rigor and formal theological tone.
 
 CRITICAL REQUIREMENT FOR RESEARCH CONTEXT:
 {{#if researchContext}}
@@ -118,65 +119,47 @@ When you use information from these excerpts, you MUST cite the source document 
 Example: "Recent scholarship suggests a connection between this term and first-century agrarian metaphors [Ref: AgrarianContext.pdf]."
 {{/if}}
 
-Every scripture reference in the "verseUsages" list MUST include a valid URL to BlueLetterBible.com or a similar scholarly portal.
-Every entry in the "bibliography" MUST include a URL to the digital resource or a library catalog entry.
-
 Requirements:
-1. Always include the word in its original GREEK or HEBREW ALPHABET in the originalWord field.
+1. Always include the word in its original alphabet in originalWord.
 2. Provide a precise transliteration and pronunciation.
-3. Use the following data as your basis:
+3. Ground your insights deeply in the provided aggregated data.
 Term: {{term}}
 Aggregated Data: {{{aggregatedData}}}
-Linguistic Heuristic Insight: {{{brainJsInsight}}}
+Heuristic Insight: {{{brainJsInsight}}}
 
 {{#if researchContext}}
-User-Uploaded Research Context (RAG - Selective Fragments from Multiple Documents):
+User Library Context:
 ---
 {{{researchContext}}}
 ---
 {{/if}}
 
-Ensure the response follows the AiStudyAssistantOutputSchema exactly. Structure the report for high-level academic review, focusing on linguistic precision and theological depth.`,
+Format your response strictly as JSON adhering to the AiStudyAssistantOutputSchema.`,
 });
 
-/**
- * Executes the Study Assistant Flow.
- */
-const aiStudyAssistantFlow = ai.defineFlow(
-  {
-    name: 'aiStudyAssistantFlow',
-    inputSchema: AiStudyAssistantInputSchema,
-    outputSchema: AiStudyAssistantOutputSchema,
-  },
-  async input => {
-    if (input.apiKey) {
-      process.env.GEMINI_API_KEY = input.apiKey;
-    }
-
-    const selectedModel = input.model || 'googleai/gemini-2.5-flash';
-    
-    if (selectedModel.startsWith('googleai/') && !process.env.GEMINI_API_KEY) {
-      throw new Error("AI engine is not configured. Please supply your own Gemini API Key in your profile settings.");
-    }
-
-    const aggregatedData = await aggregateExternalData(input.term);
-    const brainJsInsight = await performNeuromorphicAnalysis(input.term);
-    const researchContextString = input.researchContext?.join('\n\n---\n\n');
-    
-    const { output } = await studyAssistantPrompt({
-      term: input.term,
-      aggregatedData,
-      brainJsInsight,
-      researchContext: researchContextString
-    }, { model: selectedModel as any });
-    
-    return output!;
-  }
-);
-
-/**
- * Public wrapper for the AI Study Assistant flow.
- */
 export async function aiStudyAssistant(input: AiStudyAssistantInput): Promise<AiStudyAssistantOutput> {
-  return aiStudyAssistantFlow(input);
+  const selectedModel = input.model || 'googleai/gemini-2.5-flash';
+  
+  if (input.apiKey) {
+    const provider = selectedModel.split('/')[0];
+    if (provider === 'googleai') process.env.GEMINI_API_KEY = input.apiKey;
+    else if (provider === 'openai') process.env.OPENAI_API_KEY = input.apiKey;
+    else if (provider === 'anthropic') process.env.ANTHROPIC_API_KEY = input.apiKey;
+    else if (provider === 'mistral') process.env.MISTRAL_API_KEY = input.apiKey;
+    else if (provider === 'deepseek') process.env.DEEPSEEK_API_KEY = input.apiKey;
+    else if (provider === 'xai') process.env.XAI_API_KEY = input.apiKey;
+  }
+
+  const aggregatedData = await aggregateExternalData(input.term);
+  const brainJsInsight = await performNeuromorphicAnalysis(input.term);
+  const researchContextString = input.researchContext?.join('\n\n---\n\n');
+  
+  const { output } = await studyAssistantPrompt({
+    term: input.term,
+    aggregatedData,
+    brainJsInsight,
+    researchContext: researchContextString
+  }, { model: selectedModel as any });
+  
+  return output!;
 }
