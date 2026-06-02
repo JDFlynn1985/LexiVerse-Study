@@ -28,7 +28,8 @@ import {
   RefreshCw,
   Download,
   AlertTriangle,
-  Database
+  Database,
+  Cpu
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -53,10 +54,10 @@ export default function AdminSettings() {
     geminiApiKey: '',
     ollamaUrl: 'http://localhost:11434',
     defaultModelProvider: 'google',
+    defaultModel: 'googleai/gemini-2.5-flash',
     localModelList: ['llama3', 'mistral', 'gemma'],
     networkMode: 'internet'
   });
-  const [newModelName, setNewModelName] = useState('');
   const [pullModelName, setPullModelName] = useState('');
 
   const isAdmin = userProfile?.isAdmin === true;
@@ -72,7 +73,8 @@ export default function AdminSettings() {
             ...config,
             ...data,
             localModelList: data.localModelList || ['llama3', 'mistral', 'gemma'],
-            networkMode: data.networkMode || 'internet'
+            networkMode: data.networkMode || 'internet',
+            defaultModel: data.defaultModel || (data.defaultModelProvider === 'local' ? 'llama3' : 'googleai/gemini-2.5-flash')
           });
         }
       } catch (e) {
@@ -142,7 +144,7 @@ export default function AdminSettings() {
       if (result.success) {
         toast({ title: "Model Installed", description: `${pullModelName} is now ready for use.` });
         setPullModelName('');
-        handleAutoDetect(); // Refresh list
+        handleAutoDetect(); 
       } else {
         toast({ variant: 'destructive', title: "Installation Failed", description: result.error });
       }
@@ -158,26 +160,13 @@ export default function AdminSettings() {
       const result = await deleteOllamaModel(model, config.ollamaUrl);
       if (result.success) {
         toast({ title: "Model Deleted", description: `${model} has been removed from the server.` });
-        handleAutoDetect(); // Refresh list
+        handleAutoDetect(); 
       } else {
         toast({ variant: 'destructive', title: "Deletion Failed", description: result.error });
       }
     } catch (e: any) {
       toast({ variant: 'destructive', title: "Error", description: "Could not complete deletion." });
     }
-  };
-
-  const addModelManually = () => {
-    if (!newModelName.trim()) return;
-    if (config.localModelList.includes(newModelName.trim())) {
-      toast({ variant: 'destructive', title: "Model already exists" });
-      return;
-    }
-    setConfig({
-      ...config,
-      localModelList: [...config.localModelList, newModelName.trim()]
-    });
-    setNewModelName('');
   };
 
   const promoteUser = async (role: 'admin' | 'moderator' | 'trusted') => {
@@ -258,18 +247,61 @@ export default function AdminSettings() {
         </TabsList>
 
         <TabsContent value="ai" className="space-y-6">
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2"><Cpu className="h-5 w-5 text-primary" /> Global Research Default</CardTitle>
+              <CardDescription>Define the fallback engine and model for all researchers.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Default Provider</Label>
+                <Select 
+                  value={config?.defaultModelProvider || 'google'} 
+                  onValueChange={(val) => setConfig({...config, defaultModelProvider: val, defaultModel: val === 'google' ? 'googleai/gemini-2.5-flash' : (config.localModelList[0] || 'llama3')})}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select Provider" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="google">Google Gemini (Cloud)</SelectItem>
+                    <SelectItem value="local">Ollama (Local)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Default Model Name</Label>
+                {config.defaultModelProvider === 'google' ? (
+                  <Select value={config.defaultModel} onValueChange={(val) => setConfig({...config, defaultModel: val})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="googleai/gemini-2.5-flash">Gemini 2.5 Flash (Recommended)</SelectItem>
+                      <SelectItem value="googleai/gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>
+                      <SelectItem value="googleai/gemini-1.5-flash">Gemini 1.5 Flash</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Select value={config.defaultModel} onValueChange={(val) => setConfig({...config, defaultModel: val})}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {config.localModelList.map((m: string) => (
+                        <SelectItem key={m} value={m}>{m}</SelectItem>
+                      ))}
+                      {config.localModelList.length === 0 && <SelectItem value="llama3">llama3 (Not installed)</SelectItem>}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2"><Key className="h-5 w-5 text-primary" /> Cloud Research (Google)</CardTitle>
-                <CardDescription>
-                  Configure the default fallback key for guest researchers.
-                </CardDescription>
+                <CardTitle className="text-lg flex items-center gap-2"><Key className="h-5 w-5 text-primary" /> System Cloud Key (Google)</CardTitle>
+                <CardDescription>Configure the shared key for guest access.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <Label>System Gemini API Key</Label>
+                    <Label>Guest API Key</Label>
                     <Button variant="link" className="p-0 h-auto text-xs" asChild>
                       <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
                         Get Key <ExternalLink className="h-3 w-3" />
@@ -280,16 +312,17 @@ export default function AdminSettings() {
                     type="password" 
                     value={config?.geminiApiKey || ''} 
                     onChange={e => setConfig({...config, geminiApiKey: e.target.value})} 
-                    placeholder="Enter system Google AI API key"
+                    placeholder="Enter guest Google AI API key"
                   />
+                  <p className="text-[10px] text-muted-foreground italic">Used when a researcher has not provided their own key.</p>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-primary/20">
+            <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2"><Server className="h-5 w-5 text-primary" /> Local Engine (Ollama)</CardTitle>
-                <CardDescription>Install and manage locally hosted models.</CardDescription>
+                <CardDescription>Manage your network-isolated models.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-2">
@@ -300,67 +333,42 @@ export default function AdminSettings() {
                       value={config?.ollamaUrl || ''} 
                       onChange={e => setConfig({...config, ollamaUrl: e.target.value})} 
                     />
-                    <Button variant="outline" size="icon" onClick={handleAutoDetect} disabled={detecting} title="Sync models from server">
+                    <Button variant="outline" size="icon" onClick={handleAutoDetect} disabled={detecting} title="Sync models">
                       {detecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                     </Button>
                   </div>
                 </div>
                 
                 <div className="space-y-3 bg-muted/30 p-4 rounded-lg border border-dashed">
-                  <div className="flex items-center gap-2 text-sm font-bold text-primary">
-                    <Download className="h-4 w-4" /> Install New Model
-                  </div>
                   <div className="flex gap-2">
                     <Input 
-                      placeholder="e.g. llama3.1" 
+                      placeholder="Install model (e.g. llama3)" 
                       value={pullModelName}
                       onChange={e => setPullModelName(e.target.value)}
                     />
-                    <Button onClick={handlePullModel} disabled={pulling || !pullModelName.trim()} variant="secondary">
-                      {pulling ? <Loader2 className="h-4 w-4 animate-spin" /> : "Pull"}
+                    <Button onClick={handlePullModel} disabled={pulling || !pullModelName.trim()} variant="secondary" size="sm">
+                      {pulling ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3 mr-1" />} Pull
                     </Button>
                   </div>
-                  <p className="text-[10px] text-muted-foreground italic">Models are pulled from the official Ollama library.</p>
                 </div>
 
-                <div className="space-y-4">
-                  <Label>Managed Models ({config.localModelList.length})</Label>
-                  <div className="grid gap-2">
+                <div className="space-y-2">
+                  <Label>Installed Models ({config.localModelList.length})</Label>
+                  <div className="grid gap-2 max-h-[150px] overflow-y-auto pr-2">
                     {config.localModelList.map((model: string) => (
                       <div key={model} className="flex items-center justify-between p-2 bg-background rounded border group">
                         <span className="text-sm font-medium">{model}</span>
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive hover:bg-destructive hover:text-white transition-all"
+                          className="h-6 w-6 opacity-0 group-hover:opacity-100 text-destructive hover:bg-destructive hover:text-white"
                           onClick={() => handleDeleteModel(model)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
                     ))}
-                    {config.localModelList.length === 0 && (
-                      <div className="text-center py-4 text-xs text-muted-foreground border rounded-lg bg-muted/10">
-                        No models found. Use "Sync" or "Pull" to begin.
-                      </div>
-                    )}
                   </div>
-                </div>
-
-                <div className="pt-4 border-t">
-                  <Label>Default Provider</Label>
-                  <Select 
-                    value={config?.defaultModelProvider || 'google'} 
-                    onValueChange={(val) => setConfig({...config, defaultModelProvider: val})}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Provider" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="google">Google Gemini (Cloud)</SelectItem>
-                      <SelectItem value="local">Ollama (Local)</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
               </CardContent>
             </Card>

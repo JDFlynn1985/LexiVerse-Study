@@ -42,6 +42,11 @@
             "language": {
               "type": "string",
               "description": "The user's preferred interface language."
+            },
+            "storagePreference": {
+              "type": "string",
+              "enum": ["cloud", "local"],
+              "description": "Whether to store credentials in Firestore or browser local storage."
             }
           }
         }
@@ -113,6 +118,7 @@
         "ollamaUrl": { "type": "string" },
         "localModelList": { "type": "array", "items": { "type": "string" }, "description": "A list of locally available models via Ollama." },
         "defaultModelProvider": { "type": "string", "enum": ["google", "local"] },
+        "defaultModel": { "type": "string", "description": "The system-wide default model name." },
         "networkMode": { "type": "string", "enum": ["internet", "local-only"], "description": "Specifies if the deployment is internet-facing or isolated to a local network." },
         "isConfigured": { "type": "boolean" }
       }

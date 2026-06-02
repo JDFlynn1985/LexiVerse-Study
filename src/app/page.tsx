@@ -1,21 +1,19 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTheme } from 'next-themes';
-import Image from 'next/image';
 import Link from 'next/link';
 import { 
   signInWithPopup, 
   GoogleAuthProvider, 
   signOut
 } from 'firebase/auth';
-import { doc, setDoc, onSnapshot, collection, query, orderBy, addDoc, updateDoc, where, getDoc } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, getDoc, updateDoc } from 'firebase/firestore';
 import { appConfig } from '@/app-config';
-import { useAuth, useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
+import { useAuth, useFirestore, useUser, useDoc } from '@/firebase';
 import { logSearch } from '@/lib/search-logging';
 import { useLanguage } from '@/components/language-provider';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { cn, getGravatarUrl } from '@/lib/utils';
 
 import { 
@@ -38,57 +36,37 @@ import {
   Sun,
   Moon,
   Globe,
-  Network,
   Milestone,
   Settings,
   LogOut,
-  History,
   Library,
   Sparkles,
-  Mic,
   LayoutDashboard,
-  MessageSquare,
   ShieldAlert,
   GraduationCap,
   Highlighter,
-  Link2,
   Newspaper,
   PenTool,
-  CheckCircle2,
-  Clock,
-  BookMarked,
-  ArrowLeftRight,
   ShieldCheck,
-  FileText,
-  Tags,
-  Filter,
-  X,
-  Eye,
-  Edit3,
-  Book,
+  ArrowLeftRight,
   User as UserIcon,
   Save,
-  Camera,
   Award,
   AlertTriangle,
-  Info,
-  Server,
   Key,
-  Send,
   Lock,
-  CloudOff,
   WifiOff,
   Map as MapIcon,
-  Scale
+  Scale,
+  Cpu,
+  History
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -105,7 +83,6 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
@@ -116,7 +93,7 @@ import { aiStudyAssistant, type AiStudyAssistantOutput } from '@/ai/flows/ai-stu
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 import { getAllLocalDocuments, type IDBDocument } from '@/lib/idb';
 
-type ViewMode = 'dashboard' | 'lexicon' | 'wiki' | 'blog' | 'blog-designer' | 'theology-map' | 'timeline' | 'writing-assistant' | 'academic-integrity' | 'ai-settings' | 'ai-assistant' | 'verse-explorer' | 'compare-translations' | 'research-library' | 'moderation' | 'profile';
+type ViewMode = 'dashboard' | 'lexicon' | 'wiki' | 'blog' | 'theology-map' | 'timeline' | 'writing-assistant' | 'academic-integrity' | 'ai-assistant' | 'verse-explorer' | 'compare-translations' | 'research-library' | 'profile';
 
 interface UserProfile {
   uid: string;
@@ -149,17 +126,15 @@ export default function Home() {
   const db = useFirestore();
   const { user } = useUser();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [isAiEnabled, setIsAiEnabled] = useState(false);
-  const [systemApiKey, setSystemApiKey] = useState<string | null>(null);
-  const [localModels, setLocalModels] = useState<string[]>(['llama3', 'mistral', 'gemma']);
-  const [networkMode, setNetworkMode] = useState<'internet' | 'local-only'>('internet');
-
+  
+  // System Config State
+  const [systemConfig, setSystemConfig] = useState<any>(null);
   const [history, setHistory] = useState<{id: string, type: string, term: string, date: string}[]>([]);
   const [localDocuments, setLocalDocuments] = useState<IDBDocument[]>([]);
   const [availableVersions, setAvailableVersions] = useState<BibleVersion[]>([]);
-
   const [localApiKey, setLocalApiKey] = useState<string>('');
   
+  // Derived Preferences
   const [aiPrefs, setAiPrefs] = useState({
     modelProvider: 'google',
     selectedModel: 'googleai/gemini-2.5-flash',
@@ -172,7 +147,6 @@ export default function Home() {
   const [assistantTerm, setAssistantTerm] = useState('');
   const [lexiconResult, setLexiconResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
   const [assistantResult, setAssistantResult] = useState<AiStudyAssistantOutput | null>(null);
-
   const [profileDraft, setProfileDraft] = useState({ displayName: '', credentials: '', bio: '', photoURL: '' });
 
   const refreshLocalDocs = useCallback(async () => {
@@ -191,19 +165,23 @@ export default function Home() {
     refreshLocalDocs();
     getVersions().then(setAvailableVersions);
 
-    async function checkSystemConfig() {
-      const configSnap = await getDoc(doc(db, 'system', 'config'));
-      if (configSnap.exists()) {
-        const config = configSnap.data();
-        setLocalModels(config.localModelList || ['llama3', 'mistral', 'gemma']);
-        setSystemApiKey(config.geminiApiKey || null);
-        setNetworkMode(config.networkMode || 'internet');
-        const effectiveKey = localStorage.getItem('lexiverse_local_api_key') || aiPrefs.customApiKey || config.geminiApiKey;
-        setIsAiEnabled(!!effectiveKey || aiPrefs.modelProvider === 'local');
+    // Fetch Global System Config
+    const unsubConfig = onSnapshot(doc(db, 'system', 'config'), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setSystemConfig(data);
+        // Default UI state if user hasn't set anything
+        if (!userProfile?.preferences) {
+          setAiPrefs(prev => ({
+            ...prev,
+            modelProvider: data.defaultModelProvider || 'google',
+            selectedModel: data.defaultModel || 'googleai/gemini-2.5-flash'
+          }));
+        }
       }
-    }
-    checkSystemConfig();
-  }, [refreshLocalDocs, db, aiPrefs.customApiKey, aiPrefs.modelProvider]);
+    });
+    return () => unsubConfig();
+  }, [db, refreshLocalDocs, userProfile?.preferences]);
 
   useEffect(() => {
     if (user && db) {
@@ -231,17 +209,24 @@ export default function Home() {
     }
   }, [user, db, language]);
 
-  const effectiveApiKey = localApiKey || aiPrefs.customApiKey || systemApiKey;
-  const effectiveModel = aiPrefs.modelProvider === 'local' ? `ollama/${aiPrefs.selectedModel}` : aiPrefs.selectedModel;
+  // CALCULATION OF EFFECTIVE AI STATE
+  const effectiveApiKey = localApiKey || aiPrefs.customApiKey || systemConfig?.geminiApiKey;
+  const isLocalMode = aiPrefs.modelProvider === 'local';
+  
+  // Format model string for Genkit (e.g. 'googleai/...' or 'ollama/...')
+  const effectiveModel = isLocalMode 
+    ? `ollama/${aiPrefs.selectedModel}` 
+    : (aiPrefs.selectedModel.includes('/') ? aiPrefs.selectedModel : `googleai/${aiPrefs.selectedModel}`);
 
   const handleSearch = async (term: string, type: ViewMode) => {
     if (!term.trim()) return;
     
-    if (!effectiveApiKey && aiPrefs.modelProvider === 'google' && ['lexicon', 'ai-assistant', 'verse-explorer', 'compare-translations', 'writing-assistant', 'academic-integrity', 'theology-map', 'timeline'].includes(type)) {
+    // Safety check for API keys if using cloud
+    if (!effectiveApiKey && !isLocalMode && ['lexicon', 'ai-assistant', 'verse-explorer', 'compare-translations', 'writing-assistant', 'academic-integrity', 'theology-map', 'timeline'].includes(type)) {
       toast({ 
         variant: 'destructive', 
-        title: "AI Key Required", 
-        description: "Please supply your own personal API key in your profile settings to enable scholarly analysis." 
+        title: "AI Hub Configuration Required", 
+        description: "Please supply your own Gemini API key or switch to a local engine in settings." 
       });
       return;
     }
@@ -343,8 +328,8 @@ export default function Home() {
           isModerator: false,
           isTrustedContributor: false,
           preferences: {
-            modelProvider: 'google',
-            selectedModel: 'googleai/gemini-2.5-flash',
+            modelProvider: systemConfig?.defaultModelProvider || 'google',
+            selectedModel: systemConfig?.defaultModel || 'googleai/gemini-2.5-flash',
             customApiKey: '',
             storagePreference: 'local' 
           }
@@ -395,8 +380,11 @@ export default function Home() {
             <SidebarGroup>
               <SidebarGroupLabel className="flex items-center justify-between">
                 AI Research Hub
-                {!effectiveApiKey && aiPrefs.modelProvider === 'google' && <Badge variant="destructive" className="scale-75 origin-right">OFF</Badge>}
-                {aiPrefs.modelProvider === 'local' && <Badge variant="outline" className="scale-75 origin-right border-green-500 text-green-600"><Server className="h-3 w-3 mr-1" /> LOCAL</Badge>}
+                {isLocalMode ? (
+                  <Badge variant="outline" className="scale-75 origin-right border-green-500 text-green-600 font-bold"><Server className="h-3 w-3 mr-1" /> LOCAL</Badge>
+                ) : (
+                  <Badge variant="outline" className="scale-75 origin-right border-blue-500 text-blue-600 font-bold"><Globe className="h-3 w-3 mr-1" /> CLOUD</Badge>
+                )}
               </SidebarGroupLabel>
               <SidebarMenu>
                 <SidebarMenuItem>
@@ -460,7 +448,7 @@ export default function Home() {
             </SidebarGroup>
           </SidebarContent>
           <SidebarFooter className="p-4 border-t flex flex-col gap-2">
-            {networkMode === 'local-only' && (
+            {systemConfig?.networkMode === 'local-only' && (
               <div className="px-2 mb-2">
                 <Badge variant="outline" className="w-full justify-center gap-1.5 py-1 border-green-600/50 text-green-700 bg-green-600/5">
                   <WifiOff className="h-3 w-3" /> Local Network Only
@@ -468,15 +456,6 @@ export default function Home() {
               </div>
             )}
             
-            <div className="flex flex-col gap-1 px-2 mb-2 group-data-[collapsible=icon]:hidden">
-              <Link href="/privacy" prefetch={false} className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-1">
-                <ShieldCheck className="h-2.5 w-2.5" /> Privacy Policy
-              </Link>
-              <Link href="/terms" prefetch={false} className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-1">
-                <Scale className="h-2.5 w-2.5" /> Terms of Use
-              </Link>
-            </div>
-
             <div className="flex flex-row items-center justify-between w-full">
               <div className="flex items-center gap-1">
                 {(userProfile?.isAdmin || !user) && (
@@ -531,27 +510,18 @@ export default function Home() {
                     <p className="text-muted-foreground text-lg">Integrated AI and local-only databases for biblical scholarship.</p>
                   </header>
 
-                  {!effectiveApiKey && aiPrefs.modelProvider === 'google' && (
-                    <Alert className="border-amber-500/50 bg-amber-500/5">
-                      <AlertTriangle className="h-4 w-4 text-amber-600" />
-                      <AlertTitle>Limited Functionality Active</AlertTitle>
-                      <AlertDescription>
-                        AI-powered research is currently paused. Please supply your own personal API key in your profile settings to enable the scholarly synthesis engine.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
                   <div className="grid gap-6 md:grid-cols-3">
                     <Card className="md:col-span-2 shadow-md border-primary/10">
                       <CardHeader>
                         <CardTitle className="font-headline flex items-center gap-2">
-                          <Sparkles className={cn("h-5 w-5", effectiveApiKey || aiPrefs.modelProvider === 'local' ? "text-primary" : "text-muted-foreground")} /> Scholarly Assistant
+                          <Sparkles className={cn("h-5 w-5", effectiveApiKey || isLocalMode ? "text-primary" : "text-muted-foreground")} /> 
+                          {isLocalMode ? `Local Assistant (${aiPrefs.selectedModel})` : "Cloud Assistant (Gemini)"}
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="flex gap-2">
                           <Input 
-                            placeholder={effectiveApiKey || aiPrefs.modelProvider === 'local' ? "Analyze eschatological fragments..." : "AI Key Required for Synthesis"}
+                            placeholder={effectiveApiKey || isLocalMode ? "Analyze eschatological fragments..." : "AI Engine Configuration Needed"}
                             value={assistantTerm} 
                             onChange={e => setAssistantTerm(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && handleSearch(assistantTerm, 'ai-assistant')}
@@ -579,6 +549,27 @@ export default function Home() {
                       </CardContent>
                     </Card>
                   </div>
+
+                  {history.length > 0 && (
+                    <div className="space-y-4">
+                      <h3 className="font-bold flex items-center gap-2 text-muted-foreground">
+                        <History className="h-4 w-4" /> Recent Investigations
+                      </h3>
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {history.map(item => (
+                          <Card key={item.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSearch(item.term, item.type as any)}>
+                            <CardContent className="p-4 flex items-center justify-between">
+                              <div className="flex flex-col">
+                                <span className="font-bold text-sm truncate max-w-[150px]">{item.term}</span>
+                                <span className="text-[10px] text-muted-foreground">{item.date}</span>
+                              </div>
+                              <Badge variant="secondary" className="text-[9px] uppercase">{item.type}</Badge>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -586,7 +577,7 @@ export default function Home() {
                 <div className="space-y-8">
                   <header>
                     <h1 className="text-3xl font-bold font-headline">Scholarly Profile</h1>
-                    <p className="text-muted-foreground">Manage your identity and privacy-first research credentials.</p>
+                    <p className="text-muted-foreground">Manage your identity and research preferences.</p>
                   </header>
 
                   <div className="grid gap-8 md:grid-cols-3">
@@ -612,27 +603,62 @@ export default function Home() {
                       <Card className="shadow-lg border-primary/10">
                         <CardHeader>
                           <CardTitle className="text-xl font-headline flex items-center gap-2">
-                            <Lock className="h-5 w-5 text-primary" /> Privacy & AI Credentials
+                            <Cpu className="h-5 w-5 text-primary" /> AI Hub Preferences
                           </CardTitle>
+                          <CardDescription>Choose how you want to power your research synthesis.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                           <div className="space-y-4">
+                           <div className="grid gap-6 md:grid-cols-2">
+                             <div className="space-y-2">
+                               <Label>AI Research Engine</Label>
+                               <Select value={aiPrefs.modelProvider} onValueChange={(val: any) => saveAiPreferences({ modelProvider: val, selectedModel: val === 'google' ? 'googleai/gemini-2.5-flash' : (systemConfig?.localModelList[0] || 'llama3') })}>
+                                 <SelectTrigger><SelectValue /></SelectTrigger>
+                                 <SelectContent>
+                                   <SelectItem value="google">Google Gemini (Cloud)</SelectItem>
+                                   <SelectItem value="local">Ollama (Local Network)</SelectItem>
+                                 </SelectContent>
+                               </Select>
+                             </div>
+                             <div className="space-y-2">
+                               <Label>Preferred Model</Label>
+                               {isLocalMode ? (
+                                  <Select value={aiPrefs.selectedModel} onValueChange={(val) => saveAiPreferences({ selectedModel: val })}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      {systemConfig?.localModelList?.map((m: string) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                                      {!systemConfig?.localModelList?.length && <SelectItem value="llama3">llama3</SelectItem>}
+                                    </SelectContent>
+                                  </Select>
+                               ) : (
+                                  <Select value={aiPrefs.selectedModel} onValueChange={(val) => saveAiPreferences({ selectedModel: val })}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="googleai/gemini-2.5-flash">Gemini 2.5 Flash</SelectItem>
+                                      <SelectItem value="googleai/gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>
+                                      <SelectItem value="googleai/gemini-1.5-flash">Gemini 1.5 Flash</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                               )}
+                             </div>
+                           </div>
+
+                           <div className="space-y-4 pt-4 border-t">
                              <div className="flex items-center justify-between">
-                               <Label>Personal Gemini API Key</Label>
+                               <Label className="flex items-center gap-2"><Key className="h-4 w-4" /> Personal Gemini API Key</Label>
                                <Button variant="link" className="p-0 h-auto text-[10px]" asChild>
-                                 <a href="https://aistudio.google.com/app/apikey" target="_blank">Get Personal Key <Key className="h-3 w-3 inline ml-1" /></a>
+                                 <a href="https://aistudio.google.com/app/apikey" target="_blank">Get Key <ExternalLink className="h-3 w-3 inline ml-1" /></a>
                                </Button>
                              </div>
                              <Input 
                                type="password" 
-                               placeholder={aiPrefs.storagePreference === 'local' ? "Stored in browser only" : "Synced to cloud"}
+                               placeholder={aiPrefs.storagePreference === 'local' ? "Stored securely in your browser" : "Synchronized with your account"}
                                value={aiPrefs.storagePreference === 'local' ? localApiKey : aiPrefs.customApiKey}
                                onChange={e => saveAiPreferences({ customApiKey: e.target.value })}
                              />
                              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border text-xs">
                                <div>
-                                 <p className="font-bold">Local-Only Storage Mode</p>
-                                 <p className="text-muted-foreground">Credentials stay on this device. Never touches cloud servers.</p>
+                                 <p className="font-bold flex items-center gap-1.5"><Lock className="h-3.5 w-3.5 text-primary" /> Local-Only Credential Storage</p>
+                                 <p className="text-muted-foreground">Credentials stay on this device and are never sent to cloud servers.</p>
                                </div>
                                <Switch 
                                  checked={aiPrefs.storagePreference === 'local'} 
@@ -640,30 +666,6 @@ export default function Home() {
                                />
                              </div>
                            </div>
-
-                          <div className="grid gap-4 md:grid-cols-2 pt-4 border-t">
-                            <div className="space-y-2">
-                              <Label>AI Research Engine</Label>
-                              <Select value={aiPrefs.modelProvider} onValueChange={(val: any) => saveAiPreferences({ modelProvider: val })}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="google">Google Gemini (Cloud)</SelectItem>
-                                  <SelectItem value="local">Ollama (Local Network)</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            {aiPrefs.modelProvider === 'local' && (
-                              <div className="space-y-2">
-                                <Label>Local Model</Label>
-                                <Select value={aiPrefs.selectedModel} onValueChange={(val) => saveAiPreferences({ selectedModel: val })}>
-                                  <SelectTrigger><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    {localModels.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            )}
-                          </div>
                         </CardContent>
                       </Card>
 
@@ -676,16 +678,16 @@ export default function Home() {
                               <Input value={profileDraft.displayName} onChange={e => setProfileDraft({...profileDraft, displayName: e.target.value})} />
                             </div>
                             <div className="space-y-2">
-                              <Label>Institutional Credentials</Label>
-                              <Input value={profileDraft.credentials} placeholder="e.g. PhD, MDiv" onChange={e => setProfileDraft({...profileDraft, credentials: e.target.value})} />
+                              <Label>Institutional Titles</Label>
+                              <Input value={profileDraft.credentials} placeholder="e.g. PhD, MDiv, Seminary Student" onChange={e => setProfileDraft({...profileDraft, credentials: e.target.value})} />
                             </div>
                           </div>
                           <div className="space-y-2">
-                            <Label>Researcher Bio</Label>
+                            <Label>Researcher Biography</Label>
                             <Textarea rows={3} value={profileDraft.bio} onChange={e => setProfileDraft({...profileDraft, bio: e.target.value})} />
                           </div>
                         </CardContent>
-                        <CardFooter className="justify-end"><Button onClick={updateProfile} disabled={isLoading}><Save className="mr-2 h-4 w-4" /> Update Identity</Button></CardFooter>
+                        <CardFooter className="justify-end"><Button onClick={updateProfile} disabled={isLoading}><Save className="mr-2 h-4 w-4" /> Update Profile</Button></CardFooter>
                       </Card>
                     </div>
                   </div>
