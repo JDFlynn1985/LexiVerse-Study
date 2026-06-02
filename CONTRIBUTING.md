@@ -12,6 +12,28 @@ If you are a student or scholar, you can contribute directly through the **Schol
 ### Modular Architecture
 LexiVerse Explorer uses a modular view system. Before starting development on a new feature, please review the [Module Development Guide](docs/MODULE_GUIDE.md).
 
+### Documentation Standards
+All code contributions MUST include full **JSDoc-compliant** documentation. This is critical for our automated SDK and API generation tools. 
+
+- **Files**: Every new file should begin with a `@fileOverview` block.
+- **Functions**: Use `@param`, `@returns`, and `@throws` where applicable.
+- **Types**: Document all interfaces and types explaining their role in the research ecosystem.
+- **AI Flows**: Clearly document the input/output schemas and the prompt logic.
+
+Example:
+```typescript
+/**
+ * Analyzes a specific scripture fragment for linguistic nuances.
+ * 
+ * @param fragment - The raw text of the scripture.
+ * @param originalLanguage - The source language (Greek/Hebrew).
+ * @returns A promise resolving to the morphological breakdown.
+ */
+export async function analyzeFragment(fragment: string, originalLanguage: 'greek' | 'hebrew') {
+  // ...
+}
+```
+
 ### Code of Conduct
 By participating, you agree to maintain a professional and respectful environment suitable for academic collaboration.
 
@@ -21,6 +43,7 @@ By participating, you agree to maintain a professional and respectful environmen
 3. **Pull Requests**:
    - Create a feature branch from `main`.
    - Ensure all code is typed with TypeScript.
+   - **Ensure all public APIs and components have JSDoc comments.**
    - Follow the established UI patterns using ShadCN and Tailwind.
    - If adding a new AI Flow, ensure it follows the expert-to-seminary-student persona.
 
