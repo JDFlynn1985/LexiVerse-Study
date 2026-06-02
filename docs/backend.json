@@ -11,6 +11,17 @@
         "email": { "type": "string" },
         "photoURL": { "type": "string" },
         "credentials": { "type": "string", "description": "Academic or professional titles (e.g. PhD, MDiv, Seminary Student)." },
+        "designation": {
+          "type": "string",
+          "enum": [
+            "Professor",
+            "Undergraduate Seminary Student",
+            "Master's Degree Candidate",
+            "Doctoral Candidate",
+            "Non-Seminary Student"
+          ],
+          "description": "The user's primary scholarly role or academic status."
+        },
         "bio": { "type": "string", "description": "A brief scholarly biography explaining research interests." },
         "isAdmin": { "type": "boolean", "description": "System administration privilege. Can only be granted by another admin." },
         "isModerator": { "type": "boolean", "description": "Moderator privilege for peer review." },

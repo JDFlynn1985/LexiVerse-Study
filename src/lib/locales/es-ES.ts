@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Spanish (Spain) localization strings.
  */
@@ -15,7 +16,7 @@ export const esES = {
     dictionaries: "Diccionarios",
     commentaries: "Comentarios",
     wiki: "Wiki Erudita",
-    synthesis: "Síntesis Académica",
+    synthesis: "Centro de Escritura",
     theology_map: "Mapa Teológico",
     timeline: "Línea de Tiempo",
     writing_editor: "Editor de Escritura",

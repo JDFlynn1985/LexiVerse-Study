@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview English (US) localization strings.
  */
@@ -15,7 +16,7 @@ export const enUS = {
     dictionaries: "Dictionaries",
     commentaries: "Commentaries",
     wiki: "Scholarly Wiki",
-    synthesis: "Academic Synthesis",
+    synthesis: "Writing Hub",
     theology_map: "Theology Map",
     timeline: "Historical Timeline",
     writing_editor: "Writing Editor",
