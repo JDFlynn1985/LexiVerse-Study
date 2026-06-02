@@ -6,17 +6,11 @@
  * This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 
  * International License. To view a copy of this license, visit:
  * http://creativecommons.org
- *
- * Under this license, you are free to copy, redistribute, and adapt this code,
- * provided you follow these conditions:
- *  - Attribution: You must give appropriate credit to Joshua Flynn.
- *  - NonCommercial: You may not use this material for commercial purposes.
- *  - ShareAlike: If you alter, transform, or build upon this code, you must 
- *    distribute your contributions under the same license as the original.
  */
 
 /**
  * @fileOverview Client library for interacting with the bible.helloao.org (Free Use Bible API).
+ * Enhanced with recursive verse extraction and reference detection.
  */
 
 export interface BibleVersion {
@@ -69,6 +63,13 @@ export async function getVersions(): Promise<BibleVersion[]> {
   }
 }
 
+/**
+ * Heuristic check to see if a query is a Bible reference.
+ */
+export function isReference(query: string): boolean {
+  return /^(\d?\s?[a-zA-Z\s]+)\s\d+(?::\d+)?$/.test(query.trim());
+}
+
 export function parseReference(reference: string) {
   const match = reference.match(/^(\d?\s?[a-zA-Z\s]+)\s(\d+)(?::(\d+))?$/);
   if (!match) return null;
@@ -90,4 +91,29 @@ export async function getChapterContent(version: string, bookName: string, chapt
     console.error(`Failed to fetch ${bookName} ${chapter}`, e);
     return null;
   }
+}
+
+/**
+ * Extracts the text for a specific verse from a chapter structure.
+ */
+export async function getVerseText(version: string, reference: string): Promise<string> {
+  const parsed = parseReference(reference);
+  if (!parsed) return "";
+  const data = await getChapterContent(version, parsed.bookName, parsed.chapter);
+  if (!data) return "";
+  
+  const findVerse = (nodes: any[]): string => {
+    for (const node of nodes) {
+      if (node.type === 'verse' && node.number === parsed.verse) {
+        return node.content.map((c: any) => c.text).join(' ');
+      }
+      if (node.content && Array.isArray(node.content)) {
+        const found = findVerse(node.content);
+        if (found) return found;
+      }
+    }
+    return "";
+  };
+
+  return findVerse(data.chapter as any);
 }

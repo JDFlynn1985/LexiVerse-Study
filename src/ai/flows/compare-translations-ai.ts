@@ -1,34 +1,36 @@
 'use server';
 /**
- * @fileOverview This flow compares the translation of a given word across various Bible versions.
+ * @fileOverview AI Grounded Translation Comparison Flow.
+ * Analyzes word or passage differences across versions using real source text.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
 const CompareTranslationsInputSchema = z.object({
-  word: z.string().describe('The word to search for translations (e.g., Greek/Hebrew word or its transliteration).'),
-  language: z.string().describe('The source language of the word (e.g., "Greek", "Hebrew").'),
+  word: z.string().describe('The word or verse reference to compare.'),
+  language: z.string().optional().describe('The source language (for word analysis).'),
   versions: z.array(z.string()).describe('A list of Bible versions to compare.'),
+  groundedTexts: z.record(z.string()).optional().describe('Real text content for each version to ground the analysis.'),
 });
 export type CompareTranslationsInput = z.infer<typeof CompareTranslationsInputSchema>;
 
 const TranslationDetailSchema = z.object({
   version: z.string().describe('The name of the Bible version.'),
-  translation: z.string().describe('How the word is translated in this version.'),
-  originalWord: z.string().optional().describe('The original Greek/Hebrew word in its proper alphabet.'),
-  transliteration: z.string().optional().describe('The transliteration of the original word.'),
-  pronunciation: z.string().optional().describe('The pronunciation of the original word.'),
-  notes: z.string().optional().describe('Nuances about this translation.'),
+  translation: z.string().describe('The rendered text in this version.'),
+  originalWord: z.string().optional().describe('The original Greek/Hebrew word (if word analysis).'),
+  transliteration: z.string().optional().describe('Transliteration.'),
+  pronunciation: z.string().optional().describe('Pronunciation.'),
+  notes: z.string().optional().describe('Linguistic or theological nuances about this specific rendering.'),
 });
 
 const CompareTranslationsOutputSchema = z.object({
-  originalWord: z.string().describe('The original input word in its source alphabet.'),
-  language: z.string().describe('The source language of the word.'),
-  versionsCompared: z.array(z.string()).describe('The list of versions compared.'),
-  translations: z.array(TranslationDetailSchema).describe('Details of how the word is translated in each specified version.'),
-  summary: z.string().describe('AI summary comparing translations.'),
-  bibliography: z.string().optional().describe('Simulated sources used for comparison.'),
+  originalWord: z.string().describe('The input term or reconstructed original alphabet.'),
+  language: z.string().describe('Reconstructed source language.'),
+  versionsCompared: z.array(z.string()).describe('List of versions analyzed.'),
+  translations: z.array(TranslationDetailSchema).describe('Details of each rendering.'),
+  summary: z.string().describe('Deep scholarly synthesis of the translational differences and their theological impact.'),
+  bibliography: z.string().optional().describe('Academic sources and version details.'),
 });
 export type CompareTranslationsOutput = z.infer<typeof CompareTranslationsOutputSchema>;
 
@@ -40,17 +42,24 @@ const compareTranslationsPrompt = ai.definePrompt({
   output: {
     schema: CompareTranslationsOutputSchema,
   },
-  prompt: `You are an expert biblical linguist and translator. Compare the translation of '{{word}}' ({{language}}) across these versions: {{#each versions}}{{{this}}}, {{/each}}.
-Your analysis must be structured for a seminary student, focusing on the translational philosophy and theological nuance of each version.
+  prompt: `You are an expert biblical scholar and translation auditor. 
+Your task is to compare '{{word}}' across multiple versions. 
+
+{{#if groundedTexts}}
+[PRIMARY SOURCE CONTEXT]: 
+Use these EXACT wordings as the basis for your analysis:
+{{#each groundedTexts}}
+- {{@key}}: {{{this}}}
+{{/each}}
+{{/if}}
 
 Requirements:
-1. Include the original Greek or Hebrew word in its correct ALPHABET for every instance where an original word is referenced.
-2. Provide transliterations and pronunciations for all original terms.
-3. Address the user as a fellow scholar-in-training with formal academic rigor.
+1. If this is a word analysis, provide the word in its original GREEK or HEBREW alphabet.
+2. If this is a passage comparison, focus on the theological shift caused by different word choices (e.g., Formal vs Functional equivalence).
+3. Identify the translational philosophy of each version involved (e.g., KJV literalism vs NIV dynamic equivalence).
+4. Address the user as a senior seminary student.
 
-Simulate fetching translations and providing original terms. Highlight theological nuances and differences in translation philosophy.
-
-Format strictly as JSON adhering to CompareTranslationsOutputSchema.`,
+Format your response strictly as JSON adhering to CompareTranslationsOutputSchema.`,
 });
 
 const compareTranslationsFlow = ai.defineFlow(
@@ -66,7 +75,7 @@ const compareTranslationsFlow = ai.defineFlow(
 );
 
 /**
- * Retrieves and compares word translations across Bible versions.
+ * Retrieves and compares word or passage translations across Bible versions.
  */
 export async function compareTranslations(input: CompareTranslationsInput): Promise<CompareTranslationsOutput> {
   return compareTranslationsFlow(input);

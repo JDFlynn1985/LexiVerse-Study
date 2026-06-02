@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -80,7 +79,7 @@ export default function SetupWizard() {
         updatedAt: new Date().toISOString()
       });
 
-      // 2. Comprehensive Module Seeding
+      // 2. Comprehensive Module Seeding (Filtered to real modules only)
       const allModules = [...DEFAULT_MODULES, ...GOVERNANCE_MODULES];
       
       allModules.forEach(mod => {
@@ -97,10 +96,12 @@ export default function SetupWizard() {
         else if (mod.id === 'verse-explorer') iconName = 'notebook-pen';
         else if (mod.id === 'geography') iconName = 'globe';
         else if (mod.id === 'timeline') iconName = 'clock';
+        else if (mod.id === 'translation-compare') iconName = 'arrow-left-right';
+        else if (mod.id === 'library') iconName = 'library';
         else if (mod.id === 'profile' || mod.labelKey === 'nav.api_portal') iconName = 'key';
         else if (mod.labelKey === 'nav.audit') iconName = 'activity';
         else if (mod.labelKey === 'nav.admin_api') iconName = 'key';
-        else if (mod.id === 'archaeology') iconName = 'map';
+        else if (mod.id === 'archaeology') iconName = 'landmark';
 
         const docId = (mod.id + '-' + (mod.path?.replace(/\//g, '') || 'tab')).toLowerCase();
         batch.set(doc(db, 'modules', docId), {

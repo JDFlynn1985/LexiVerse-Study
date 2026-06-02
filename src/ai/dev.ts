@@ -19,3 +19,4 @@ import '@/ai/flows/historical-timeline-flow.ts';
 import '@/ai/flows/transcribe-flow.ts';
 import '@/ai/flows/cross-reference-ai.ts';
 import '@/ai/flows/geography-flow.ts';
+import '@/ai/flows/archaeology-site-flow.ts';
