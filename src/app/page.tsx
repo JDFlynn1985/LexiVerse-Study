@@ -52,7 +52,6 @@ import {
   ChevronRight,
   ListFilter,
   ArrowRight,
-  Plus,
   FileSearch2,
   School,
   MessageSquare,
@@ -250,7 +249,6 @@ export default function Home() {
     }
   }, [userProfile, language]);
 
-  // Chat Subscription stabilized
   const chatQuery = useMemoFirebase(() => {
     if (!db) return null;
     const base = collection(db, 'messages');
@@ -1181,7 +1179,7 @@ const AssistantView = memo(({ assistantTerm, setAssistantTerm, handleSearch, isL
   </div>
 ));
 
-const ProfileView = memo(({ userProfile, effectiveAvatar, userInstitutionName, profileDraft, setProfileDraft, institutions, updateProfile, isLoading, aiPrefs, saveAiPreferences, systemConfig, localApiKey, historyItems, handleSearch }: any) => (
+const ProfileView = memo(({ userProfile, effectiveAvatar, userInstitutionName, profileDraft, setProfileDraft, institutions, updateProfile, isLoading, aiPrefs, saveAiPreferences, systemConfig, historyItems, handleSearch }: any) => (
   <div className="space-y-8 animate-in fade-in duration-500">
     <header><h1 className="text-3xl font-bold font-headline">Scholarly Profile</h1></header>
     <div className="grid gap-8 md:grid-cols-3">
