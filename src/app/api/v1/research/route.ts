@@ -123,7 +123,6 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('API Research Error:', error);
     return NextResponse.json({ 
       error: error.message || 'Internal server error during research processing' 
     }, { status: 500 });
