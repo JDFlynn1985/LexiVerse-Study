@@ -1,94 +1,45 @@
-
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "LexiVerse Research API",
-    "description": "External scholarly research access to the LexiVerse Explorer AI engine. Integrates scripture analysis, linguistic cross-referencing, and retrieval-augmented generation (RAG).",
+    "title": "LexiVerse Scholarly Research API",
+    "description": "Integration portal for the LexiVerse research engine. Provides access to AI-powered scripture analysis and linguistic synthesis.",
     "version": "1.0.0",
     "contact": {
       "name": "LexiVerse Support",
-      "url": "https://lexiverse.app/support"
+      "url": "https://lexiverse.app/help"
     }
   },
   "servers": [
     {
-      "url": "https://lexiverse.app",
-      "description": "Production API Server"
-    },
-    {
-      "url": "http://localhost:9002",
-      "description": "Development API Server"
+      "url": "https://lexiverse.app/api/v1",
+      "description": "Production Scholarly Hub"
     }
   ],
-  "paths": {
-    "/api/v1/research": {
-      "post": {
-        "summary": "Execute Scholarly Research",
-        "description": "Performs in-depth analysis of a scripture term or concept using the configured AI engine (Gemini or Local Ollama). Supports context injection for custom manuscript analysis.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "term": {
-                    "type": "string",
-                    "example": "John 3:16",
-                    "description": "The scripture reference or Greek/Hebrew term to research."
-                  },
-                  "researchContext": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "description": "Optional list of text excerpts from scholarly papers to serve as research context (RAG)."
-                  }
-                },
-                "required": ["term"]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful research synthesis",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResearchResult"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized - Missing or invalid Bearer token"
-          },
-          "429": {
-            "description": "Rate Limit Exceeded - Tier quota reached for the day"
-          },
-          "500": {
-            "description": "Internal Engine Error"
-          }
-        }
-      }
-    }
-  },
   "components": {
     "securitySchemes": {
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "bearerFormat": "API Key"
+        "bearerFormat": "LexiVerse Key (lv_...)"
       }
     },
     "schemas": {
-      "ResearchResult": {
+      "ResearchRequest": {
+        "type": "object",
+        "required": ["term"],
+        "properties": {
+          "term": {
+            "type": "string",
+            "description": "The scripture term or reference to research (e.g., 'G3056' or 'John 1:1')."
+          },
+          "researchContext": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Optional excerpts from research papers to ground the AI in specific context (RAG)."
+          }
+        }
+      },
+      "ResearchResponse": {
         "type": "object",
         "properties": {
           "success": { "type": "boolean" },
@@ -97,11 +48,9 @@
             "properties": {
               "originalWord": { "type": "string" },
               "transliteration": { "type": "string" },
-              "pronunciation": { "type": "string" },
-              "definitions": { "type": "array", "items": { "type": "string" } },
               "aiInsights": { "type": "string" },
-              "bibliography": { 
-                "type": "array", 
+              "verseUsages": {
+                "type": "array",
                 "items": {
                   "type": "object",
                   "properties": {
@@ -119,6 +68,36 @@
               "remaining": { "type": "number" }
             }
           }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/research": {
+      "post": {
+        "summary": "Execute Scholarly Research",
+        "description": "Submits a term for analysis. Returns linguistic data, commentary synthesis, and bibliographic references.",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ResearchRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Analysis",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResearchResponse" }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized - Missing Bearer Token" },
+          "403": { "description": "Forbidden - Invalid or Revoked Key" },
+          "429": { "description": "Tier Limit Exceeded" }
         }
       }
     }

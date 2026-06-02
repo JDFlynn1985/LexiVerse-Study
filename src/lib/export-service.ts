@@ -1,6 +1,10 @@
 /**
  * @fileOverview Centralized service for exporting research results to various formats.
- * Updated to support hyperlinked scriptures, bibliographic entries, and user-defined highlights.
+ * This service handles the transformation of scholarly data into portable document formats,
+ * supporting advanced features like hyperlinked scriptures, bibliographic entries, 
+ * and user-defined highlight preservation through complex text segmentation.
+ *
+ * Supported formats: PDF, DOCX, Markdown, RTF, Plain Text.
  */
 
 import { jsPDF } from 'jspdf';
@@ -10,17 +14,22 @@ import { AiStudyAssistantOutput } from '@/ai/flows/ai-study-assistant';
 export type ExportFormat = 'pdf' | 'docx' | 'markdown' | 'rtf' | 'txt' | 'gdrive' | 'gdocs';
 
 /**
- * Helper to split text by multiple highlights into segments.
+ * Splits a block of text into segments based on a list of highlight strings.
+ * This ensures that when exporting to formats like PDF or DOCX, the exact strings 
+ * highlighted by the scholar in the UI are preserved with visual markers.
+ *
+ * @param text The full text content to be segmented.
+ * @param highlights Array of strings representing the text fragments to be highlighted.
+ * @returns Array of objects containing text segments and their highlight status.
  */
 function splitByHighlights(text: string, highlights: string[]) {
   if (!highlights || highlights.length === 0) return [{ text, isHighlighted: false }];
   
-  // Sort highlights by length descending to match longest possible strings first
+  // Sort highlights by length descending to ensure we match longest possible strings first
   const sorted = [...highlights].sort((a, b) => b.length - a.length);
   const segments: { text: string; isHighlighted: boolean }[] = [];
   let currentIndex = 0;
 
-  // This is a simple implementation; for production, a more robust regex-based approach is better
   while (currentIndex < text.length) {
     let earliestMatch = -1;
     let matchedString = "";
@@ -51,11 +60,17 @@ function splitByHighlights(text: string, highlights: string[]) {
 
 /**
  * Generates and triggers a browser download for a PDF report.
+ * Uses jsPDF to create a structured scholarly report with support for color-coded
+ * highlights and clickable resource links.
+ * 
+ * @param data The AI-generated research output.
+ * @param highlights User-defined highlights from the research session.
  */
 export async function exportToPDF(data: AiStudyAssistantOutput, highlights: string[] = []) {
   const doc = new jsPDF();
   const title = data.originalWord || "Research Report";
   
+  // Document Header
   doc.setFontSize(22);
   doc.setTextColor(48, 25, 52); // Deep Indigo
   doc.text(title, 20, 30);
@@ -73,29 +88,23 @@ export async function exportToPDF(data: AiStudyAssistantOutput, highlights: stri
   doc.setFontSize(10);
   doc.setTextColor(0, 0, 0);
   
-  const segments = splitByHighlights(data.aiInsights, highlights);
   const margin = 20;
   const pageWidth = doc.internal.pageSize.getWidth();
   const maxWidth = pageWidth - (margin * 2);
-  let x = margin;
-
-  // Simple line-by-line rendering for segments with highlighting
-  const words = data.aiInsights.split(/\s+/);
-  // For simplicity in a prototype, we'll use a simplified version for PDF highlighting
-  // Real implementation would require more complex line-wrapping logic
+  
+  // Simplified line-by-line rendering for PDF text with segments
   const splitInsights = doc.splitTextToSize(data.aiInsights, maxWidth);
   
   splitInsights.forEach((line: string) => {
     if (y > 270) { doc.addPage(); y = 20; }
     
-    // Check if any part of this line is highlighted
     let currentX = margin;
     const lineSegments = splitByHighlights(line, highlights);
     
     lineSegments.forEach(seg => {
       const textWidth = doc.getTextWidth(seg.text);
       if (seg.isHighlighted) {
-        doc.setFillColor(255, 255, 0);
+        doc.setFillColor(255, 255, 0); // Yellow highlight
         doc.rect(currentX, y - 4, textWidth, 6, 'F');
       }
       doc.text(seg.text, currentX, y);
@@ -105,6 +114,7 @@ export async function exportToPDF(data: AiStudyAssistantOutput, highlights: stri
     y += 6;
   });
 
+  // Verse References Section
   y += 10;
   doc.setFontSize(14);
   doc.setTextColor(48, 25, 52);
@@ -113,12 +123,13 @@ export async function exportToPDF(data: AiStudyAssistantOutput, highlights: stri
   doc.setFontSize(10);
   data.verseUsages.forEach(v => {
     if (y > 280) { doc.addPage(); y = 20; }
-    doc.setTextColor(0, 0, 255);
+    doc.setTextColor(0, 0, 255); // Blue link
     doc.text(v.text, 25, y);
     doc.link(25, y - 5, doc.getTextWidth(v.text), 6, { url: v.url });
     y += 8;
   });
 
+  // Bibliography Section
   y += 10;
   doc.setFontSize(14);
   doc.setTextColor(48, 25, 52);
@@ -137,7 +148,12 @@ export async function exportToPDF(data: AiStudyAssistantOutput, highlights: stri
 }
 
 /**
- * Generates and triggers a browser download for a Word document.
+ * Generates and triggers a browser download for a Microsoft Word (.docx) document.
+ * Leverages the docx library to produce professional academic files with
+ * hyperlinked references and bibliographic lists.
+ * 
+ * @param data The AI-generated research output.
+ * @param highlights User-defined highlights to be converted to shading.
  */
 export async function exportToWord(data: AiStudyAssistantOutput, highlights: string[] = []) {
   const insightSegments = splitByHighlights(data.aiInsights, highlights);
@@ -195,14 +211,17 @@ export async function exportToWord(data: AiStudyAssistantOutput, highlights: str
 }
 
 /**
- * Generates and triggers a browser download for a Markdown file.
+ * Generates and triggers a browser download for a Markdown (.md) file.
+ * Optimized for use in personal knowledge management tools like Obsidian.
+ * 
+ * @param data The AI-generated research output.
+ * @param highlights User-defined highlights converted to ==highlight== syntax.
  */
 export async function exportToMarkdown(data: AiStudyAssistantOutput, highlights: string[] = []) {
   const title = data.originalWord || "Research";
   
   let processedInsights = data.aiInsights;
   highlights.forEach(h => {
-    // Escape for regex and replace with Markdown highlight syntax ==text==
     const escaped = h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     processedInsights = processedInsights.replace(new RegExp(escaped, 'g'), `==${h}==`);
   });
@@ -234,6 +253,7 @@ ${data.bibliography.map(b => `- [${b.text}](${b.url})`).join('\n')}
 
 /**
  * Generates and triggers a browser download for a Rich Text Format (.rtf) file.
+ * Provides legacy compatibility for older scholarly word processors.
  */
 export async function exportToRTF(data: AiStudyAssistantOutput, highlights: string[] = []) {
   const title = data.originalWord || "Research";
@@ -274,6 +294,7 @@ export async function exportToRTF(data: AiStudyAssistantOutput, highlights: stri
 
 /**
  * Generates and triggers a browser download for a Plain Text (.txt) file.
+ * Includes explicit highlight markers for environments without rich formatting.
  */
 export async function exportToText(data: AiStudyAssistantOutput, highlights: string[] = []) {
   const title = data.originalWord || "Research";

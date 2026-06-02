@@ -1,21 +1,34 @@
-
 'use server';
 /**
  * @fileOverview Comprehensive AI Study Assistant for in-depth biblical research.
- * Orchestrates scripture term analysis and generates structured academic reports,
- * incorporating user-uploaded research papers as additional context.
- * Adopts an expert scholarly persona speaking to a seminary student.
- * Updated to support dynamic model selection and user-provided API keys.
+ * 
+ * This flow orchestrates the synthesis of multiple data streams—including remote scripture
+ * APIs, local research papers (via RAG), and semantic linguistic analysis—into a 
+ * structured academic report. It is designed to adopt a formal, mentor-like persona
+ * suitable for post-graduate seminary students.
+ * 
+ * Key Features:
+ * - Dynamic model routing (Cloud vs. Local).
+ * - RAG (Retrieval-Augmented Generation) using user-provided context.
+ * - Formal SBL/Turabian bibliographic generation.
+ * - Interactive link generation for external scholarly portals.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { getChapterContent, parseReference } from '@/lib/bible-api';
 
+/**
+ * Simulated theological weight from a specialized linguistic model.
+ * In a production environment, this would be a separate inference call.
+ */
 const brainJsSimulatedInsight = 'Semantic analysis suggests a 94% probability of morphological alignment with archaic root structures and theological pivots.';
 
 /**
- * Aggregates context from available scripture APIs.
+ * Aggregates context from available scripture APIs to ground the AI in verified text.
+ * 
+ * @param term The scripture reference or keyword being investigated.
+ * @returns A combined context string containing verified scripture and lexicon stubs.
  */
 const aggregateExternalData = async (term: string): Promise<string> => {
   const parsed = parseReference(term);
@@ -31,33 +44,37 @@ const aggregateExternalData = async (term: string): Promise<string> => {
 
 const AiStudyAssistantInputSchema = z.object({
   term: z.string().describe('The scripture term or reference to research.'),
-  researchContext: z.array(z.string()).optional().describe('Context from uploaded research papers.'),
-  model: z.string().optional().describe('The AI model to use for this interaction.'),
-  apiKey: z.string().optional().describe('Optional user-provided Gemini API key.'),
+  researchContext: z.array(z.string()).optional().describe('Context from uploaded research papers used for RAG.'),
+  model: z.string().optional().describe('The specific AI model identifier to use.'),
+  apiKey: z.string().optional().describe('Optional user-provided Gemini API key to override system defaults.'),
 });
 
 export type AiStudyAssistantInput = z.infer<typeof AiStudyAssistantInputSchema>;
 
 const LinkableItemSchema = z.object({
-  text: z.string().describe('The display text for the reference.'),
-  url: z.string().describe('The direct URL to the resource (e.g. BlueLetterBible, scholarly record).'),
+  text: z.string().describe('Display text for the scholarly reference.'),
+  url: z.string().describe('Direct URI to the external resource (e.g., BlueLetterBible).'),
 });
 
 const AiStudyAssistantOutputSchema = z.object({
-  originalWord: z.string().describe('The original Greek, Hebrew, or Aramaic word in its proper alphabet.'),
-  transliteration: z.string().describe('The transliteration.'),
-  pronunciation: z.string().describe('The pronunciation guide.'),
-  definitions: z.array(z.string()).describe('List of definitions.'),
-  lexicalData: z.array(z.string()).describe('Lexical data.'),
-  commentaryInsights: z.string().describe('Summary of commentary insights.'),
-  verseUsages: z.array(LinkableItemSchema).describe('Verses where the word is used with direct resource links.'),
-  translationVariations: z.array(z.string()).describe('Variations across versions.'),
-  aiInsights: z.string().describe('AI-generated insights synthesis.'),
-  bibliography: z.array(LinkableItemSchema).describe('Academic bibliography entries in SBL/Turabian style with direct source links.'),
+  originalWord: z.string().describe('The word in its proper Greek, Hebrew, or Aramaic alphabet.'),
+  transliteration: z.string().describe('Phonetic transliteration.'),
+  pronunciation: z.string().describe('Pronunciation guide.'),
+  definitions: z.array(z.string()).describe('Scholarly definitions.'),
+  lexicalData: z.array(z.string()).describe('Morphological and grammatical data.'),
+  commentaryInsights: z.string().describe('Synthesized insights from historical commentaries.'),
+  verseUsages: z.array(LinkableItemSchema).describe('List of pertinent verses with direct links.'),
+  translationVariations: z.array(z.string()).describe('How the term varies across major Bible versions.'),
+  aiInsights: z.string().describe('Synthesized research analysis for the scholar.'),
+  bibliography: z.array(LinkableItemSchema).describe('Formal bibliography entries with source links.'),
 });
 
 export type AiStudyAssistantOutput = z.infer<typeof AiStudyAssistantOutputSchema>;
 
+/**
+ * The core prompt definition for the study assistant.
+ * Utilizes Handlebars templating to inject dynamic context into a rigid scholarly framework.
+ */
 const studyAssistantPrompt = ai.definePrompt({
   name: 'studyAssistantPrompt',
   input: {
@@ -97,6 +114,10 @@ User-Uploaded Research Context (RAG):
 Ensure the response follows the AiStudyAssistantOutputSchema exactly. Structure the report for high-level academic review, focusing on linguistic precision and theological depth.`,
 });
 
+/**
+ * Executes the Study Assistant Flow.
+ * Handles dynamic API key application and model selection.
+ */
 const aiStudyAssistantFlow = ai.defineFlow(
   {
     name: 'aiStudyAssistantFlow',
@@ -104,14 +125,14 @@ const aiStudyAssistantFlow = ai.defineFlow(
     outputSchema: AiStudyAssistantOutputSchema,
   },
   async input => {
-    // Dynamic API Key override for prototype
+    // Priority: User API Key -> System API Key
     if (input.apiKey) {
       process.env.GEMINI_API_KEY = input.apiKey;
     }
 
     const selectedModel = input.model || 'googleai/gemini-2.5-flash';
     
-    // Check for API Configuration Readiness (only if using cloud model)
+    // Safety check for cloud models without keys
     if (selectedModel.startsWith('googleai/') && !process.env.GEMINI_API_KEY) {
       throw new Error("AI engine is not configured. Please supply your own Gemini API Key in your profile settings.");
     }
@@ -131,7 +152,7 @@ const aiStudyAssistantFlow = ai.defineFlow(
 );
 
 /**
- * Executes the AI Study Assistant flow.
+ * Public wrapper for the AI Study Assistant flow.
  */
 export async function aiStudyAssistant(input: AiStudyAssistantInput): Promise<AiStudyAssistantOutput> {
   return aiStudyAssistantFlow(input);

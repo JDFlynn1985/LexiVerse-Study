@@ -1,12 +1,17 @@
-
 /**
- * @fileOverview Client for bible.helloao.org (Free Use Bible API)
+ * @fileOverview Client library for interacting with the bible.helloao.org (Free Use Bible API).
+ * This module provides the core data fetching logic for scriptures, translations,
+ * and book metadata, supporting the academic cross-referencing features of the app.
  */
 
 export interface BibleVersion {
+  /** Unique ID for the translation (e.g., 'kjv', 'net'). */
   id: string;
+  /** Full descriptive name of the translation. */
   name: string;
+  /** Primary language of the translation. */
   language: string;
+  /** Short abbreviation for display purposes. */
   abbreviation: string;
 }
 
@@ -15,9 +20,14 @@ export interface BibleChapter {
   bookName: string;
   bookCode: string;
   chapterNumber: number;
+  /** Array of block-level nodes representing scripture text and metadata. */
   content: Array<any>;
 }
 
+/**
+ * Internal mapping of full book names to their standard 3-letter USFM codes.
+ * This is used to construct API requests to the Bible provider.
+ */
 const BOOK_CODES: Record<string, string> = {
   "Genesis": "GEN", "Exodus": "EXO", "Leviticus": "LEV", "Numbers": "NUM", "Deuteronomy": "DEU",
   "Joshua": "JOS", "Judges": "JDG", "Ruth": "RUT", "1 Samuel": "1SA", "2 Samuel": "2SA",
@@ -37,7 +47,9 @@ const BOOK_CODES: Record<string, string> = {
 };
 
 /**
- * Fetches available Bible versions.
+ * Fetches the list of all available Bible translations from the remote provider.
+ * 
+ * @returns A promise that resolves to an array of BibleVersion objects.
  */
 export async function getVersions(): Promise<BibleVersion[]> {
   try {
@@ -57,7 +69,11 @@ export async function getVersions(): Promise<BibleVersion[]> {
 }
 
 /**
- * Parses a reference like "John 3:16" into book name, chapter, and optional verse.
+ * Parses a natural language scripture reference string into its constituent parts.
+ * Supported format: "BookName Chapter:Verse" or "BookName Chapter".
+ * 
+ * @param reference The raw reference string (e.g., "John 3:16").
+ * @returns Object containing bookName, chapter, and optional verse, or null if invalid.
  */
 export function parseReference(reference: string) {
   const match = reference.match(/^(\d?\s?[a-zA-Z\s]+)\s(\d+)(?::(\d+))?$/);
@@ -70,7 +86,12 @@ export function parseReference(reference: string) {
 }
 
 /**
- * Fetches chapter content from the API.
+ * Fetches the complete JSON content for a specific Bible chapter.
+ * 
+ * @param version The version ID (e.g., 'kjv').
+ * @param bookName The full book name (e.g., 'John').
+ * @param chapter The chapter number.
+ * @returns A promise resolving to the BibleChapter object or null if not found.
  */
 export async function getChapterContent(version: string, bookName: string, chapter: number): Promise<BibleChapter | null> {
   const bookCode = BOOK_CODES[bookName] || bookName.toUpperCase().substring(0, 3);
