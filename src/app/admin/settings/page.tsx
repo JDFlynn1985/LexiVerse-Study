@@ -27,13 +27,16 @@ import {
   Lock,
   AlertCircle,
   Globe,
-  WifiOff
+  WifiOff,
+  RefreshCw,
+  Search
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
+import { getLocalOllamaModels } from '@/app/actions/ollama-actions';
 
 export default function AdminSettings() {
   const db = useFirestore();
@@ -45,6 +48,7 @@ export default function AdminSettings() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [detecting, setDetecting] = useState(false);
   const [config, setConfig] = useState<any>({
     geminiApiKey: '',
     ollamaUrl: 'http://localhost:11434',
@@ -91,6 +95,41 @@ export default function AdminSettings() {
       toast({ variant: 'destructive', title: "Update Failed", description: "You do not have permission to modify system configuration." });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAutoDetect = async () => {
+    setDetecting(true);
+    try {
+      const result = await getLocalOllamaModels(config.ollamaUrl);
+      if (result.error) {
+        toast({ 
+          variant: 'destructive', 
+          title: "Detection Failed", 
+          description: result.error 
+        });
+      } else if (result.models.length > 0) {
+        // Merge with existing models, ensuring uniqueness
+        const uniqueModels = Array.from(new Set([...config.localModelList, ...result.models]));
+        setConfig({
+          ...config,
+          localModelList: uniqueModels
+        });
+        toast({ 
+          title: "Models Detected", 
+          description: `Identified ${result.models.length} local models from your server.` 
+        });
+      } else {
+        toast({ 
+          variant: 'destructive', 
+          title: "No Models Found", 
+          description: "Ollama is reachable, but no models have been downloaded yet." 
+        });
+      }
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: "Error", description: "An unexpected error occurred during detection." });
+    } finally {
+      setDetecting(false);
     }
   };
 
@@ -231,15 +270,23 @@ export default function AdminSettings() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>Ollama Server Address</Label>
-                  <Input 
-                    placeholder="http://localhost:11434"
-                    value={config?.ollamaUrl || ''} 
-                    onChange={e => setConfig({...config, ollamaUrl: e.target.value})} 
-                  />
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="http://localhost:11434"
+                      value={config?.ollamaUrl || ''} 
+                      onChange={e => setConfig({...config, ollamaUrl: e.target.value})} 
+                    />
+                    <Button variant="outline" size="icon" onClick={handleAutoDetect} disabled={detecting} title="Auto-detect models using official Ollama package">
+                      {detecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    </Button>
+                  </div>
                 </div>
                 
                 <div className="space-y-4 border-t pt-4">
-                  <Label>Manage Models</Label>
+                  <div className="flex justify-between items-center">
+                    <Label>Manage Models</Label>
+                    <Badge variant="outline" className="text-[10px]">Official JS Package Enabled</Badge>
+                  </div>
                   <div className="flex gap-2">
                     <Input 
                       placeholder="e.g. llama3.1" 
@@ -264,7 +311,7 @@ export default function AdminSettings() {
                       </Badge>
                     ))}
                     {config.localModelList.length === 0 && (
-                      <p className="text-xs text-muted-foreground italic">No local models configured.</p>
+                      <p className="text-xs text-muted-foreground italic">No local models configured. Use auto-detect to fetch them.</p>
                     )}
                   </div>
                 </div>
