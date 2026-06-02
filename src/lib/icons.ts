@@ -1,3 +1,4 @@
+
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
@@ -6,13 +7,6 @@
  * This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 
  * International License. To view a copy of this license, visit:
  * http://creativecommons.org
- *
- * Under this license, you are free to copy, redistribute, and adapt this code,
- * provided you follow these conditions:
- *  - Attribution: You must give appropriate credit to Joshua Flynn.
- *  - NonCommercial: You may not use this material for commercial purposes.
- *  - ShareAlike: If you alter, transform, or build upon this code, you must 
- *    distribute your contributions under the same license as the original.
  */
 
 /**
@@ -25,7 +19,7 @@ import {
   GraduationCap, 
   Sparkles, 
   History, 
-  FileSearch2, 
+  FileSearch, 
   BookOpen, 
   Feather, 
   Puzzle,
@@ -39,7 +33,10 @@ import {
   Search,
   Library,
   Globe,
-  Layers
+  Layers,
+  NotebookPen,
+  Activity,
+  UserCheck
 } from 'lucide-react';
 
 export const ICON_MAP: Record<string, any> = {
@@ -48,7 +45,7 @@ export const ICON_MAP: Record<string, any> = {
   'graduation-cap': GraduationCap,
   'sparkles': Sparkles,
   'history': History,
-  'file-search': FileSearch2,
+  'file-search': FileSearch,
   'book-open': BookOpen,
   'feather': Feather,
   'puzzle': Puzzle,
@@ -62,7 +59,10 @@ export const ICON_MAP: Record<string, any> = {
   'search': Search,
   'library': Library,
   'globe': Globe,
-  'layers': Layers
+  'layers': Layers,
+  'notebook-pen': NotebookPen,
+  'activity': Activity,
+  'user-check': UserCheck
 };
 
 export function getIconByName(name: string) {

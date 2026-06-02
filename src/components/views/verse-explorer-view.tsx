@@ -1,3 +1,4 @@
+
 'use client';
 
 /**
@@ -6,7 +7,7 @@
  */
 
 import React, { memo, useState, useRef, useEffect } from 'react';
-import { Quill, Search, Loader2, Sparkles, BookOpen, Send, MessageSquare, History } from 'lucide-react';
+import { NotebookPen, Search, Loader2, Sparkles, BookOpen, Send, MessageSquare, History } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -66,7 +67,7 @@ export const VerseExplorerView = memo(({ isLoading: globalLoading }: VerseExplor
         <div>
           <h1 className="text-3xl font-bold font-headline flex items-center gap-3">
             <div className="p-2 bg-primary/10 rounded-lg">
-               <Quill className="h-6 w-6 text-primary" />
+               <NotebookPen className="h-6 w-6 text-primary" />
             </div>
             Verse Explorer
           </h1>
@@ -125,7 +126,7 @@ export const VerseExplorerView = memo(({ isLoading: globalLoading }: VerseExplor
                 <div key={i} className={cn("flex gap-4 group animate-in slide-in-from-bottom-2", msg.role === 'user' ? "flex-row-reverse" : "flex-row")}>
                   <Avatar className={cn("h-8 w-8 shrink-0 border", msg.role === 'user' ? "border-primary/20" : "border-accent/20")}>
                     <AvatarFallback className={msg.role === 'user' ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent"}>
-                      {msg.role === 'user' ? 'S' : <Quill className="h-4 w-4" />}
+                      {msg.role === 'user' ? 'S' : <NotebookPen className="h-4 w-4" />}
                     </AvatarFallback>
                   </Avatar>
                   <div className={cn("max-w-[85%] space-y-1", msg.role === 'user' ? "items-end" : "items-start")}>

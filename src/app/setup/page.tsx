@@ -84,21 +84,23 @@ export default function SetupWizard() {
       const allModules = [...DEFAULT_MODULES, ...GOVERNANCE_MODULES];
       
       allModules.forEach(mod => {
-        const iconName = mod.id === 'dashboard' ? 'layout-dashboard' : 
-                         mod.id === 'chat' ? 'message-square' :
-                         mod.id === 'wiki' ? 'graduation-cap' :
-                         mod.id === 'wiki-moderation' ? 'shield-check' :
-                         mod.id === 'ai-assistant' ? 'sparkles' :
-                         mod.id === 'theology' ? 'history' :
-                         mod.id === 'manuscripts' ? 'file-search' :
-                         mod.id === 'lexicon' ? 'book-open' :
-                         mod.id === 'synthesis' ? 'feather' :
-                         mod.id === 'verse-explorer' ? 'quill' :
-                         mod.id === 'geography' ? 'globe' :
-                         mod.id === 'timeline' ? 'history' :
-                         mod.id === 'profile' ? 'key' :
-                         mod.labelKey === 'nav.audit' ? 'activity' : 
-                         mod.id === 'archaeology' ? 'layers' : 'globe';
+        let iconName = 'globe';
+        if (mod.id === 'dashboard') iconName = 'layout-dashboard';
+        else if (mod.id === 'chat') iconName = 'message-square';
+        else if (mod.id === 'wiki') iconName = 'graduation-cap';
+        else if (mod.id === 'wiki-moderation') iconName = 'user-check';
+        else if (mod.id === 'ai-assistant') iconName = 'sparkles';
+        else if (mod.id === 'theology') iconName = 'history';
+        else if (mod.id === 'manuscripts') iconName = 'file-search';
+        else if (mod.id === 'lexicon') iconName = 'book-open';
+        else if (mod.id === 'synthesis') iconName = 'feather';
+        else if (mod.id === 'verse-explorer') iconName = 'notebook-pen';
+        else if (mod.id === 'geography') iconName = 'globe';
+        else if (mod.id === 'timeline') iconName = 'clock';
+        else if (mod.id === 'profile' || mod.labelKey === 'nav.api_portal') iconName = 'key';
+        else if (mod.labelKey === 'nav.audit') iconName = 'activity';
+        else if (mod.labelKey === 'nav.admin_api') iconName = 'key';
+        else if (mod.id === 'archaeology') iconName = 'map';
 
         const docId = (mod.id + '-' + (mod.path?.replace(/\//g, '') || 'tab')).toLowerCase();
         batch.set(doc(db, 'modules', docId), {
