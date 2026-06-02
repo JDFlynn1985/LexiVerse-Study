@@ -12,6 +12,7 @@
         "photoURL": { "type": "string" },
         "isAdmin": { "type": "boolean", "description": "Whether the user has administrative privileges." },
         "isModerator": { "type": "boolean", "description": "Whether the user has moderator privileges for the wiki." },
+        "isTrustedContributor": { "type": "boolean", "description": "Whether the user can post wiki entries without peer review." },
         "preferences": {
           "type": "object",
           "properties": {

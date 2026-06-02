@@ -9,7 +9,7 @@ import {
   GoogleAuthProvider, 
   signOut
 } from 'firebase/auth';
-import { doc, setDoc, onSnapshot, collection, query, orderBy, addDoc, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, collection, query, orderBy, addDoc, updateDoc, where, getDoc } from 'firebase/firestore';
 import { appConfig } from '@/app-config';
 import { useAuth, useFirestore, useUser, useCollection } from '@/firebase';
 import { logSearch } from '@/lib/search-logging';
@@ -39,37 +39,17 @@ import {
   Network,
   Milestone,
   Settings,
-  Edit3,
-  ShieldCheck,
   LogOut,
-  ChevronRight,
-  TrendingUp,
+  History,
   Library,
   Sparkles,
-  Compass,
-  Repeat,
-  History,
-  FileText,
-  FileUp,
-  Files,
-  Download,
-  Trash2,
   Mic,
-  Database,
-  Link2,
-  CloudUpload,
-  ScanText,
-  Puzzle,
   LayoutDashboard,
-  Share2,
-  CheckCircle2,
-  HardDrive,
-  FileCode,
-  Type,
-  Highlighter,
   MessageSquare,
   ShieldAlert,
-  GraduationCap
+  GraduationCap,
+  Highlighter,
+  Link2
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -85,28 +65,19 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-  DropdownMenuLabel,
-  DropdownMenuCheckboxItem
+  DropdownMenuLabel
 } from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
 
 // AI Flow Imports
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
-import { searchCommentariesForContext, type SearchCommentariesOutput } from '@/ai/flows/search-commentaries';
 import { analyzeTheologicalConcept, type TheologicalConceptOutput } from '@/ai/flows/theological-concept-analysis';
 import { generateHistoricalTimeline, type HistoricalTimelineOutput } from '@/ai/flows/historical-timeline-flow';
 import { aiStudyAssistant, type AiStudyAssistantOutput } from '@/ai/flows/ai-study-assistant';
-import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/compare-translations-ai';
-import { extractTextFromImage } from '@/ai/flows/ocr-flow';
 import { transcribeAudio } from '@/ai/flows/transcribe-flow';
 import { findCovertLinks, type CovertReferenceOutput } from '@/ai/flows/cross-reference-ai';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
-import { getAllLocalDocuments, saveLocalDocument, deleteLocalDocument, type IDBDocument } from '@/lib/idb';
-import { findOvertReferences } from '@/lib/cross-references';
-
-// Export Utils
-import { exportToPDF, exportToWord, exportToMarkdown, exportToRTF, exportToText } from '@/lib/export-service';
-import { exportToGoogleDrive, exportToGoogleDocs } from '@/lib/google-export';
+import { getAllLocalDocuments, type IDBDocument } from '@/lib/idb';
 
 type ViewMode = 'dashboard' | 'lexicon' | 'wiki' | 'theology-map' | 'timeline' | 'writing-assistant' | 'ai-settings' | 'ai-assistant' | 'verse-explorer' | 'compare-translations' | 'research-library' | 'moderation';
 
@@ -116,6 +87,7 @@ interface UserProfile {
   email: string;
   isAdmin?: boolean;
   isModerator?: boolean;
+  isTrustedContributor?: boolean;
   preferences?: {
     selectedModel: string;
     customApiKey: string;
@@ -152,7 +124,7 @@ function HighlightedText({ text, highlights }: { text: string; highlights: strin
 }
 
 export default function Home() {
-  const { language, setLanguage, t } = useLanguage();
+  const { language, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<ViewMode>('dashboard');
   const [isLoading, setIsLoading] = useState(false);
   const { theme, setTheme } = useTheme();
@@ -161,7 +133,6 @@ export default function Home() {
   const auth = useAuth();
   const db = useFirestore();
   const { user } = useUser();
-  const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   const [history, setHistory] = useState<{id: string, type: string, term: string, date: string}[]>([]);
@@ -182,11 +153,9 @@ export default function Home() {
   const [theoResult, setTheoResult] = useState<TheologicalConceptOutput | null>(null);
   const [timelineResult, setTimelineResult] = useState<HistoricalTimelineOutput | null>(null);
   const [assistantResult, setAssistantResult] = useState<AiStudyAssistantOutput | null>(null);
-  const [covertLinks, setCovertLinks] = useState<CovertReferenceOutput | null>(null);
 
   const [activeHighlights, setActiveHighlights] = useState<string[]>([]);
   const [isRecording, setIsRecording] = useState(false);
-  const [selectedExports, setSelectedExports] = useState<string[]>(['markdown']);
 
   // Wiki State
   const [wikiDraft, setWikiDraft] = useState({ title: '', content: '', worksCited: '' });
@@ -235,9 +204,6 @@ export default function Home() {
     appConfig.google.scopes.forEach(scope => provider.addScope(scope));
     try {
       const result = await signInWithPopup(auth, provider);
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      if (credential?.accessToken) setGoogleAccessToken(credential.accessToken);
-      
       const userRef = doc(db, 'users', result.user.uid);
       const snap = await getDoc(userRef);
       if (!snap.exists()) {
@@ -246,7 +212,8 @@ export default function Home() {
           displayName: result.user.displayName, 
           email: result.user.email,
           isAdmin: false,
-          isModerator: false
+          isModerator: false,
+          isTrustedContributor: false
         });
       }
       toast({ title: "Logged in", description: `Welcome, ${result.user.displayName}` });
@@ -258,7 +225,6 @@ export default function Home() {
   const handleLogout = async () => {
     await signOut(auth);
     setUserProfile(null);
-    setGoogleAccessToken(null);
     toast({ title: "Logged out" });
   };
 
@@ -312,15 +278,19 @@ export default function Home() {
     if (!user || !wikiDraft.title || !wikiDraft.content) return;
     setIsLoading(true);
     try {
+      const status = userProfile?.isTrustedContributor ? 'approved' : 'pending';
       await addDoc(collection(db, 'wiki_entries'), {
         ...wikiDraft,
-        status: 'pending',
+        status: status,
         authorUid: user.uid,
         authorName: user.displayName || 'Scholar',
         createdAt: new Date().toISOString()
       });
       setWikiDraft({ title: '', content: '', worksCited: '' });
-      toast({ title: "Submission Sent", description: "Your article is awaiting scholarly peer review." });
+      toast({ 
+        title: status === 'approved' ? "Article Published" : "Submission Sent", 
+        description: status === 'approved' ? "Your article is live on the wiki." : "Your article is awaiting scholarly peer review." 
+      });
     } catch (e) {
       toast({ variant: 'destructive', title: "Submission failed" });
     } finally {
@@ -565,7 +535,11 @@ export default function Home() {
                          <Card>
                            <CardHeader>
                              <CardTitle className="text-lg">New Wiki Contribution</CardTitle>
-                             <CardDescription>All submissions undergo peer review by moderators.</CardDescription>
+                             <CardDescription>
+                               {userProfile?.isTrustedContributor 
+                                 ? "As a Trusted Contributor, your post will go live immediately." 
+                                 : "All submissions undergo peer review by moderators."}
+                             </CardDescription>
                            </CardHeader>
                            <CardContent className="space-y-4">
                              <div className="space-y-2">
@@ -584,7 +558,7 @@ export default function Home() {
                            <CardFooter>
                              <Button className="w-full" onClick={submitWikiEntry} disabled={isLoading || !user}>
                                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4" />}
-                               Submit for Review
+                               {userProfile?.isTrustedContributor ? "Publish Article" : "Submit for Review"}
                              </Button>
                            </CardFooter>
                          </Card>

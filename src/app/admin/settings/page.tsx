@@ -8,9 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { ShieldCheck, Settings, Key, UserCheck, Loader2, Save, Link2, ShieldAlert } from 'lucide-react';
+import { ShieldCheck, Settings, Key, UserCheck, Loader2, Save, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Separator } from '@/components/ui/separator';
 
 export default function AdminSettings() {
   const db = useFirestore();
@@ -35,7 +34,6 @@ export default function AdminSettings() {
 
   const handleLocalLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Prioritizing Firestore-stored credentials from setup, fallback to .env if needed (though Firestore is standard here)
     if (loginData.username === config?.adminUsername && loginData.password === config?.adminPassword) {
       setIsAuthenticated(true);
       toast({ title: "Authenticated", description: "Local Admin access granted." });
@@ -56,11 +54,15 @@ export default function AdminSettings() {
     }
   };
 
-  const promoteUser = async (role: 'admin' | 'moderator') => {
+  const promoteUser = async (role: 'admin' | 'moderator' | 'trusted') => {
     if (!user) return;
     setSaving(true);
     try {
-      const updates = role === 'admin' ? { isAdmin: true } : { isModerator: true };
+      let updates = {};
+      if (role === 'admin') updates = { isAdmin: true };
+      if (role === 'moderator') updates = { isModerator: true };
+      if (role === 'trusted') updates = { isTrustedContributor: true };
+      
       await updateDoc(doc(db, 'users', user.uid), updates);
       toast({ title: "User Promoted", description: `${user.displayName} is now a ${role}.` });
     } catch (e: any) {
@@ -139,48 +141,41 @@ export default function AdminSettings() {
             <CardTitle className="text-lg flex items-center gap-2 text-accent"><UserCheck className="h-5 w-5" /> Role Management</CardTitle>
             <CardDescription>Grant specific scholarly permissions to your linked Google account.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4">
             <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
               <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-full border border-primary bg-primary/10 flex items-center justify-center">
-                  <ShieldCheck className="h-6 w-6 text-primary" />
-                </div>
+                <ShieldCheck className="h-6 w-6 text-primary" />
                 <div>
                   <p className="font-bold text-sm">System Administrator</p>
-                  <p className="text-xs text-muted-foreground">Full access to settings and user management.</p>
+                  <p className="text-xs text-muted-foreground">Full access to settings.</p>
                 </div>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => promoteUser('admin')} 
-                disabled={!user || saving}
-              >
-                Promote to Admin
-              </Button>
+              <Button variant="outline" size="sm" onClick={() => promoteUser('admin')} disabled={!user || saving}>Promote</Button>
             </div>
 
             <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
               <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-full border border-accent bg-accent/10 flex items-center justify-center">
-                  <ShieldAlert className="h-6 w-6 text-accent" />
-                </div>
+                <ShieldAlert className="h-6 w-6 text-accent" />
                 <div>
                   <p className="font-bold text-sm">Wiki Moderator</p>
-                  <p className="text-xs text-muted-foreground">Manage wiki entries, citations, and scholarly peer review.</p>
+                  <p className="text-xs text-muted-foreground">Peer review pending entries.</p>
                 </div>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => promoteUser('moderator')} 
-                disabled={!user || saving}
-              >
-                Promote to Moderator
-              </Button>
+              <Button variant="outline" size="sm" onClick={() => promoteUser('moderator')} disabled={!user || saving}>Promote</Button>
             </div>
 
-            {!user && <p className="text-xs italic text-center text-muted-foreground">Sign in with Google in the main app to enable role promotion.</p>}
+            <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
+              <div className="flex items-center gap-4">
+                <CheckCircle2 className="h-6 w-6 text-green-600" />
+                <div>
+                  <p className="font-bold text-sm">Trusted Contributor</p>
+                  <p className="text-xs text-muted-foreground">Bypass peer review for wiki posts.</p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => promoteUser('trusted')} disabled={!user || saving}>Promote</Button>
+            </div>
+
+            {!user && <p className="text-xs italic text-center text-muted-foreground pt-2">Sign in with Google in the main app to enable role promotion.</p>}
           </CardContent>
         </Card>
       </div>
