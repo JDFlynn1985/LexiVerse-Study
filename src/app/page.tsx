@@ -62,7 +62,8 @@ import {
   CheckCircle2,
   HardDrive,
   FileCode,
-  Type
+  Type,
+  Highlighter
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -115,6 +116,28 @@ interface UserProfile {
   };
 }
 
+/**
+ * Component to render text with highlighting.
+ */
+function HighlightedText({ text, highlights }: { text: string; highlights: string[] }) {
+  if (!highlights.length) return <p className="text-sm leading-relaxed">{text}</p>;
+
+  // Regex to match all highlight strings
+  const escaped = highlights.map(h => h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+  const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
+
+  return (
+    <p className="text-sm leading-relaxed">
+      {parts.map((part, i) => {
+        const isMatch = highlights.some(h => h.toLowerCase() === part.toLowerCase());
+        return isMatch ? (
+          <mark key={i} className="bg-accent/40 text-inherit rounded px-0.5">{part}</mark>
+        ) : part;
+      })}
+    </p>
+  );
+}
+
 export default function Home() {
   const { language, setLanguage, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<ViewMode>('dashboard');
@@ -150,6 +173,9 @@ export default function Home() {
   const [timelineResult, setTimelineResult] = useState<HistoricalTimelineOutput | null>(null);
   const [assistantResult, setAssistantResult] = useState<AiStudyAssistantOutput | null>(null);
   const [covertLinks, setCovertLinks] = useState<CovertReferenceOutput | null>(null);
+
+  // Highlighting State
+  const [activeHighlights, setActiveHighlights] = useState<string[]>([]);
 
   // Multimodal States
   const [isRecording, setIsRecording] = useState(false);
@@ -225,6 +251,7 @@ export default function Home() {
     if (!term.trim()) return;
     setIsLoading(true);
     setActiveTab(type);
+    setActiveHighlights([]); // Reset highlights for new search
     logSearch(db, term, type, user?.uid);
     try {
       let result;
@@ -253,17 +280,33 @@ export default function Home() {
     }
   };
 
+  const handleHighlightSelection = () => {
+    const selection = window.getSelection();
+    const text = selection?.toString().trim();
+    if (text && text.length > 2) {
+      if (!activeHighlights.includes(text)) {
+        setActiveHighlights([...activeHighlights, text]);
+        toast({ title: "Selection Highlighted", description: "This insight will be emphasized in exports." });
+      } else {
+        setActiveHighlights(activeHighlights.filter(h => h !== text));
+        toast({ title: "Highlight Removed" });
+      }
+    } else {
+      toast({ title: "No text selected", description: "Select a word or phrase to highlight it." });
+    }
+  };
+
   const handleMultiExport = async () => {
     if (!assistantResult) return;
     setIsLoading(true);
     try {
       for (const format of selectedExports) {
         switch (format) {
-          case 'pdf': await exportToPDF(assistantResult); break;
-          case 'docx': await exportToWord(assistantResult); break;
-          case 'markdown': await exportToMarkdown(assistantResult); break;
-          case 'rtf': await exportToRTF(assistantResult); break;
-          case 'txt': await exportToText(assistantResult); break;
+          case 'pdf': await exportToPDF(assistantResult, activeHighlights); break;
+          case 'docx': await exportToWord(assistantResult, activeHighlights); break;
+          case 'markdown': await exportToMarkdown(assistantResult, activeHighlights); break;
+          case 'rtf': await exportToRTF(assistantResult, activeHighlights); break;
+          case 'txt': await exportToText(assistantResult, activeHighlights); break;
           case 'gdrive': 
             if (googleAccessToken) await exportToGoogleDrive(googleAccessToken, assistantResult);
             else toast({ title: "Auth Required", description: "Link Google to export to Drive." });
@@ -671,6 +714,9 @@ export default function Home() {
                           <p className="text-muted-foreground">{assistantResult.transliteration} • {assistantResult.pronunciation}</p>
                         </div>
                         <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={handleHighlightSelection}>
+                            <Highlighter className="h-4 w-4 mr-2" /> Highlight Selection
+                          </Button>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="outline" size="sm">
@@ -742,7 +788,7 @@ export default function Home() {
                         </div>
                         <div className="space-y-4">
                           <h3 className="text-xs font-bold uppercase tracking-widest text-primary border-b pb-1">AI Synthesis</h3>
-                          <p className="text-sm leading-relaxed">{assistantResult.aiInsights}</p>
+                          <HighlightedText text={assistantResult.aiInsights} highlights={activeHighlights} />
                         </div>
                       </div>
 
