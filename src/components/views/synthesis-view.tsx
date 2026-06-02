@@ -2,7 +2,7 @@
 'use client';
 
 import React, { memo } from 'react';
-import { Feather, Sparkles, ShieldCheck, ListFilter, Loader2, Link as LinkIcon, Save, Download, FileText } from 'lucide-react';
+import { Feather, Sparkles, ShieldCheck, ListFilter, Loader2, Link as LinkIcon, Save, Download, FileText, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -34,6 +34,7 @@ interface SynthesisViewProps {
   integrityResult: AcademicIntegrityOutput | null;
   bibResult: FormatBibliographyOutput | null;
   crossRefResult: CovertReferenceOutput | null;
+  isGrounded?: boolean;
 }
 
 export const SynthesisView = memo(({ 
@@ -46,15 +47,16 @@ export const SynthesisView = memo(({
   synthesisResult, 
   integrityResult, 
   bibResult,
-  crossRefResult
+  crossRefResult,
+  isGrounded
 }: SynthesisViewProps) => (
   <div className="space-y-8 animate-in fade-in duration-500">
     <header className="flex justify-between items-end">
       <div>
         <h1 className="text-3xl font-bold font-headline flex items-center gap-3">
-          <Feather className="h-8 w-8 text-primary" /> Academic Synthesis Hub
+          <Feather className="h-8 w-8 text-primary" /> Writing Hub
         </h1>
-        <p className="text-muted-foreground">Refine your research, check integrity, and identify semantic cross-references.</p>
+        <p className="text-muted-foreground">Refine research, audit integrity, and identify semantic scripture links.</p>
       </div>
       <div className="flex gap-2">
         <Button 
@@ -68,7 +70,7 @@ export const SynthesisView = memo(({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button size="sm" className="h-9">
-              <Download className="h-4 w-4 mr-2" /> Export Draft
+              <Download className="h-4 w-4 mr-2" /> Export
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -92,7 +94,14 @@ export const SynthesisView = memo(({
     </header>
     <div className="grid gap-8 lg:grid-cols-2">
       <div className="space-y-4">
-        <Label className="text-lg font-bold">Research Draft</Label>
+        <div className="flex items-center justify-between">
+          <Label className="text-lg font-bold">Research Draft</Label>
+          {isGrounded && (
+            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1.5 py-1 px-3">
+              <CheckCircle2 className="h-3 w-3" /> Library Grounding Active
+            </Badge>
+          )}
+        </div>
         <Textarea 
           placeholder="Paste your draft or raw source list here..." 
           className="min-h-[400px] text-lg font-body leading-relaxed shadow-inner"
@@ -113,6 +122,9 @@ export const SynthesisView = memo(({
             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ListFilter className="mr-2 h-4 w-4" />} Format Bib
           </Button>
         </div>
+        <p className="text-[10px] text-muted-foreground italic">
+          * Integrity and Cross-Ref scans automatically pull context from your Digital Library if papers are indexed.
+        </p>
       </div>
       <div className="space-y-6">
         <Tabs defaultValue="results" className="w-full">
@@ -157,7 +169,7 @@ export const SynthesisView = memo(({
                   <div className="space-y-6">
                     <div className="flex items-center justify-between">
                       <h3 className="font-headline text-lg">Integrity Score</h3>
-                      <Badge className={cn(integrityResult.integrityScore > 80 ? "bg-green-600" : "bg-orange-600")}>
+                      <Badge className={integrityResult.integrityScore > 80 ? "bg-green-600" : "bg-orange-600"}>
                         {integrityResult.integrityScore}/100
                       </Badge>
                     </div>

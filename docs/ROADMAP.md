@@ -4,6 +4,8 @@
 This document outlines the features and components that require further development to reach full scholarly production standards.
 
 ## ✅ Completed (Recent Build)
+- [x] **Grounded Synthesis Hub**: Integrated Digital Library RAG into the Writing Hub for integrity scans and tone refinement.
+- [x] **Codebase Sanitization**: Removed obsolete boilerplate templates and duplicate AI flows.
 - [x] **Notification Engine**: Implemented an in-app Notification Center for status changes and peer review alerts.
 - [x] **BibTeX Export**: Integrated BibTeX support in the Export Hub for Zotero and EndNote compatibility.
 - [x] **Wiki Moderation Flow**: Automated triggers for author alerts upon article approval/rejection.

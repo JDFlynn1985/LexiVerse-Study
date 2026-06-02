@@ -367,8 +367,13 @@ export default function Home() {
       case 'synthesis': return <SynthesisView synthesisText={synthesisText} setSynthesisText={setSynthesisText} handleSynthesisAction={async (a) => {
         setIsLoading(true);
         try {
+          // Prepare Library Context for Grounding
+          const allChunks = localDocuments.flatMap(d => chunkText(d.content, d.name));
+          const relevantChunks = selectRelevantChunks(synthesisText, allChunks, 10);
+          const contextExcerpts = relevantChunks.map(c => `[Library Reference: ${c.sourceName}]: ${c.text}`);
+
           if (a === 'refine') setSynthesisResult(await refineWriting({ text: synthesisText, mode: 'academic' }));
-          if (a === 'integrity') setIntegrityResult(await checkIntegrity({ text: synthesisText, style: 'SBL' }));
+          if (a === 'integrity') setIntegrityResult(await checkIntegrity({ text: synthesisText, style: 'SBL', researchContext: contextExcerpts }));
           if (a === 'bib') setBibResult(await formatBibliography({ items: synthesisText.split('\n'), style: 'SBL' }));
           if (a === 'cross-ref') setCrossRefResult(await findCovertLinks(synthesisText));
         } catch (e: any) { toast({ variant: 'destructive', title: "Synthesis Error" }); }
@@ -376,7 +381,7 @@ export default function Home() {
       }} handleSaveDraftToLibrary={handleSaveDraftToLibrary} handleExportText={(fmt, title, text) => {
         const mockData: any = { originalWord: title, aiInsights: text, verseUsages: [], bibliography: [], transliteration: 'Draft', pronunciation: '' };
         handleExport(fmt, mockData);
-      }} isLoading={isLoading} synthesisResult={synthesisResult} integrityResult={integrityResult} bibResult={bibResult} crossRefResult={crossRefResult} />;
+      }} isLoading={isLoading} synthesisResult={synthesisResult} integrityResult={integrityResult} bibResult={bibResult} crossRefResult={crossRefResult} isGrounded={localDocuments.length > 0} />;
       case 'theology': return <TheologyView theologyTerm={theologyTerm} setTheologyTerm={setTheologyTerm} handleSearch={handleSearch} isLoading={isLoading} theologyResult={theologyResult} />;
       case 'lexicon': return <LexiconView handleSearch={handleSearch} handleSaveSession={handleSaveSession} handleExport={handleExport} isLoading={isLoading} lexiconResult={lexiconResult} isUserSignedIn={!!user} />;
       case 'ai-assistant': return <AssistantView assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} handleSaveSession={handleSaveSession} handleExport={handleExport} isLoading={isLoading} assistantResult={assistantResult} isUserSignedIn={!!user} />;
