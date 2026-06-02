@@ -42,7 +42,14 @@ export const enUS = {
     module_governance: "Modules",
     chat_hub: "Social Chat",
     direct_messages: "Direct Messages",
-    archive: "Research Archive"
+    archive: "Research Archive",
+    groups: {
+      general: "General Discourse",
+      workspace: "Research Workspace",
+      exegesis: "Scriptural Exegesis",
+      linguistics: "Original Languages",
+      history: "Historical Context"
+    }
   },
   dashboard: {
     title: "Research Workspace",

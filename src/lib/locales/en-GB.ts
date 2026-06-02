@@ -33,7 +33,14 @@ export const enGB = {
     institutions: "Institutions",
     system_control: "System Control",
     module_governance: "Modules",
-    chat_hub: "Social Chat"
+    chat_hub: "Social Chat",
+    groups: {
+      general: "General Discourse",
+      workspace: "Research Workspace",
+      exegesis: "Scriptural Exegesis",
+      linguistics: "Original Languages",
+      history: "Historical Context"
+    }
   },
   dashboard: {
     title: "Research Laboratory",

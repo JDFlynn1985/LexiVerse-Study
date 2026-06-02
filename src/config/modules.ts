@@ -41,36 +41,44 @@ export interface ModuleDefinition {
   id: ViewMode | 'synoptic' | 'citation-scanner' | 'licensing-hub' | 'commentaries' | 'zotero' | 'debate' | 'audio_hub';
   labelKey: string; 
   icon: any;
-  group: 'general' | 'ai_hub' | 'governance' | 'profile';
+  group: 'general' | 'workspace' | 'linguistics' | 'exegesis' | 'history' | 'governance' | 'profile';
   adminOnly?: boolean;
   path?: string; 
 }
 
 export const DEFAULT_MODULES: ModuleDefinition[] = [
+  // General Category
   { id: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard, group: 'general' },
   { id: 'chat', labelKey: 'nav.chat_hub', icon: MessageSquare, group: 'general' },
   { id: 'direct-messages', labelKey: 'nav.direct_messages', icon: MessageCircle, group: 'general' },
-  { id: 'archive', labelKey: 'nav.archive', icon: Archive, group: 'general' },
-  { id: 'library', labelKey: 'nav.library', icon: Library, group: 'general' },
   { id: 'wiki', labelKey: 'nav.wiki', icon: GraduationCap, group: 'general', path: '/wiki' },
   
-  { id: 'ai-assistant', labelKey: 'nav.study_assistant', icon: Sparkles, group: 'ai_hub' },
-  { id: 'zotero', labelKey: 'nav.zotero_hub', icon: Database, group: 'ai_hub' },
-  { id: 'debate', labelKey: 'nav.debate', icon: Users, group: 'ai_hub' },
-  { id: 'audio_hub', labelKey: 'nav.audio_hub', icon: Volume2, group: 'ai_hub' },
-  { id: 'verse-explorer', labelKey: 'nav.verse_explorer', icon: NotebookPen, group: 'ai_hub' },
-  { id: 'commentaries', labelKey: 'nav.commentaries', icon: BookOpen, group: 'ai_hub' },
-  { id: 'synoptic', labelKey: 'nav.synoptic', icon: Layers, group: 'ai_hub' },
-  { id: 'citation-scanner', labelKey: 'nav.citation_scanner', icon: ListFilter, group: 'ai_hub' },
-  { id: 'translation-compare', labelKey: 'nav.translation_compare', icon: ArrowLeftRight, group: 'ai_hub' },
-  { id: 'licensing-hub', labelKey: 'nav.licensing_hub', icon: ShieldCheck, group: 'ai_hub' },
-  { id: 'geography', labelKey: 'nav.geography', icon: Globe, group: 'ai_hub' },
-  { id: 'theology', labelKey: 'nav.theology_map', icon: History, group: 'ai_hub' },
-  { id: 'manuscripts', labelKey: 'nav.manuscript_hub', icon: FileSearch, group: 'ai_hub', path: '/manuscripts' },
-  { id: 'timeline', labelKey: 'nav.timeline', icon: Clock, group: 'ai_hub' },
-  { id: 'lexicon', labelKey: 'nav.lexicon', icon: BookOpen, group: 'ai_hub' },
-  { id: 'synthesis', labelKey: 'nav.synthesis', icon: Feather, group: 'ai_hub' },
-  { id: 'archaeology', labelKey: 'nav.archaeology', icon: MapIcon, group: 'ai_hub' }
+  // Workspace Category
+  { id: 'archive', labelKey: 'nav.archive', icon: Archive, group: 'workspace' },
+  { id: 'library', labelKey: 'nav.library', icon: Library, group: 'workspace' },
+  { id: 'zotero', labelKey: 'nav.zotero_hub', icon: Database, group: 'workspace' },
+  { id: 'licensing-hub', labelKey: 'nav.licensing_hub', icon: ShieldCheck, group: 'workspace' },
+
+  // Linguistics Category
+  { id: 'lexicon', labelKey: 'nav.lexicon', icon: BookOpen, group: 'linguistics' },
+  { id: 'manuscripts', labelKey: 'nav.manuscript_hub', icon: FileSearch, group: 'linguistics', path: '/manuscripts' },
+  { id: 'translation-compare', labelKey: 'nav.translation_compare', icon: ArrowLeftRight, group: 'linguistics' },
+
+  // Exegesis Category
+  { id: 'ai-assistant', labelKey: 'nav.study_assistant', icon: Sparkles, group: 'exegesis' },
+  { id: 'verse-explorer', labelKey: 'nav.verse_explorer', icon: NotebookPen, group: 'exegesis' },
+  { id: 'commentaries', labelKey: 'nav.commentaries', icon: BookOpen, group: 'exegesis' },
+  { id: 'synoptic', labelKey: 'nav.synoptic', icon: Layers, group: 'exegesis' },
+  { id: 'synthesis', labelKey: 'nav.synthesis', icon: Feather, group: 'exegesis' },
+  { id: 'citation-scanner', labelKey: 'nav.citation_scanner', icon: ListFilter, group: 'exegesis' },
+  { id: 'audio_hub', labelKey: 'nav.audio_hub', icon: Volume2, group: 'exegesis' },
+
+  // History Category
+  { id: 'theology', labelKey: 'nav.theology_map', icon: History, group: 'history' },
+  { id: 'timeline', labelKey: 'nav.timeline', icon: Clock, group: 'history' },
+  { id: 'archaeology', labelKey: 'nav.archaeology', icon: MapIcon, group: 'history' },
+  { id: 'geography', labelKey: 'nav.geography', icon: Globe, group: 'history' },
+  { id: 'debate', labelKey: 'nav.debate', icon: Users, group: 'history' }
 ];
 
 export const GOVERNANCE_MODULES: ModuleDefinition[] = [

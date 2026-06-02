@@ -1,3 +1,4 @@
+
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
@@ -324,6 +325,14 @@ export default function Home() {
 
   if (!mounted) return null;
 
+  const sidebarGroups = [
+    { key: 'general', label: t.nav.groups?.general || "General" },
+    { key: 'workspace', label: t.nav.groups?.workspace || "Research Workspace" },
+    { key: 'linguistics', label: t.nav.groups?.linguistics || "Original Languages" },
+    { key: 'exegesis', label: t.nav.groups?.exegesis || "Scriptural Exegesis" },
+    { key: 'history', label: t.nav.groups?.history || "Historical Context" },
+  ];
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
@@ -339,32 +348,22 @@ export default function Home() {
             </div>
           </SidebarHeader>
           <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupLabel>General</SidebarGroupLabel>
-              <SidebarMenu>
-                {DEFAULT_MODULES.filter(m => m.group === 'general').map(m => (
-                  <SidebarMenuItem key={m.id}>
-                    <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id as ViewMode)}>
-                      <m.icon className="h-5 w-5" /> 
-                      <span>{t.nav[m.id] || m.id}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroup>
-            <SidebarGroup>
-              <SidebarGroupLabel>{t.nav.ai_hub}</SidebarGroupLabel>
-              <SidebarMenu>
-                {DEFAULT_MODULES.filter(m => m.group === 'ai_hub').map(m => (
-                  <SidebarMenuItem key={m.id}>
-                    <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id as ViewMode)}>
-                      <m.icon className="h-5 w-5" /> 
-                      <span>{t.nav[m.id] || m.id}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroup>
+            {sidebarGroups.map(group => (
+              <SidebarGroup key={group.key}>
+                <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                <SidebarMenu>
+                  {DEFAULT_MODULES.filter(m => m.group === group.key).map(m => (
+                    <SidebarMenuItem key={m.id}>
+                      <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id as ViewMode)}>
+                        <m.icon className="h-5 w-5" /> 
+                        <span>{t.nav[m.id] || m.id}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroup>
+            ))}
+            
             {userProfile?.isAdmin && (
               <SidebarGroup>
                 <SidebarGroupLabel>Governance</SidebarGroupLabel>
