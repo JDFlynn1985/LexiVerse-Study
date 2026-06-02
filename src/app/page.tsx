@@ -1,3 +1,4 @@
+
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
@@ -133,6 +134,7 @@ export default function Home() {
   // Module States
   const [chatMode, setChatMode] = useState<'global' | 'institutional'>('global');
   const [newMessage, setNewMessage] = useState('');
+  const [chatAgreed, setChatAgreed] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [assistantTerm, setAssistantTerm] = useState('');
   const [lexiconResult, setLexiconResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
@@ -216,7 +218,7 @@ export default function Home() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !newMessage.trim() || !db) return;
+    if (!user || !newMessage.trim() || !db || !chatAgreed) return;
     const msgContent = newMessage;
     setNewMessage('');
     try {
@@ -230,7 +232,8 @@ export default function Home() {
         senderInstitutionName: userInstName,
         type: chatMode,
         institutionId: chatMode === 'institutional' ? (userProfile?.institutionId || 'independent') : null,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        license: 'CC-BY-4.0'
       });
     } catch (e: any) { toast({ variant: 'destructive', title: "Message Failed", description: e.message }); }
   };
@@ -320,7 +323,7 @@ export default function Home() {
   const renderModularContent = () => {
     switch (activeTab) {
       case 'dashboard': return <DashboardView t={t} effectiveApiKey={effectiveApiKey} isLocalMode={isLocalMode} aiPrefs={aiPrefs} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} />;
-      case 'chat': return <ChatView chatMode={chatMode} setChatMode={setChatMode} userProfile={userProfile} userInstitutionName={userInstitutionName} messages={messages} user={user} newMessage={newMessage} setNewMessage={setNewMessage} handleSendMessage={handleSendMessage} chatEndRef={chatEndRef} />;
+      case 'chat': return <ChatView chatMode={chatMode} setChatMode={setChatMode} userProfile={userProfile} userInstitutionName={userInstitutionName} messages={messages} user={user} newMessage={newMessage} setNewMessage={setNewMessage} chatAgreed={chatAgreed} setChatAgreed={setChatAgreed} handleSendMessage={handleSendMessage} chatEndRef={chatEndRef} />;
       case 'synthesis': return <SynthesisView synthesisText={synthesisText} setSynthesisText={setSynthesisText} handleSynthesisAction={async (a) => {
         setIsLoading(true);
         try {

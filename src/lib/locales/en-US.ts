@@ -123,6 +123,10 @@ export const enUS = {
     cloud_sync: "Cloud Synchronization",
     cloud_desc: "Sync your preferences across devices via your authenticated scholarly account."
   },
+  contribution: {
+    license_agreement: "I agree to make this content available under the terms of the CC BY 4.0 license.",
+    license_link: "View License Details"
+  },
   common: {
     search_placeholder: "Lexicon (G3056) or AI query...",
     loading: "Loading...",

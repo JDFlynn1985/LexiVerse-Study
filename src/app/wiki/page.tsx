@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -16,19 +17,24 @@ import {
   MessageSquare,
   ChevronRight,
   ShieldCheck,
-  User
+  User,
+  ExternalLink
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
+import { useLanguage } from '@/components/language-provider';
 
 export default function ScholarlyWiki() {
   const db = useFirestore();
   const { user } = useUser();
   const { toast } = useToast();
+  const { t } = useLanguage();
 
   const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState<any[]>([]);
@@ -36,6 +42,7 @@ export default function ScholarlyWiki() {
   const [selectedEntry, setSelectedEntry] = useState<any | null>(null);
   
   const [isProposing, setIsProposing] = useState(false);
+  const [agreedToLicense, setAgreedToLicense] = useState(false);
   const [proposal, setProposal] = useState({ title: '', content: '', worksCited: '' });
 
   useEffect(() => {
@@ -54,7 +61,7 @@ export default function ScholarlyWiki() {
   }, [db]);
 
   const handlePropose = async () => {
-    if (!user || !proposal.title.trim() || !proposal.content.trim()) return;
+    if (!user || !proposal.title.trim() || !proposal.content.trim() || !agreedToLicense) return;
     setIsProposing(true);
     try {
       await addDoc(collection(db, 'wiki_entries'), {
@@ -62,10 +69,12 @@ export default function ScholarlyWiki() {
         status: 'pending',
         authorUid: user.uid,
         authorName: user.displayName || 'Anonymous Scholar',
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        license: 'CC-BY-4.0'
       });
       toast({ title: "Proposal Submitted", description: "Your article has been sent for peer review." });
       setProposal({ title: '', content: '', worksCited: '' });
+      setAgreedToLicense(false);
     } catch (e: any) {
       toast({ variant: 'destructive', title: "Submission Failed", description: e.message });
     } finally {
@@ -122,8 +131,27 @@ export default function ScholarlyWiki() {
                 <Label>Works Cited (SBL Style)</Label>
                 <Input placeholder="Primary and secondary sources..." value={proposal.worksCited} onChange={e => setProposal({...proposal, worksCited: e.target.value})} />
               </div>
+
+              <div className="flex items-start space-x-2 pt-4 border-t">
+                <Checkbox 
+                  id="license-agreement" 
+                  checked={agreedToLicense} 
+                  onCheckedChange={(val) => setAgreedToLicense(!!val)} 
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <label
+                    htmlFor="license-agreement"
+                    className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    {t.contribution.license_agreement}
+                  </label>
+                  <Link href="/terms" target="_blank" className="text-[10px] text-primary hover:underline flex items-center gap-1">
+                    {t.contribution.license_link} <ExternalLink className="h-2 w-2" />
+                  </Link>
+                </div>
+              </div>
             </div>
-            <Button onClick={handlePropose} disabled={isProposing || !proposal.title.trim()}>
+            <Button onClick={handlePropose} disabled={isProposing || !proposal.title.trim() || !agreedToLicense}>
               {isProposing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Submit for Peer Review
             </Button>
@@ -184,7 +212,7 @@ export default function ScholarlyWiki() {
                         <User className="h-3 w-3" /> {selectedEntry.authorName} • {new Date(selectedEntry.createdAt?.seconds * 1000).toLocaleDateString()}
                       </CardDescription>
                     </div>
-                    <Badge variant="outline" className="border-primary/20 text-primary">APPROVED</Badge>
+                    <Badge variant="outline" className="border-primary/20 text-primary uppercase text-[10px]">Licensed under CC BY 4.0</Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-8">
