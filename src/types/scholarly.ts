@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview Shared types and constants for the LexiVerse scholarly environment.
  */
@@ -22,7 +21,8 @@ export type ViewMode =
   | 'geography'
   | 'direct-messages'
   | 'wiki-moderation'
-  | 'archive';
+  | 'archive'
+  | 'commentaries';
 
 export interface UserProfile {
   uid: string;
@@ -39,6 +39,7 @@ export interface UserProfile {
   isAdmin?: boolean;
   isModerator?: boolean;
   isTrustedContributor?: boolean;
+  licensedVersions?: string[];
   preferences?: {
     modelProvider?: AIProvider;
     selectedModel?: string;

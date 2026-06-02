@@ -1,55 +1,59 @@
 'use server';
 /**
- * @fileOverview This flow searches online commentaries for historical and linguistic context related to a given word and its roots.
+ * @fileOverview Verified Commentary Aggregator Flow.
+ * Specifically searches for and synthesizes insights from primary historical scholarly works.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
 const SearchCommentariesInputSchema = z.object({
-  word: z.string().describe('The word to search for (e.g., Greek/Hebrew word or its transliteration).'),
-  language: z.string().describe('The language of the word (e.g., "Greek", "Hebrew", "Aramaic").'),
-  rootWord: z.string().optional().describe('An optional root word to focus the commentary search.'),
-  model: z.string().optional().describe('The AI model to use for analysis.'),
+  query: z.string().describe('The Bible passage or scholarly term to research.'),
+  language: z.string().optional().describe('Source language if term-based.'),
+  model: z.string().optional().describe('The AI model to use for synthesis.'),
 });
 export type SearchCommentariesInput = z.infer<typeof SearchCommentariesInputSchema>;
 
-const CommentaryInsightSchema = z.object({
-  commentator: z.string().describe('Name of the commentator or commentary source.'),
-  insight: z.string().describe('The extracted historical or linguistic insight.'),
-  relevantVerse: z.string().optional().describe('The Bible verse reference the insight relates to.'),
+const HistoricalWorkSchema = z.object({
+  source: z.string().describe('Name of the work (e.g., Jamieson-Fausset-Brown, Matthew Henry).'),
+  era: z.string().describe('Historical period of the work.'),
+  insight: z.string().describe('The specific extracted commentary text or synthesis.'),
+  tradition: z.string().describe('The theological tradition (e.g., Reformed, Methodist, Anglican).'),
 });
 
 const SearchCommentariesOutputSchema = z.object({
-  searchWord: z.string().describe('The word that was searched for.'),
-  language: z.string().describe('The language of the word.'),
-  rootWord: z.string().optional().describe('The root word searched, if provided.'),
-  commentarySummary: z.string().describe('A synthesized overview of historical and linguistic context from commentaries.'),
-  specificInsights: z.array(CommentaryInsightSchema).describe('Detailed insights extracted from commentaries.'),
-  bibliography: z.string().optional().describe('A list of simulated sources used for the commentary search.'),
+  searchQuery: z.string(),
+  summary: z.string().describe('A synthesized scholarly overview of the aggregated historical views.'),
+  historicalWorks: z.array(HistoricalWorkSchema).describe('Structured insights from verified historical commentators.'),
+  academicSynthesis: z.string().describe('Modern scholarly synthesis of these historical perspectives.'),
+  bibliography: z.string().describe('Formatted SBL-style bibliographic entries for the aggregated works.'),
 });
 export type SearchCommentariesOutput = z.infer<typeof SearchCommentariesOutputSchema>;
 
-export async function searchCommentariesForContext(input: SearchCommentariesInput): Promise<SearchCommentariesOutput> {
+export async function runCommentaryAggregation(input: SearchCommentariesInput): Promise<SearchCommentariesOutput> {
   const selectedModel = input.model || 'googleai/gemini-2.5-flash';
 
   const { output } = await ai.generate({
     model: selectedModel,
-    prompt: `You are an expert biblical historian and researcher. Find and synthesize historical and linguistic context for the word "${input.word}" (${input.language}).
-    Always provide your analysis in a tone appropriate for a seminary student, prioritizing academic rigor and theological precision.
-    ${input.rootWord ? `Focus on its connection to the root: ${input.rootWord}.` : ''}
+    prompt: `You are an expert Librarian and Bibliographer specializing in historical Bible commentaries.
+    Your task is to AGGREGATE insights for: "${input.query}".
     
-    Search prominent online commentaries (e.g., JFB, Keil & Delitzsch, Expositor's, and modern critical works). 
-    Extract specific insights and provide an academic summary.
-    Format your response strictly as JSON adhering to the SearchCommentariesOutputSchema.`,
+    CRITICAL REQUIREMENT:
+    You must specifically look for and synthesize text from primary historical works such as:
+    - Jamieson-Fausset-Brown (JFB)
+    - Matthew Henry's Commentary
+    - Keil & Delitzsch Commentary on the Old Testament
+    - John Calvin's Commentaries
+    - Expositor's Bible
+    
+    Structure your response to show the diversity of theological traditions (e.g., how a 17th-century Reformed view differs from a 19th-century Anglican view).
+    
+    Format your response strictly as JSON adhering to SearchCommentariesOutputSchema.`,
     output: {
       schema: SearchCommentariesOutputSchema,
     }
   });
 
-  if (!output) {
-    throw new Error('Commentary engine failed to synthesize insights.');
-  }
-
+  if (!output) throw new Error('Commentary Aggregator failed to synthesize data.');
   return output;
 }

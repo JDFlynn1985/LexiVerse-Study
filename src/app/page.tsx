@@ -1,4 +1,3 @@
-
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
@@ -85,6 +84,7 @@ import { ArchiveView } from '@/components/views/archive-view';
 import { CitationScannerView } from '@/components/views/citation-scanner-view';
 import { SynopticView } from '@/components/views/synoptic-view';
 import { LicensingHubView } from '@/components/views/licensing-hub-view';
+import { CommentaryView } from '@/components/views/commentary-view';
 
 // AI & API Imports
 import { defineAndAnalyzeTerm } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
@@ -118,8 +118,6 @@ export default function Home() {
   const [historyItems, setHistoryItems] = useState<any[]>([]);
   const [localDocuments, setLocalDocuments] = useState<IDBDocument[]>([]);
   const [availableVersions, setAvailableVersions] = useState<BibleVersion[]>([]);
-  const [institutions, setInstitutions] = useState<{id: string, name: string}[]>([]);
-  const [googleToken, setGoogleToken] = useState<string | null>(null);
   const [momentumData, setMomentumData] = useState<any[]>([]);
   
   const [aiPrefs, setAiPrefs] = useState({
@@ -151,8 +149,6 @@ export default function Home() {
   const [archaeologyResult, setArchaeologyResult] = useState<any>(null);
   const [geographyResult, setGeographyResult] = useState<any>(null);
   const [timelineResult, setTimelineResult] = useState<any>(null);
-  const [translationResult, setTranslationResult] = useState<any>(null);
-  const [profileDraft, setProfileDraft] = useState<any>({});
 
   const refreshLocalDocs = useCallback(async () => {
     const docs = await getAllLocalDocuments();
@@ -220,6 +216,7 @@ export default function Home() {
       case 'archaeology': return <ArchaeologyView isLoading={isLoading} result={archaeologyResult} onSearch={(term) => handleSearch(term, 'archaeology')} />;
       case 'timeline': return <TimelineView isLoading={isLoading} result={timelineResult} onSearch={(term) => handleSearch(term, 'timeline')} />;
       case 'licensing-hub': return <LicensingHubView />;
+      case 'commentaries': return <CommentaryView />;
       default: return <DashboardView t={t} effectiveApiKey={undefined} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={DEFAULT_MODULES} momentumData={momentumData} />;
     }
   };
@@ -275,7 +272,7 @@ export default function Home() {
           </SidebarFooter>
         </Sidebar>
         <SidebarInset>
-          <main className="container max-w-5xl mx-auto py-10 px-6 min-h-screen">
+          <main className="container max-w-5xl mx-auto py-10 px-6 min-h-screen" id="main-content">
             {renderModularContent()}
           </main>
         </SidebarInset>
