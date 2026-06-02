@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { memo } from 'react';
@@ -109,7 +110,49 @@ export const ProfileView = memo(({
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="space-y-2">
+                <Label>Specific Model</Label>
+                {aiPrefs.modelProvider === 'google' ? (
+                  <Select value={aiPrefs.selectedModel} onValueChange={(val) => saveAiPreferences({ selectedModel: val })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="googleai/gemini-2.5-flash">Gemini 2.5 Flash</SelectItem>
+                      <SelectItem value="googleai/gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>
+                      <SelectItem value="googleai/gemini-1.5-flash">Gemini 1.5 Flash</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Select value={aiPrefs.selectedModel} onValueChange={(val) => saveAiPreferences({ selectedModel: val })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {systemConfig?.localModelList?.map((m: string) => (
+                        <SelectItem key={m} value={m}>{m}</SelectItem>
+                      ))}
+                      {!systemConfig?.localModelList?.length && <SelectItem value="llama3">llama3</SelectItem>}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
             </div>
+
+            {aiPrefs.modelProvider === 'google' && (
+              <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-dashed">
+                <div className="flex justify-between items-center">
+                  <Label>Personal Gemini API Key</Label>
+                  <Button variant="link" size="sm" className="h-auto p-0 text-[10px]" asChild>
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">Get Key <ExternalLink className="h-2 w-2 ml-1" /></a>
+                  </Button>
+                </div>
+                <Input 
+                  type="password" 
+                  placeholder="Paste your key to use your own quota..." 
+                  value={aiPrefs.customApiKey} 
+                  onChange={e => saveAiPreferences({ customApiKey: e.target.value })} 
+                />
+                <p className="text-[10px] text-muted-foreground italic">Your key is stored locally in your browser by default unless cloud sync is active.</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
