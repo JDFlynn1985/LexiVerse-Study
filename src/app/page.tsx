@@ -57,7 +57,10 @@ import {
   BookMarked,
   ArrowLeftRight,
   ShieldCheck,
-  FileText
+  FileText,
+  Tags,
+  Filter,
+  X
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -76,6 +79,13 @@ import {
   DropdownMenuLabel
 } from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
 
 // AI Flow Imports
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
@@ -119,12 +129,15 @@ interface BlogPost {
   title: string;
   excerpt: string;
   content: string;
+  category: string;
   status: 'pending' | 'approved' | 'rejected';
   authorUid: string;
   authorName: string;
   createdAt: string;
   tags?: string[];
 }
+
+const BLOG_CATEGORIES = ["Linguistics", "Theology", "History", "Archaeology", "Hermeneutics", "General"];
 
 function HighlightedText({ text, highlights }: { text: string; highlights: string[] }) {
   if (!highlights.length) return <p className="text-sm leading-relaxed whitespace-pre-wrap">{text}</p>;
@@ -182,9 +195,29 @@ export default function Home() {
   const { data: wikiArticles } = useCollection<WikiArticle>(wikiQuery);
 
   // Blog State
-  const [blogDraft, setBlogDraft] = useState({ title: '', excerpt: '', content: '' });
-  const blogQuery = useMemo(() => query(collection(db, 'blog_posts'), where('status', '==', 'approved'), orderBy('createdAt', 'desc')), [db]);
-  const { data: blogPosts } = useCollection<BlogPost>(blogQuery);
+  const [blogDraft, setBlogDraft] = useState({ title: '', excerpt: '', content: '', category: 'General', tagInput: '' });
+  const [blogFilter, setBlogFilter] = useState({ category: 'All', tag: '' });
+
+  const blogQuery = useMemo(() => {
+    let q = query(collection(db, 'blog_posts'), where('status', '==', 'approved'), orderBy('createdAt', 'desc'));
+    return q;
+  }, [db]);
+
+  const { data: rawBlogPosts } = useCollection<BlogPost>(blogQuery);
+
+  const filteredBlogPosts = useMemo(() => {
+    return rawBlogPosts.filter(post => {
+      const categoryMatch = blogFilter.category === 'All' || post.category === blogFilter.category;
+      const tagMatch = !blogFilter.tag || post.tags?.some(tag => tag.toLowerCase().includes(blogFilter.tag.toLowerCase()));
+      return categoryMatch && tagMatch;
+    });
+  }, [rawBlogPosts, blogFilter]);
+
+  const allAvailableTags = useMemo(() => {
+    const tags = new Set<string>();
+    rawBlogPosts.forEach(post => post.tags?.forEach(tag => tags.add(tag)));
+    return Array.from(tags).sort();
+  }, [rawBlogPosts]);
 
   // Moderation State
   const pendingWikiQuery = useMemo(() => query(collection(db, 'wiki_entries'), where('status', '==', 'pending')), [db]);
@@ -329,16 +362,22 @@ export default function Home() {
     if (!user || !blogDraft.title || !blogDraft.content) return;
     setIsLoading(true);
     try {
-      const status = userProfile?.isTrustedContributor || userProfile?.isAdmin ? 'approved' : 'pending';
+      const status = userProfile?.isAdmin || userProfile?.isTrustedContributor ? 'approved' : 'pending';
+      const tags = blogDraft.tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+      
       await addDoc(collection(db, 'blog_posts'), {
-        ...blogDraft,
+        title: blogDraft.title,
+        content: blogDraft.content,
+        excerpt: blogDraft.excerpt,
+        category: blogDraft.category,
+        tags: tags,
         status: status,
         authorUid: user.uid,
         authorName: user.displayName || 'Scholar',
-        createdAt: new Date().toISOString(),
-        tags: []
+        createdAt: new Date().toISOString()
       });
-      setBlogDraft({ title: '', excerpt: '', content: '' });
+      
+      setBlogDraft({ title: '', excerpt: '', content: '', category: 'General', tagInput: '' });
       toast({ 
         title: status === 'approved' ? "Post Published" : "Post Submitted", 
         description: status === 'approved' ? "Your post is now live in the journal." : "Your post is awaiting review." 
@@ -585,7 +624,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Other tabs minimal rendering or placeholders */}
               {activeTab === 'wiki' && (
                 <div className="space-y-8">
                    <header className="flex justify-between items-center">
@@ -646,7 +684,7 @@ export default function Home() {
 
               {activeTab === 'blog' && (
                 <div className="space-y-8">
-                  <header className="flex justify-between items-center">
+                  <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                       <h1 className="text-3xl font-bold font-headline">Scholar's Journal</h1>
                       <p className="text-muted-foreground">Academic blog for theological reflections and scholarly news.</p>
@@ -657,30 +695,117 @@ export default function Home() {
                       <TabsTrigger value="read">Read Journal</TabsTrigger>
                       <TabsTrigger value="write">New Entry</TabsTrigger>
                     </TabsList>
-                    <TabsContent value="read" className="pt-6 space-y-6">
-                      {blogPosts?.map(post => (
-                        <Card key={post.id} className="shadow-md border-primary/5 bg-card/50">
-                          <CardHeader>
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <CardTitle className="text-2xl font-headline mb-1">{post.title}</CardTitle>
-                                <CardDescription className="flex items-center gap-2">
-                                  <PenTool className="h-3 w-3" /> {post.authorName} • {new Date(post.createdAt).toLocaleDateString()}
-                                </CardDescription>
+                    <TabsContent value="read" className="pt-6">
+                      <div className="flex flex-col md:flex-row gap-6">
+                        {/* Blog Sidebar Filter */}
+                        <aside className="w-full md:w-64 space-y-6">
+                          <Card className="p-4 shadow-sm border-primary/5">
+                            <CardHeader className="p-0 pb-3">
+                              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                                <Filter className="h-4 w-4" /> Filter by Taxonomy
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-0 space-y-4">
+                              <div className="space-y-2">
+                                <Label className="text-xs">Category</Label>
+                                <Select value={blogFilter.category} onValueChange={(val) => setBlogFilter({...blogFilter, category: val})}>
+                                  <SelectTrigger className="h-8 text-xs">
+                                    <SelectValue placeholder="All Categories" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="All">All Categories</SelectItem>
+                                    {BLOG_CATEGORIES.map(cat => (
+                                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
                               </div>
+                              <div className="space-y-2">
+                                <Label className="text-xs">Search Tags</Label>
+                                <div className="relative">
+                                  <Input 
+                                    placeholder="Type tag..." 
+                                    className="h-8 text-xs pr-8"
+                                    value={blogFilter.tag}
+                                    onChange={(e) => setBlogFilter({...blogFilter, tag: e.target.value})}
+                                  />
+                                  {blogFilter.tag && (
+                                    <button 
+                                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                      onClick={() => setBlogFilter({...blogFilter, tag: ''})}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              {allAvailableTags.length > 0 && (
+                                <div className="space-y-2">
+                                  <Label className="text-xs">Common Tags</Label>
+                                  <div className="flex flex-wrap gap-1">
+                                    {allAvailableTags.slice(0, 8).map(tag => (
+                                      <Badge 
+                                        key={tag} 
+                                        variant={blogFilter.tag === tag ? "default" : "outline"}
+                                        className="text-[10px] cursor-pointer"
+                                        onClick={() => setBlogFilter({...blogFilter, tag: tag === blogFilter.tag ? '' : tag})}
+                                      >
+                                        {tag}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </aside>
+
+                        {/* Blog Feed */}
+                        <div className="flex-1 space-y-6">
+                          {filteredBlogPosts?.map(post => (
+                            <Card key={post.id} className="shadow-md border-primary/5 bg-card/50">
+                              <CardHeader>
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20">{post.category}</Badge>
+                                      <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                        <Clock className="h-3 w-3" /> {new Date(post.createdAt).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                    <CardTitle className="text-2xl font-headline mb-1">{post.title}</CardTitle>
+                                    <CardDescription className="flex items-center gap-2">
+                                      <PenTool className="h-3 w-3" /> {post.authorName}
+                                    </CardDescription>
+                                  </div>
+                                </div>
+                              </CardHeader>
+                              <CardContent>
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap">{post.content}</p>
+                              </CardContent>
+                              <CardFooter className="flex flex-wrap gap-2 border-t pt-4">
+                                <Tags className="h-3 w-3 text-muted-foreground mr-1" />
+                                {post.tags?.map(tag => (
+                                  <Badge 
+                                    key={tag} 
+                                    variant="outline" 
+                                    className="text-[10px] cursor-pointer hover:bg-muted"
+                                    onClick={() => setBlogFilter({...blogFilter, tag})}
+                                  >
+                                    #{tag}
+                                  </Badge>
+                                ))}
+                                {(!post.tags || post.tags.length === 0) && <span className="text-[10px] text-muted-foreground italic">No tags</span>}
+                              </CardFooter>
+                            </Card>
+                          ))}
+                          {filteredBlogPosts?.length === 0 && (
+                            <div className="text-center py-12 text-muted-foreground italic bg-muted/20 rounded-xl border border-dashed">
+                              No journal entries matching your criteria.
                             </div>
-                          </CardHeader>
-                          <CardContent>
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{post.content}</p>
-                          </CardContent>
-                          <CardFooter className="flex gap-2">
-                            {post.tags?.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)}
-                          </CardFooter>
-                        </Card>
-                      ))}
-                      {blogPosts?.length === 0 && (
-                        <div className="text-center py-12 text-muted-foreground italic">No journal entries found. Be the first to contribute!</div>
-                      )}
+                          )}
+                        </div>
+                      </div>
                     </TabsContent>
                     <TabsContent value="write" className="pt-6">
                       <Card className="max-w-2xl mx-auto">
@@ -689,9 +814,28 @@ export default function Home() {
                           <CardDescription>Share your research journey or theological reflections.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label>Headline</Label>
+                              <Input placeholder="e.g., The Eschatological Implications of 'Logos'" value={blogDraft.title} onChange={e => setBlogDraft({...blogDraft, title: e.target.value})} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Category</Label>
+                              <Select value={blogDraft.category} onValueChange={(val) => setBlogDraft({...blogDraft, category: val})}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select Category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {BLOG_CATEGORIES.map(cat => (
+                                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
                           <div className="space-y-2">
-                            <Label>Headline</Label>
-                            <Input placeholder="e.g., The Eschatological Implications of 'Logos'" value={blogDraft.title} onChange={e => setBlogDraft({...blogDraft, title: e.target.value})} />
+                            <Label>Tags (comma separated)</Label>
+                            <Input placeholder="greek, exegesis, pauline" value={blogDraft.tagInput} onChange={e => setBlogDraft({...blogDraft, tagInput: e.target.value})} />
                           </div>
                           <div className="space-y-2">
                             <Label>Academic Reflection</Label>
@@ -744,11 +888,19 @@ export default function Home() {
                       {pendingBlogPosts?.map(post => (
                         <Card key={post.id} className="border-accent/20 bg-accent/5">
                           <CardHeader>
-                            <CardTitle className="font-headline">{post.title}</CardTitle>
-                            <CardDescription>Author: {post.authorName}</CardDescription>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <Badge variant="outline" className="mb-2">{post.category}</Badge>
+                                <CardTitle className="font-headline">{post.title}</CardTitle>
+                                <CardDescription>Author: {post.authorName}</CardDescription>
+                              </div>
+                            </div>
                           </CardHeader>
                           <CardContent>
-                            <p className="text-sm">{post.content}</p>
+                            <p className="text-sm mb-4">{post.content}</p>
+                            <div className="flex flex-wrap gap-1">
+                              {post.tags?.map(tag => <Badge key={tag} variant="secondary" className="text-[10px]">#{tag}</Badge>)}
+                            </div>
                           </CardContent>
                           <CardFooter className="flex gap-2">
                             <Button size="sm" onClick={() => moderateContent(post.id, 'blog_posts', 'approved')}>Approve</Button>

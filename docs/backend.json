@@ -63,9 +63,14 @@
         "authorUid": { "type": "string" },
         "authorName": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
+        "category": { 
+          "type": "string", 
+          "enum": ["Linguistics", "Theology", "History", "Archaeology", "Hermeneutics", "General"],
+          "description": "The primary scholarly category of the post."
+        },
         "tags": { "type": "array", "items": { "type": "string" } }
       },
-      "required": ["title", "content", "status", "authorUid"]
+      "required": ["title", "content", "status", "authorUid", "category"]
     },
     "SystemSettings": {
       "title": "System Settings",
