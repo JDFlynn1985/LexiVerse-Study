@@ -70,7 +70,8 @@ import {
   Camera,
   Award,
   AlertTriangle,
-  Info
+  Info,
+  Server
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -122,9 +123,10 @@ interface UserProfile {
   isModerator?: boolean;
   isTrustedContributor?: boolean;
   preferences?: {
-    selectedModel: string;
-    customApiKey: string;
-    preferredBibleVersion: string;
+    modelProvider?: 'google' | 'local';
+    selectedModel?: string;
+    customApiKey?: string;
+    preferredBibleVersion?: string;
     language?: string;
   };
 }
@@ -183,12 +185,14 @@ export default function Home() {
   const { user } = useUser();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isAiEnabled, setIsAiEnabled] = useState(true);
+  const [localModels, setLocalModels] = useState<string[]>([]);
 
   const [history, setHistory] = useState<{id: string, type: string, term: string, date: string}[]>([]);
   const [localDocuments, setLocalDocuments] = useState<IDBDocument[]>([]);
   const [availableVersions, setAvailableVersions] = useState<BibleVersion[]>([]);
 
   const [aiPrefs, setAiPrefs] = useState({
+    modelProvider: 'google',
     selectedModel: 'googleai/gemini-2.5-flash',
     customApiKey: '',
     preferredBibleVersion: 'kjv',
@@ -258,11 +262,12 @@ export default function Home() {
     refreshLocalDocs();
     getVersions().then(setAvailableVersions);
 
-    // Check system config for AI readiness
+    // Check system config for AI readiness and local models
     async function checkSystemConfig() {
       const configSnap = await getDoc(doc(db, 'system', 'config'));
       if (configSnap.exists()) {
         const config = configSnap.data();
+        setLocalModels(config.localModelList || ['llama3', 'mistral', 'gemma']);
         if (!config.geminiApiKey) {
           setIsAiEnabled(false);
         }
@@ -288,6 +293,7 @@ export default function Home() {
           });
           if (data.preferences) {
             setAiPrefs({
+              modelProvider: data.preferences.modelProvider || 'google',
               selectedModel: data.preferences.selectedModel || 'googleai/gemini-2.5-flash',
               customApiKey: data.preferences.customApiKey || '',
               preferredBibleVersion: data.preferences.preferredBibleVersion || 'kjv',
@@ -315,7 +321,11 @@ export default function Home() {
           photoURL: '',
           isAdmin: false,
           isModerator: false,
-          isTrustedContributor: false
+          isTrustedContributor: false,
+          preferences: {
+            modelProvider: 'google',
+            selectedModel: 'googleai/gemini-2.5-flash'
+          }
         });
       }
       toast({ title: "Logged in", description: `Welcome, ${result.user.displayName}` });
@@ -350,13 +360,30 @@ export default function Home() {
     }
   };
 
+  const saveAiPreferences = async (newPrefs: any) => {
+    if (!user || !db) return;
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        preferences: {
+          ...userProfile?.preferences,
+          ...newPrefs
+        }
+      });
+      setAiPrefs({...aiPrefs, ...newPrefs});
+      toast({ title: "Preferences Saved", description: "Your model settings have been updated." });
+    } catch (e) {
+      toast({ variant: 'destructive', title: "Failed to save preferences" });
+    }
+  };
+
   const handleSearch = async (term: string, type: ViewMode) => {
     if (!term.trim()) return;
-    if (!isAiEnabled && ['lexicon', 'theology-map', 'timeline', 'ai-assistant', 'verse-explorer', 'writing-assistant', 'academic-integrity'].includes(type)) {
+    if (!isAiEnabled && aiPrefs.modelProvider === 'google' && ['lexicon', 'theology-map', 'timeline', 'ai-assistant', 'verse-explorer', 'writing-assistant', 'academic-integrity'].includes(type)) {
       toast({ 
         variant: 'destructive', 
         title: "AI Engine Not Configured", 
-        description: "Please visit the Setup Wizard or Admin Settings to configure your AI API Key." 
+        description: "Please visit the Setup Wizard or Admin Settings to configure your AI API Key or switch to a local model." 
       });
       return;
     }
@@ -367,8 +394,10 @@ export default function Home() {
     logSearch(db, term, type, user?.uid);
     try {
       let result;
+      const effectiveModel = aiPrefs.modelProvider === 'local' ? `ollama/${aiPrefs.selectedModel}` : aiPrefs.selectedModel;
+      
       if (type === 'lexicon') {
-        result = await defineAndAnalyzeTerm({ strongsNumber: term, model: aiPrefs.selectedModel });
+        result = await defineAndAnalyzeTerm({ strongsNumber: term, model: effectiveModel });
         setLexiconResult(result);
       } else if (type === 'theology-map') {
         result = await analyzeTheologicalConcept({ concept: term });
@@ -483,7 +512,7 @@ export default function Home() {
   };
 
   const handleVoiceSearch = async () => {
-    if (!isAiEnabled) {
+    if (!isAiEnabled && aiPrefs.modelProvider === 'google') {
       toast({ variant: 'destructive', title: "Voice features require AI configuration." });
       return;
     }
@@ -547,26 +576,26 @@ export default function Home() {
             <SidebarGroup>
               <SidebarGroupLabel className="flex items-center justify-between">
                 AI Research Hub
-                {!isAiEnabled && <Badge variant="destructive" className="scale-75 origin-right">OFF</Badge>}
+                {!isAiEnabled && aiPrefs.modelProvider === 'google' && <Badge variant="destructive" className="scale-75 origin-right">OFF</Badge>}
               </SidebarGroupLabel>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'ai-assistant'} onClick={() => handleSearch(assistantTerm, 'ai-assistant')} tooltip="Study Assistant" disabled={!isAiEnabled}>
+                  <SidebarMenuButton isActive={activeTab === 'ai-assistant'} onClick={() => handleSearch(assistantTerm, 'ai-assistant')} tooltip="Study Assistant" disabled={!isAiEnabled && aiPrefs.modelProvider === 'google'}>
                     <Sparkles className="h-5 w-5" /> <span>Study Assistant</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'lexicon'} onClick={() => setActiveTab('lexicon')} tooltip="Lexicon Analysis" disabled={!isAiEnabled}>
+                  <SidebarMenuButton isActive={activeTab === 'lexicon'} onClick={() => setActiveTab('lexicon')} tooltip="Lexicon Analysis" disabled={!isAiEnabled && aiPrefs.modelProvider === 'google'}>
                     <BookOpen className="h-5 w-5" /> <span>Lexicon</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'theology-map'} onClick={() => setActiveTab('theology-map')} tooltip="Theology Concept Map" disabled={!isAiEnabled}>
+                  <SidebarMenuButton isActive={activeTab === 'theology-map'} onClick={() => setActiveTab('theology-map')} tooltip="Theology Concept Map" disabled={!isAiEnabled && aiPrefs.modelProvider === 'google'}>
                     <Network className="h-5 w-5" /> <span>Theology Map</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')} tooltip="Historical Timeline" disabled={!isAiEnabled}>
+                  <SidebarMenuButton isActive={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')} tooltip="Historical Timeline" disabled={!isAiEnabled && aiPrefs.modelProvider === 'google'}>
                     <Milestone className="h-5 w-5" /> <span>Historical Timeline</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -578,7 +607,7 @@ export default function Home() {
               <SidebarGroupLabel>Linguistic Analysis</SidebarGroupLabel>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'verse-explorer'} onClick={() => setActiveTab('verse-explorer')} tooltip="Verse Explorer" disabled={!isAiEnabled}>
+                  <SidebarMenuButton isActive={activeTab === 'verse-explorer'} onClick={() => setActiveTab('verse-explorer')} tooltip="Verse Explorer" disabled={!isAiEnabled && aiPrefs.modelProvider === 'google'}>
                     <BookMarked className="h-5 w-5" /> <span>Verse Explorer</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -607,12 +636,12 @@ export default function Home() {
                   </SidebarMenuItem>
                 )}
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'writing-assistant'} onClick={() => setActiveTab('writing-assistant')} tooltip="Writing Assistant" disabled={!isAiEnabled}>
+                  <SidebarMenuButton isActive={activeTab === 'writing-assistant'} onClick={() => setActiveTab('writing-assistant')} tooltip="Writing Assistant" disabled={!isAiEnabled && aiPrefs.modelProvider === 'google'}>
                     <Edit3 className="h-5 w-5" /> <span>Writing Assistant</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'academic-integrity'} onClick={() => setActiveTab('academic-integrity')} tooltip="Integrity Checker" disabled={!isAiEnabled}>
+                  <SidebarMenuButton isActive={activeTab === 'academic-integrity'} onClick={() => setActiveTab('academic-integrity')} tooltip="Integrity Checker" disabled={!isAiEnabled && aiPrefs.modelProvider === 'google'}>
                     <ShieldCheck className="h-5 w-5" /> <span>Academic Integrity</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -686,14 +715,14 @@ export default function Home() {
           <main id="main-content" className="container max-w-5xl mx-auto py-10 px-6 min-h-screen">
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               
-              {!isAiEnabled && activeTab === 'dashboard' && (
+              {!isAiEnabled && aiPrefs.modelProvider === 'google' && activeTab === 'dashboard' && (
                 <Alert className="mb-8 border-destructive/20 bg-destructive/5 text-destructive">
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Limited Functionality Mode</AlertTitle>
                   <AlertDescription className="text-sm">
                     AI-powered research tools (Lexicon, Theology Map, Study Assistant) are currently offline because the AI API Key is not configured.
                     You can still use the <strong>Wiki</strong>, <strong>Journal</strong>, and <strong>Research Library</strong>.
-                    Visit <Button variant="link" className="p-0 h-auto font-bold text-destructive underline" onClick={() => window.open('/setup', '_blank')}>Setup Wizard</Button> to restore full functionality.
+                    Visit <Button variant="link" className="p-0 h-auto font-bold text-destructive underline" onClick={() => window.open('/setup', '_blank')}>Setup Wizard</Button> to restore full functionality or switch to a local model in your profile.
                   </AlertDescription>
                 </Alert>
               )}
@@ -709,25 +738,25 @@ export default function Home() {
                     <Card className="md:col-span-2 shadow-md border-primary/10">
                       <CardHeader>
                         <CardTitle className="font-headline flex items-center gap-2">
-                          <Sparkles className={cn("h-5 w-5", isAiEnabled ? "text-primary" : "text-muted-foreground")} /> Scholarly Workspace
+                          <Sparkles className={cn("h-5 w-5", isAiEnabled || aiPrefs.modelProvider === 'local' ? "text-primary" : "text-muted-foreground")} /> Scholarly Workspace
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="flex gap-2">
                           <Input 
-                            placeholder={isAiEnabled ? "Greek/Hebrew term or eschatological question..." : "AI Features Disabled - Configuration Required"}
+                            placeholder={isAiEnabled || aiPrefs.modelProvider === 'local' ? "Greek/Hebrew term or eschatological question..." : "AI Features Disabled - Configuration Required"}
                             value={assistantTerm} 
-                            disabled={!isAiEnabled}
+                            disabled={!isAiEnabled && aiPrefs.modelProvider === 'google'}
                             onChange={e => setAssistantTerm(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && handleSearch(assistantTerm, 'ai-assistant')}
                           />
-                          <Button onClick={() => handleSearch(assistantTerm, 'ai-assistant')} disabled={isLoading || !isAiEnabled}>
+                          <Button onClick={() => handleSearch(assistantTerm, 'ai-assistant')} disabled={isLoading || (!isAiEnabled && aiPrefs.modelProvider === 'google')}>
                             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                           </Button>
                         </div>
-                        {!isAiEnabled && (
+                        {!isAiEnabled && aiPrefs.modelProvider === 'google' && (
                           <p className="text-[10px] text-muted-foreground italic flex items-center gap-1">
-                            <Info className="h-3 w-3" /> Please add a Gemini API Key in System Settings to enable this search engine.
+                            <Info className="h-3 w-3" /> Please add a Gemini API Key in System Settings or switch to a local model.
                           </p>
                         )}
                       </CardContent>
@@ -802,39 +831,91 @@ export default function Home() {
                       </CardFooter>
                     </Card>
 
-                    <Card className="md:col-span-2 shadow-lg border-primary/10">
-                      <CardHeader>
-                        <CardTitle className="text-xl font-headline">Identity & Credentials</CardTitle>
-                        <CardDescription>Update your public information for wiki and journal contributions.</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-6">
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <div className="space-y-2">
-                            <Label>Full Name / Display Name</Label>
-                            <Input value={profileDraft.displayName} onChange={e => setProfileDraft({...profileDraft, displayName: e.target.value})} />
+                    <div className="md:col-span-2 space-y-8">
+                      <Card className="shadow-lg border-primary/10">
+                        <CardHeader>
+                          <CardTitle className="text-xl font-headline">Identity & Credentials</CardTitle>
+                          <CardDescription>Update your public information for wiki and journal contributions.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label>Full Name / Display Name</Label>
+                              <Input value={profileDraft.displayName} onChange={e => setProfileDraft({...profileDraft, displayName: e.target.value})} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Academic Credentials (e.g. PhD, MDiv)</Label>
+                              <Input placeholder="PhD Candidate, New Testament Studies" value={profileDraft.credentials} onChange={e => setProfileDraft({...profileDraft, credentials: e.target.value})} />
+                            </div>
                           </div>
                           <div className="space-y-2">
-                            <Label>Academic Credentials (e.g. PhD, MDiv)</Label>
-                            <Input placeholder="PhD Candidate, New Testament Studies" value={profileDraft.credentials} onChange={e => setProfileDraft({...profileDraft, credentials: e.target.value})} />
+                            <Label>Photo URL (Required for Journal publication)</Label>
+                            <Input placeholder="https://..." value={profileDraft.photoURL} onChange={e => setProfileDraft({...profileDraft, photoURL: e.target.value})} />
                           </div>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Photo URL (Required for Journal publication)</Label>
-                          <Input placeholder="https://..." value={profileDraft.photoURL} onChange={e => setProfileDraft({...profileDraft, photoURL: e.target.value})} />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Scholarly Biography</Label>
-                          <Textarea rows={5} placeholder="Describe your theological focus, research interests, and academic background..." value={profileDraft.bio} onChange={e => setProfileDraft({...profileDraft, bio: e.target.value})} />
-                        </div>
-                      </CardContent>
-                      <CardFooter className="border-t pt-6 flex justify-end gap-3">
-                         <Button variant="ghost" onClick={() => setActiveTab('dashboard')}>Cancel</Button>
-                         <Button onClick={updateProfile} disabled={isLoading}>
-                           {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                           Save Identity
-                         </Button>
-                      </CardFooter>
-                    </Card>
+                          <div className="space-y-2">
+                            <Label>Scholarly Biography</Label>
+                            <Textarea rows={5} placeholder="Describe your theological focus, research interests, and academic background..." value={profileDraft.bio} onChange={e => setProfileDraft({...profileDraft, bio: e.target.value})} />
+                          </div>
+                        </CardContent>
+                        <CardFooter className="border-t pt-6 flex justify-end gap-3">
+                           <Button variant="ghost" onClick={() => setActiveTab('dashboard')}>Cancel</Button>
+                           <Button onClick={updateProfile} disabled={isLoading}>
+                             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                             Save Identity
+                           </Button>
+                        </CardFooter>
+                      </Card>
+
+                      <Card className="shadow-lg border-primary/10">
+                        <CardHeader>
+                          <CardTitle className="text-xl font-headline flex items-center gap-2"><Settings className="h-5 w-5" /> Research Preferences</CardTitle>
+                          <CardDescription>Configure your preferred AI engine and reasoning model.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                          <div className="grid gap-6 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label>AI Provider</Label>
+                              <Select 
+                                value={aiPrefs.modelProvider} 
+                                onValueChange={(val: any) => saveAiPreferences({ modelProvider: val, selectedModel: val === 'google' ? 'googleai/gemini-2.5-flash' : localModels[0] })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select Provider" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="google">Google Gemini (Cloud)</SelectItem>
+                                  <SelectItem value="local">Ollama (Local)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label>Active Model</Label>
+                              <Select 
+                                value={aiPrefs.selectedModel} 
+                                onValueChange={(val) => saveAiPreferences({ selectedModel: val })}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select Model" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {aiPrefs.modelProvider === 'google' ? (
+                                    <>
+                                      <SelectItem value="googleai/gemini-2.5-flash">Gemini 2.5 Flash (Preferred)</SelectItem>
+                                      <SelectItem value="googleai/gemini-2.5-pro-001">Gemini 2.5 Pro</SelectItem>
+                                    </>
+                                  ) : (
+                                    localModels.map(m => (
+                                      <SelectItem key={m} value={m}>{m}</SelectItem>
+                                    ))
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1242,6 +1323,9 @@ export default function Home() {
                         <div>
                           <h2 className="text-3xl font-bold font-headline text-primary">{assistantResult.originalWord}</h2>
                           <p className="text-muted-foreground">{assistantResult.transliteration} • {assistantResult.pronunciation}</p>
+                        </div>
+                        <div className="flex gap-2 text-xs items-center text-muted-foreground bg-background/50 px-2 py-1 rounded">
+                          <Server className="h-3 w-3 mr-1" /> {aiPrefs.selectedModel}
                         </div>
                         <div className="flex gap-2">
                           <Button variant="outline" size="sm" onClick={handleHighlightSelection}>

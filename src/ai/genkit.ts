@@ -1,7 +1,26 @@
-import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/google-genai';
 
+import { genkit } from 'genkit';
+import { googleAI } from '@genkit-ai/google-genai';
+import { ollama } from 'genkitx-ollama';
+
+/**
+ * Genkit instance configured with Google AI and Ollama for local inference.
+ * Supports multiple local models as specified in system settings.
+ */
 export const ai = genkit({
-  plugins: [googleAI()],
+  plugins: [
+    googleAI(),
+    ollama({
+      models: [
+        { name: 'llama3' },
+        { name: 'llama3.1' },
+        { name: 'mistral' },
+        { name: 'gemma' },
+        { name: 'phi3' },
+        { name: 'codellama' }
+      ],
+      serverAddress: process.env.OLLAMA_URL || 'http://localhost:11434',
+    }),
+  ],
   model: 'googleai/gemini-2.5-flash',
 });

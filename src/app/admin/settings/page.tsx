@@ -8,8 +8,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { ShieldCheck, Settings, Key, UserCheck, Loader2, Save, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  ShieldCheck, 
+  Settings, 
+  Key, 
+  UserCheck, 
+  Loader2, 
+  Save, 
+  ShieldAlert, 
+  CheckCircle2, 
+  Database,
+  Server,
+  Network,
+  Plus,
+  Trash2,
+  ExternalLink
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 
 export default function AdminSettings() {
   const db = useFirestore();
@@ -19,13 +37,24 @@ export default function AdminSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loginData, setLoginData] = useState({ username: '', password: '' });
-  const [config, setConfig] = useState<any>(null);
+  const [config, setConfig] = useState<any>({
+    geminiApiKey: '',
+    ollamaUrl: 'http://localhost:11434',
+    defaultModelProvider: 'google',
+    localModelList: ['llama3', 'mistral', 'gemma']
+  });
+  const [newModelName, setNewModelName] = useState('');
 
   useEffect(() => {
     async function fetchConfig() {
       const snap = await getDoc(doc(db, 'system', 'config'));
       if (snap.exists()) {
-        setConfig(snap.data());
+        const data = snap.data();
+        setConfig({
+          ...config,
+          ...data,
+          localModelList: data.localModelList || ['llama3', 'mistral', 'gemma']
+        });
       }
       setLoading(false);
     }
@@ -52,6 +81,26 @@ export default function AdminSettings() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const addModel = () => {
+    if (!newModelName.trim()) return;
+    if (config.localModelList.includes(newModelName.trim())) {
+      toast({ variant: 'destructive', title: "Model already exists" });
+      return;
+    }
+    setConfig({
+      ...config,
+      localModelList: [...config.localModelList, newModelName.trim()]
+    });
+    setNewModelName('');
+  };
+
+  const removeModel = (model: string) => {
+    setConfig({
+      ...config,
+      localModelList: config.localModelList.filter((m: string) => m !== model)
+    });
   };
 
   const promoteUser = async (role: 'admin' | 'moderator' | 'trusted') => {
@@ -104,7 +153,7 @@ export default function AdminSettings() {
   }
 
   return (
-    <div className="container max-w-4xl mx-auto py-12 px-6 space-y-8 animate-in fade-in duration-500">
+    <div className="container max-w-5xl mx-auto py-12 px-6 space-y-8 animate-in fade-in duration-500">
       <header className="flex justify-between items-center border-b pb-6">
         <div>
           <h1 className="text-3xl font-bold font-headline flex items-center gap-3">
@@ -118,67 +167,155 @@ export default function AdminSettings() {
         </Button>
       </header>
 
-      <div className="grid gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2"><Key className="h-5 w-5 text-primary" /> Research Engine (Gemini)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Gemini API Key</Label>
-              <Input 
-                type="password" 
-                value={config?.geminiApiKey || ''} 
-                onChange={e => setConfig({...config, geminiApiKey: e.target.value})} 
-              />
-              <p className="text-[10px] text-muted-foreground">Changes here affect all scholarly AI research flows instantly.</p>
-            </div>
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="ai" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-8">
+          <TabsTrigger value="ai">AI Engine Config</TabsTrigger>
+          <TabsTrigger value="roles">Role Management</TabsTrigger>
+        </TabsList>
 
-        <Card className="border-accent/20 bg-accent/5">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2 text-accent"><UserCheck className="h-5 w-5" /> Role Management</CardTitle>
-            <CardDescription>Grant specific scholarly permissions to your linked Google account.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
-              <div className="flex items-center gap-4">
-                <ShieldCheck className="h-6 w-6 text-primary" />
-                <div>
-                  <p className="font-bold text-sm">System Administrator</p>
-                  <p className="text-xs text-muted-foreground">Full access to settings.</p>
+        <TabsContent value="ai" className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2"><Key className="h-5 w-5 text-primary" /> Cloud Research (Google)</CardTitle>
+                <CardDescription>
+                  Researchers must provide their own Gemini API key for cloud processing.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label>Gemini API Key</Label>
+                    <Button variant="link" className="p-0 h-auto text-xs" asChild>
+                      <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
+                        Get Key <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </Button>
+                  </div>
+                  <Input 
+                    type="password" 
+                    value={config?.geminiApiKey || ''} 
+                    onChange={e => setConfig({...config, geminiApiKey: e.target.value})} 
+                    placeholder="Enter your Google AI API key"
+                  />
+                  <p className="text-[10px] text-muted-foreground italic">
+                    Keys are stored securely in your private Firestore instance.
+                  </p>
                 </div>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => promoteUser('admin')} disabled={!user || saving}>Promote</Button>
-            </div>
+              </CardContent>
+            </Card>
 
-            <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
-              <div className="flex items-center gap-4">
-                <ShieldAlert className="h-6 w-6 text-accent" />
-                <div>
-                  <p className="font-bold text-sm">Wiki Moderator</p>
-                  <p className="text-xs text-muted-foreground">Peer review pending entries.</p>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2"><Server className="h-5 w-5 text-primary" /> Local Inference (Ollama)</CardTitle>
+                <CardDescription>Manage multiple locally hosted models.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Ollama Server Address</Label>
+                  <Input 
+                    placeholder="http://localhost:11434"
+                    value={config?.ollamaUrl || ''} 
+                    onChange={e => setConfig({...config, ollamaUrl: e.target.value})} 
+                  />
                 </div>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => promoteUser('moderator')} disabled={!user || saving}>Promote</Button>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
-              <div className="flex items-center gap-4">
-                <CheckCircle2 className="h-6 w-6 text-green-600" />
-                <div>
-                  <p className="font-bold text-sm">Trusted Contributor</p>
-                  <p className="text-xs text-muted-foreground">Bypass peer review for wiki posts.</p>
+                
+                <div className="space-y-4 border-t pt-4">
+                  <Label>Manage Models</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="e.g. llama3.1" 
+                      value={newModelName}
+                      onChange={e => setNewModelName(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && addModel()}
+                    />
+                    <Button size="icon" onClick={addModel}><Plus className="h-4 w-4" /></Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {config.localModelList.map((model: string) => (
+                      <Badge key={model} variant="secondary" className="pl-3 pr-1 py-1 flex items-center gap-2">
+                        {model}
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-4 w-4 rounded-full hover:bg-destructive hover:text-destructive-foreground"
+                          onClick={() => removeModel(model)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </Badge>
+                    ))}
+                    {config.localModelList.length === 0 && (
+                      <p className="text-xs text-muted-foreground italic">No local models configured.</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => promoteUser('trusted')} disabled={!user || saving}>Promote</Button>
-            </div>
 
-            {!user && <p className="text-xs italic text-center text-muted-foreground pt-2">Sign in with Google in the main app to enable role promotion.</p>}
-          </CardContent>
-        </Card>
-      </div>
+                <div className="space-y-2 border-t pt-4">
+                  <Label>Default Provider</Label>
+                  <Select 
+                    value={config?.defaultModelProvider || 'google'} 
+                    onValueChange={(val) => setConfig({...config, defaultModelProvider: val})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Provider" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="google">Google Gemini (Cloud - Preferred)</SelectItem>
+                      <SelectItem value="local">Ollama (Local)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="roles" className="space-y-6">
+          <Card className="border-accent/20 bg-accent/5">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2 text-accent"><UserCheck className="h-5 w-5" /> Role Management</CardTitle>
+              <CardDescription>Grant specific scholarly permissions to your linked Google account.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
+                <div className="flex items-center gap-4">
+                  <ShieldCheck className="h-6 w-6 text-primary" />
+                  <div>
+                    <p className="font-bold text-sm">System Administrator</p>
+                    <p className="text-xs text-muted-foreground">Full access to settings.</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => promoteUser('admin')} disabled={!user || saving}>Promote</Button>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
+                <div className="flex items-center gap-4">
+                  <ShieldAlert className="h-6 w-6 text-accent" />
+                  <div>
+                    <p className="font-bold text-sm">Wiki Moderator</p>
+                    <p className="text-xs text-muted-foreground">Peer review pending entries.</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => promoteUser('moderator')} disabled={!user || saving}>Promote</Button>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
+                <div className="flex items-center gap-4">
+                  <CheckCircle2 className="h-6 w-6 text-green-600" />
+                  <div>
+                    <p className="font-bold text-sm">Trusted Contributor</p>
+                    <p className="text-xs text-muted-foreground">Bypass peer review for wiki posts.</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => promoteUser('trusted')} disabled={!user || saving}>Promote</Button>
+              </div>
+
+              {!user && <p className="text-xs italic text-center text-muted-foreground pt-2">Sign in with Google in the main app to enable role promotion.</p>}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

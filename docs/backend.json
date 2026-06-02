@@ -18,10 +18,18 @@
         "preferences": {
           "type": "object",
           "properties": {
-            "selectedModel": { 
+            "modelProvider": { 
               "type": "string", 
-              "enum": ["googleai/gemini-2.5-flash", "googleai/gemini-2.5-pro-001"],
-              "description": "The selected AI engine."
+              "enum": ["google", "local"],
+              "description": "Whether to use cloud-based Google AI or locally hosted models."
+            },
+            "selectedModel": { 
+              "type": "string",
+              "description": "The specific model name (e.g. gemini-2.5-flash, llama3)."
+            },
+            "ollamaUrl": {
+              "type": "string",
+              "description": "Custom endpoint for local Ollama inference."
             },
             "preferredBibleVersion": {
               "type": "string",
@@ -82,6 +90,9 @@
         "adminUsername": { "type": "string" },
         "adminPassword": { "type": "string" },
         "geminiApiKey": { "type": "string" },
+        "ollamaUrl": { "type": "string" },
+        "localModelList": { "type": "array", "items": { "type": "string" }, "description": "A list of locally available models via Ollama." },
+        "defaultModelProvider": { "type": "string", "enum": ["google", "local"] },
         "isConfigured": { "type": "boolean" }
       }
     }
