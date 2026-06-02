@@ -1,4 +1,7 @@
 /**
+ * LexiVerse Explorer
+ * Copyright (c) 2024. Licensed under CC BY-NC-SA 4.0.
+ * 
  * @fileOverview Central Genkit configuration and initialization for the LexiVerse AI Hub.
  *
  * This module exports the global `ai` instance used for all generative tasks.

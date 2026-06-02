@@ -1,8 +1,11 @@
 /**
+ * LexiVerse Explorer
+ * Copyright (c) 2024. Licensed under CC BY-NC-SA 4.0.
+ * 
  * @fileOverview Centralized dictionary for LexiVerse localization and internationalization.
  * 
  * This module aggregates all language files and provides a unified interface
- * for the `LanguageProvider`. It supports dialect-specific terminology
+ * for the LanguageProvider. It supports dialect-specific terminology
  * required for accurate theological research in various regions.
  */
 

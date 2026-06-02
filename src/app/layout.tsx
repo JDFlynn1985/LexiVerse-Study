@@ -1,3 +1,10 @@
+/**
+ * LexiVerse Explorer
+ * Copyright (c) 2024. Licensed under CC BY-NC-SA 4.0.
+ * 
+ * @fileOverview Root Layout for the LexiVerse application.
+ * Handles global theme, language context, and system-wide error listeners.
+ */
 
 'use client';
 
@@ -13,9 +20,6 @@ import { CookieConsent } from '@/components/cookie-consent';
 import { useEffect } from 'react';
 import { initializeFirebase } from '@/firebase';
 import { logErrorToFirestore } from '@/lib/error-logging';
-
-// Note: Metadata and Viewport are moved to a separate server component or handled differently in client layouts
-// For this prototype, we'll focus on the client-side error capture logic.
 
 export default function RootLayout({
   children,

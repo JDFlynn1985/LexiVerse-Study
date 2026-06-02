@@ -1,3 +1,12 @@
+/**
+ * LexiVerse Explorer
+ * Copyright (c) 2024. Licensed under CC BY-NC-SA 4.0.
+ * 
+ * @fileOverview Central entry point for Firebase initialization and services.
+ * 
+ * Exports standard hooks and initialization functions used throughout the 
+ * LexiVerse research environment.
+ */
 
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
@@ -17,6 +26,10 @@ let app: FirebaseApp;
 let auth: Auth;
 let firestore: Firestore;
 
+/**
+ * Initializes the Firebase Client SDK.
+ * @returns {object} { app, auth, firestore }
+ */
 export function initializeFirebase() {
   if (getApps().length > 0) {
     app = getApp();
