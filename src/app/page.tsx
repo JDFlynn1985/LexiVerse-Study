@@ -21,7 +21,7 @@ import {
   SAMLAuthProvider,
   OAuthProvider
 } from 'firebase/auth';
-import { doc, onSnapshot, getDocs, collection, query, orderBy, addDoc, limit, where, serverTimestamp, updateDoc, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, getDocs, collection, query, orderBy, addDoc, limit, where, serverTimestamp, updateDoc, setDoc, getDoc } from 'firebase/firestore';
 import { useAuth, useFirestore, useUser, useDoc, useMemoFirebase } from '@/firebase';
 import { logSearch } from '@/lib/search-logging';
 import { useLanguage } from '@/components/language-provider';
@@ -111,7 +111,7 @@ import { chunkText, selectRelevantChunks } from '@/lib/rag-engine';
 
 export default function Home() {
   const { language, t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<any>('dashboard');
+  const [activeTab, setActiveTab] = useState<ViewMode>('dashboard');
   const [isLoading, setIsLoading] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const { theme, setTheme } = useTheme();
@@ -129,10 +129,12 @@ export default function Home() {
   const [localDocuments, setLocalDocuments] = useState<IDBDocument[]>([]);
   const [availableVersions, setAvailableVersions] = useState<BibleVersion[]>([]);
   const [momentumData, setMomentumData] = useState<any[]>([]);
+  const [institutions, setInstitutions] = useState<any[]>([]);
+  const [profileDraft, setProfileDraft] = useState<any>(null);
   
   const [aiPrefs, setAiPrefs] = useState({
     modelProvider: 'google' as AIProvider,
-    selectedModel: 'googleai/gemini-2.5-flash',
+    selectedModel: 'googleai/gemini-1.5-flash',
     googleKey: '',
     openaiKey: '',
     anthropicKey: '',
@@ -170,6 +172,9 @@ export default function Home() {
     const savedHistory = localStorage.getItem('lexiverse_history');
     if (savedHistory) setHistoryItems(JSON.parse(savedHistory));
     
+    const savedPrefs = localStorage.getItem('lexiverse_ai_prefs');
+    if (savedPrefs) setAiPrefs(JSON.parse(savedPrefs));
+    
     refreshLocalDocs();
     getVersions().then(setAvailableVersions);
 
@@ -178,8 +183,21 @@ export default function Home() {
       if (snap.exists()) setSystemConfig(snap.data());
     });
 
+    getDocs(collection(db, 'institutions')).then(snap => {
+      setInstitutions(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
     return () => {};
   }, [db, refreshLocalDocs]);
+
+  useEffect(() => {
+    if (userProfile) {
+      setProfileDraft(userProfile);
+      if (userProfile.preferences) {
+        setAiPrefs(prev => ({ ...prev, ...userProfile.preferences }));
+      }
+    }
+  }, [userProfile]);
 
   const handleLogin = async (providerType: 'google' | 'institutional' = 'google') => {
     setIsAuthLoading(true);
@@ -244,10 +262,39 @@ export default function Home() {
     finally { setIsLoading(false); }
   };
 
+  const updateProfile = async () => {
+    if (!user || !db || !profileDraft) return;
+    setIsLoading(true);
+    try {
+      await updateDoc(doc(db, 'users', user.uid), profileDraft);
+      toast({ title: "Profile Updated" });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: "Update Failed", description: e.message });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const saveAiPreferences = async (newPrefs: Partial<typeof aiPrefs>) => {
+    const updated = { ...aiPrefs, ...newPrefs };
+    setAiPrefs(updated);
+    localStorage.setItem('lexiverse_ai_prefs', JSON.stringify(updated));
+    if (user && db) {
+      try {
+        await updateDoc(doc(db, 'users', user.uid), {
+          preferences: updated
+        });
+        toast({ title: "Preferences Saved" });
+      } catch (e) {
+        console.error("Failed to sync preferences to cloud");
+      }
+    }
+  };
+
   const renderModularContent = () => {
     switch (activeTab) {
-      case 'dashboard': return <DashboardView t={t} effectiveApiKey={aiPrefs.googleKey || systemConfig?.geminiApiKey} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={DEFAULT_MODULES} momentumData={momentumData} />;
-      case 'chat': return <ChatView chatMode={chatMode} setChatMode={setChatMode} userProfile={userProfile} userInstitutionName={""} messages={chatMessages} user={user} newMessage={newMessage} setNewMessage={setNewMessage} chatAgreed={chatAgreed} setChatAgreed={setChatAgreed} handleSendMessage={() => {}} chatEndRef={chatEndRef} onInitiateDM={(peer) => { setDmRecipient(peer); setActiveTab('direct-messages'); }} />;
+      case 'dashboard': return <DashboardView t={t} effectiveApiKey={aiPrefs.googleKey || systemConfig?.geminiApiKey} aiPrefs={aiPrefs} setAiPrefs={saveAiPreferences} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={DEFAULT_MODULES} momentumData={momentumData} />;
+      case 'chat': return <ChatView chatMode={chatMode} setChatMode={setChatMode} userProfile={userProfile} userInstitutionName={institutions.find(i => i.id === userProfile?.institutionId)?.name || ""} messages={chatMessages} user={user} newMessage={newMessage} setNewMessage={setNewMessage} chatAgreed={chatAgreed} setChatAgreed={setChatAgreed} handleSendMessage={() => {}} chatEndRef={chatEndRef} onInitiateDM={(peer) => { setDmRecipient(peer); setActiveTab('direct-messages'); }} />;
       case 'direct-messages': return <DirectMessageView initialRecipient={dmRecipient} />;
       case 'library': return <LibraryView documents={localDocuments} onRefresh={refreshLocalDocs} isLoading={isLoading} />;
       case 'archive': return <ArchiveView onRestore={(type, data) => { 
@@ -270,8 +317,8 @@ export default function Home() {
       case 'timeline': return <TimelineView isLoading={isLoading} result={timelineResult} onSearch={(term) => handleSearch(term, 'timeline')} />;
       case 'licensing-hub': return <LicensingHubView />;
       case 'commentaries': return <CommentaryView />;
-      case 'profile': return <ProfileView userProfile={userProfile!} effectiveAvatar={userProfile?.photoURL || getGravatarUrl(userProfile?.email || '')} userInstitutionName="" profileDraft={userProfile} setProfileDraft={() => {}} institutions={[]} updateProfile={() => {}} isLoading={isLoading} aiPrefs={aiPrefs} saveAiPreferences={() => {}} systemConfig={systemConfig} historyItems={historyItems} handleSearch={handleSearch} />;
-      default: return <DashboardView t={t} effectiveApiKey={aiPrefs.googleKey || systemConfig?.geminiApiKey} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={DEFAULT_MODULES} momentumData={momentumData} />;
+      case 'profile': return <ProfileView userProfile={userProfile!} effectiveAvatar={userProfile?.photoURL || getGravatarUrl(userProfile?.email || '')} userInstitutionName={institutions.find(i => i.id === userProfile?.institutionId)?.name || "Independent Scholar"} profileDraft={profileDraft} setProfileDraft={setProfileDraft} institutions={institutions} updateProfile={updateProfile} isLoading={isLoading} aiPrefs={aiPrefs} saveAiPreferences={saveAiPreferences} systemConfig={systemConfig} historyItems={historyItems} handleSearch={handleSearch} />;
+      default: return <DashboardView t={t} effectiveApiKey={aiPrefs.googleKey || systemConfig?.geminiApiKey} aiPrefs={aiPrefs} setAiPrefs={saveAiPreferences} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={DEFAULT_MODULES} momentumData={momentumData} />;
     }
   };
 
@@ -297,7 +344,7 @@ export default function Home() {
               <SidebarMenu>
                 {DEFAULT_MODULES.filter(m => m.group === 'general').map(m => (
                   <SidebarMenuItem key={m.id}>
-                    <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)}>
+                    <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id as ViewMode)}>
                       <m.icon className="h-5 w-5" /> 
                       <span>{t.nav[m.id] || m.id}</span>
                     </SidebarMenuButton>
@@ -310,7 +357,7 @@ export default function Home() {
               <SidebarMenu>
                 {DEFAULT_MODULES.filter(m => m.group === 'ai_hub').map(m => (
                   <SidebarMenuItem key={m.id}>
-                    <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)}>
+                    <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id as ViewMode)}>
                       <m.icon className="h-5 w-5" /> 
                       <span>{t.nav[m.id] || m.id}</span>
                     </SidebarMenuButton>
