@@ -41,7 +41,7 @@ import {
   Sparkles,
   LayoutDashboard,
   GraduationCap,
-  User as UserIcon,
+  User as LucideUser,
   Key,
   Code,
   Cpu,
@@ -377,7 +377,7 @@ export default function Home() {
                       <Button variant="ghost" className="p-0 h-8 w-8 rounded-full overflow-hidden border">
                         <Avatar className="h-full w-full">
                           <AvatarImage src={effectiveAvatar} />
-                          <AvatarFallback><UserIcon className="h-4 w-4" /></AvatarFallback>
+                          <AvatarFallback><LucideUser className="h-4 w-4" /></AvatarFallback>
                         </Avatar>
                       </Button>
                     </DropdownMenuTrigger>
@@ -390,7 +390,7 @@ export default function Home() {
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => setActiveTab('profile')}>
-                        <UserIcon className="h-4 w-4 mr-2" /> My Profile
+                        <LucideUser className="h-4 w-4 mr-2" /> My Profile
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => signOut(auth)} className="text-destructive">
@@ -457,7 +457,7 @@ export default function Home() {
                       <div className="relative mx-auto w-32 h-32 mb-4">
                         <Avatar className="w-full h-full border-4 border-background shadow-xl">
                           <AvatarImage src={effectiveAvatar} />
-                          <AvatarFallback><UserIcon className="h-12 w-12" /></AvatarFallback>
+                          <AvatarFallback><LucideUser className="h-12 w-12" /></AvatarFallback>
                         </Avatar>
                       </div>
                       <CardTitle className="font-headline">{userProfile.displayName}</CardTitle>

@@ -1,104 +1,80 @@
+
 {
   "openapi": "3.0.0",
   "info": {
     "title": "LexiVerse Scholarly Research API",
-    "description": "Integration portal for the LexiVerse research engine. Provides access to AI-powered scripture analysis and linguistic synthesis.",
-    "version": "1.0.0",
-    "contact": {
-      "name": "LexiVerse Support",
-      "url": "https://lexiverse.app/help"
-    }
+    "description": "RESTful access to the LexiVerse research engine for external scholarly tools.",
+    "version": "1.0.0"
   },
   "servers": [
     {
-      "url": "https://lexiverse.app/api/v1",
-      "description": "Production Scholarly Hub"
+      "url": "/api/v1",
+      "description": "Local production server"
     }
   ],
-  "components": {
-    "securitySchemes": {
-      "bearerAuth": {
-        "type": "http",
-        "scheme": "bearer",
-        "bearerFormat": "LexiVerse Key (lv_...)"
-      }
-    },
-    "schemas": {
-      "ResearchRequest": {
-        "type": "object",
-        "required": ["term"],
-        "properties": {
-          "term": {
-            "type": "string",
-            "description": "The scripture term or reference to research (e.g., 'G3056' or 'John 1:1')."
-          },
-          "researchContext": {
-            "type": "array",
-            "items": { "type": "string" },
-            "description": "Optional excerpts from research papers to ground the AI in specific context (RAG)."
-          }
-        }
-      },
-      "ResearchResponse": {
-        "type": "object",
-        "properties": {
-          "success": { "type": "boolean" },
-          "data": {
-            "type": "object",
-            "properties": {
-              "originalWord": { "type": "string" },
-              "transliteration": { "type": "string" },
-              "aiInsights": { "type": "string" },
-              "verseUsages": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "text": { "type": "string" },
-                    "url": { "type": "string" }
-                  }
-                }
-              }
-            }
-          },
-          "meta": {
-            "type": "object",
-            "properties": {
-              "tier": { "type": "string" },
-              "remaining": { "type": "number" }
-            }
-          }
-        }
-      }
-    }
-  },
   "paths": {
     "/research": {
       "post": {
-        "summary": "Execute Scholarly Research",
-        "description": "Submits a term for analysis. Returns linguistic data, commentary synthesis, and bibliographic references.",
-        "security": [{ "bearerAuth": [] }],
+        "summary": "Perform AI-powered scripture research",
+        "description": "Executes a research synthesis flow based on a term and optional context.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/ResearchRequest" }
+              "schema": {
+                "type": "object",
+                "required": [
+                  "term"
+                ],
+                "properties": {
+                  "term": {
+                    "type": "string",
+                    "description": "Scripture reference or linguistic term."
+                  },
+                  "researchContext": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Optional excerpts for RAG context."
+                  }
+                }
+              }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Successful Analysis",
+            "description": "Successful research results",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ResearchResponse" }
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": { "type": "object" },
+                    "meta": { "type": "object" }
+                  }
+                }
               }
             }
           },
-          "401": { "description": "Unauthorized - Missing Bearer Token" },
-          "403": { "description": "Forbidden - Invalid or Revoked Key" },
-          "429": { "description": "Tier Limit Exceeded" }
+          "401": { "description": "Unauthorized" },
+          "429": { "description": "Rate limit exceeded" }
         }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
       }
     }
   }
