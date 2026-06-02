@@ -1,18 +1,18 @@
-
 'use client';
 
 /**
  * @fileOverview Biblical Geography & Spatial Narrative View.
+ * Enhanced with spatial mapping links to Google Maps for site coordinates.
  */
 
 import React, { memo, useState } from 'react';
-import { Globe, Search, Loader2, BookOpen, MapPin, Sparkles, Navigation } from 'lucide-react';
+import { Globe, Search, Loader2, BookOpen, MapPin, Sparkles, Navigation, ExternalLink } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { GeographyOutput, runGeographyAnalysis } from '@/ai/flows/geography-flow';
+import { GeographyOutput } from '@/ai/flows/geography-flow';
 import { useLanguage } from '@/components/language-provider';
 
 interface GeographyViewProps {
@@ -29,6 +29,10 @@ export const GeographyView = memo(({ isLoading, result, onSearch }: GeographyVie
     if (e.key === 'Enter' && searchTerm.trim()) {
       onSearch(searchTerm);
     }
+  };
+
+  const getMapLink = (coords: string) => {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(coords)}`;
   };
 
   return (
@@ -80,12 +84,22 @@ export const GeographyView = memo(({ isLoading, result, onSearch }: GeographyVie
                   </h4>
                   <div className="grid gap-4 sm:grid-cols-2">
                     {result.sites.map((site, i) => (
-                      <div key={i} className="p-4 bg-muted/30 rounded-xl border border-primary/5 space-y-2">
-                        <div className="flex justify-between items-start">
-                          <h5 className="font-bold text-sm">{site.name}</h5>
-                          <code className="text-[9px] bg-background px-1.5 py-0.5 rounded border opacity-60">{site.coordinates}</code>
+                      <div key={i} className="p-4 bg-muted/30 rounded-xl border border-primary/5 space-y-2 flex flex-col justify-between">
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-start">
+                            <h5 className="font-bold text-sm">{site.name}</h5>
+                            <code className="text-[9px] bg-background px-1.5 py-0.5 rounded border opacity-60">{site.coordinates}</code>
+                          </div>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{site.significance}</p>
                         </div>
-                        <p className="text-xs text-muted-foreground leading-relaxed">{site.significance}</p>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="w-full mt-3 h-7 text-[10px] gap-1.5"
+                          onClick={() => window.open(getMapLink(site.coordinates), '_blank')}
+                        >
+                          <ExternalLink className="h-3 w-3" /> View Spatial Data
+                        </Button>
                       </div>
                     ))}
                   </div>

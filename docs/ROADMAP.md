@@ -5,16 +5,16 @@ This document outlines the features and components that require further developm
 ## ✅ Completed (Recent Build)
 - [x] **Voice Research Hub**: Integrated real-time voice transcription into the primary research engine via Gemini Multimodal.
 - [x] **Visual Theology Mapper**: Developed a scatter-plot density map using Recharts to visualize concept evolution.
-- [x] **Advanced BibTeX Export**: Implemented Zotero-compliant citation exports with abstract and abstract metadata.
+- [x] **Advanced BibTeX Export**: Implemented Zotero-compliant citation exports with abstract and metadata.
+- [x] **Google Workspace Deep Integration**: Real-time research export to Google Drive and Google Docs.
+- [x] **Live Research Momentum**: Real-time dashboard query aggregation from Firestore logs.
+- [x] **Spatial Narrative Hub**: Integrated Google Maps spatial data into the Geography Hub.
 - [x] **Grounded Synthesis Hub**: Integrated Digital Library RAG into the Writing Hub for integrity scans and tone refinement.
 - [x] **Codebase Sanitization**: Removed obsolete boilerplate templates and duplicate AI flows.
 - [x] **Notification Engine**: Implemented an in-app Notification Center for status changes and peer review alerts.
 - [x] **Wiki Moderation Flow**: Automated triggers for author alerts upon article approval/rejection.
-- [x] **Real STT (Speech-to-Text)**: Replaced mock with Gemini Multimodal processing.
 - [x] **Audit Dashboard**: Created UI views for system governance monitoring.
 - [x] **Native Document Parsing**: Local `pdf-parse` and `mammoth` integration.
-- [x] **Advanced RAG Engine**: Semantic chunking and local relevance ranking.
-- [x] **Universal Export Hub**: Integrated jsPDF and docx for scholarly reports.
 
 ## 📚 Data Integration & API Strategy
 - [ ] **Structured Lexicon Fetching**: Replace AI "simulation" of Strong's data with a direct API connector to a verified Greek/Hebrew database (e.g. STEPBible or OpenBible API).
@@ -31,4 +31,3 @@ This document outlines the features and components that require further developm
 
 ## 📄 Document Management
 - [ ] **Zotero Deep Sync**: Bidirectional sync with Zotero collections via API.
-- [ ] **Google Workspace Deep Integration**: Real-time collaboration via Google Docs embedding.

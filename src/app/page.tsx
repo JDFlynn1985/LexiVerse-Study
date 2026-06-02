@@ -1,4 +1,3 @@
-
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
@@ -9,6 +8,7 @@
 
 /**
  * @fileOverview Primary Research Dashboard Orchestrator.
+ * Updated with real-time research momentum fetching and Google Auth integration.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -27,6 +27,7 @@ import { getGravatarUrl } from '@/lib/utils';
 import { getIconByName } from '@/lib/icons';
 import { NotificationCenter } from '@/components/notification-center';
 import { sanitizeHtml } from '@/lib/sanitization';
+import { appConfig } from '@/app-config';
 
 // UI Layout Components
 import { 
@@ -93,11 +94,12 @@ import { analyzeTheologicalConcept, type TheologicalConceptOutput } from '@/ai/f
 import { runArchaeologyAnalysis, type ArchaeologyOutput } from '@/ai/flows/archaeology-site-flow';
 import { generateHistoricalTimeline, type HistoricalTimelineOutput } from '@/ai/flows/historical-timeline-flow';
 import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/compare-translations-ai';
-import { runGeographyAnalysis, type ArchaeologyOutput as GeographyOutput } from '@/ai/flows/geography-flow';
+import { runGeographyAnalysis, type GeographyOutput } from '@/ai/flows/geography-flow';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 import { getAllLocalDocuments, saveLocalDocument, type IDBDocument } from '@/lib/idb';
 import { chunkText, selectRelevantChunks } from '@/lib/rag-engine';
 import { exportToPDF, exportToWord, exportToMarkdown, exportToText, exportToBibTeX } from '@/lib/export-service';
+import { exportToGoogleDrive, exportToGoogleDocs } from '@/lib/google-export';
 
 export default function Home() {
   const { language, t } = useLanguage();
@@ -120,6 +122,8 @@ export default function Home() {
   const [institutions, setInstitutions] = useState<{id: string, name: string}[]>([]);
   const [dynamicModules, setDynamicModules] = useState<any[]>([]);
   const [modulesLoading, setModulesLoading] = useState(true);
+  const [googleToken, setGoogleToken] = useState<string | null>(null);
+  const [momentumData, setMomentumData] = useState<{ day: string, queries: number }[]>([]);
   
   const [aiPrefs, setAiPrefs] = useState({
     modelProvider: 'google' as AIProvider,
@@ -170,6 +174,10 @@ export default function Home() {
     setMounted(true);
     const savedHistory = localStorage.getItem('lexiverse_history');
     if (savedHistory) setHistoryItems(JSON.parse(savedHistory));
+    
+    const savedToken = localStorage.getItem('lexiverse_google_token');
+    if (savedToken) setGoogleToken(savedToken);
+
     refreshLocalDocs();
     getVersions().then(setAvailableVersions);
 
@@ -200,9 +208,37 @@ export default function Home() {
       setModulesLoading(false);
     });
 
+    // Real Research Momentum Aggregation
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const momentumQ = query(
+      collection(db, 'search_logs'),
+      where('timestamp', '>=', sevenDaysAgo),
+      orderBy('timestamp', 'asc')
+    );
+    const unsubMomentum = onSnapshot(momentumQ, (snap) => {
+      const counts: Record<string, number> = {};
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        counts[days[d.getDay()]] = 0;
+      }
+      snap.docs.forEach(docSnap => {
+        const date = docSnap.data().timestamp?.toDate();
+        if (date) {
+          const day = days[date.getDay()];
+          if (counts[day] !== undefined) counts[day]++;
+        }
+      });
+      const chartData = Object.entries(counts).map(([day, queries]) => ({ day, queries })).reverse();
+      setMomentumData(chartData);
+    });
+
     return () => {
       unsubConfig();
       unsubModules();
+      unsubMomentum();
     };
   }, [db, refreshLocalDocs]);
 
@@ -257,7 +293,6 @@ export default function Home() {
   };
 
   const handleSearch = async (term: string, type: ViewMode) => {
-    // Sanitize user query
     const sanitizedTerm = sanitizeHtml(term);
     if (!sanitizedTerm.trim()) return;
 
@@ -307,7 +342,7 @@ export default function Home() {
     } catch (e: any) { toast({ variant: 'destructive', title: "Save Failed" }); }
   };
 
-  const handleExport = (format: 'pdf' | 'docx' | 'markdown' | 'txt' | 'bibtex', data: any) => {
+  const handleExport = async (format: 'pdf' | 'docx' | 'markdown' | 'txt' | 'bibtex' | 'gdrive' | 'gdocs', data: any) => {
     if (!data) return;
     try {
       if (format === 'pdf') exportToPDF(data);
@@ -315,8 +350,20 @@ export default function Home() {
       else if (format === 'markdown') exportToMarkdown(data);
       else if (format === 'txt') exportToText(data);
       else if (format === 'bibtex') exportToBibTeX(data);
-      toast({ title: "Export Started", description: "Your scholarly report is being generated." });
-    } catch (e) { toast({ variant: 'destructive', title: "Export Failed" }); }
+      else if (format === 'gdrive' || format === 'gdocs') {
+        if (!googleToken) {
+          toast({ variant: 'destructive', title: "Auth Required", description: "Please sign in again to enable Google Workspace access." });
+          return;
+        }
+        setIsLoading(true);
+        if (format === 'gdrive') await exportToGoogleDrive(googleToken, data);
+        else await exportToGoogleDocs(googleToken, data);
+        toast({ title: "Google Export Complete", description: "Document successfully saved to your Google Workspace." });
+      } else {
+        toast({ title: "Export Started", description: "Your scholarly report is being generated." });
+      }
+    } catch (e: any) { toast({ variant: 'destructive', title: "Export Failed", description: e.message }); }
+    finally { setIsLoading(false); }
   };
 
   const handleSaveDraftToLibrary = async (name: string, content: string) => {
@@ -354,15 +401,12 @@ export default function Home() {
   const updateProfile = async () => {
     if (!user || !db) return;
     setIsLoading(true);
-    
-    // Sanitize profile inputs
     const sanitizedDraft = {
       ...profileDraft,
       displayName: sanitizeHtml(profileDraft.displayName),
       bio: sanitizeHtml(profileDraft.bio),
       credentials: sanitizeHtml(profileDraft.credentials)
     };
-
     try { await updateDoc(doc(db, 'users', user.uid), sanitizedDraft); toast({ title: "Profile Updated" }); } 
     catch (e) { toast({ variant: 'destructive', title: "Failed to update profile" }); }
     finally { setIsLoading(false); }
@@ -376,7 +420,16 @@ export default function Home() {
 
   const handleLogin = async () => {
     const provider = new GoogleAuthProvider();
-    try { const result = await signInWithPopup(auth, provider); toast({ title: "Welcome", description: result.user.displayName }); } 
+    appConfig.google.scopes.forEach(scope => provider.addScope(scope));
+    try { 
+      const result = await signInWithPopup(auth, provider); 
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (credential?.accessToken) {
+        localStorage.setItem('lexiverse_google_token', credential.accessToken);
+        setGoogleToken(credential.accessToken);
+      }
+      toast({ title: "Welcome", description: result.user.displayName }); 
+    } 
     catch (error: any) { toast({ variant: "destructive", title: "Login Failed" }); }
   };
 
@@ -393,18 +446,16 @@ export default function Home() {
 
   const renderModularContent = () => {
     switch (activeTab) {
-      case 'dashboard': return <DashboardView t={t} effectiveApiKey={getEffectiveKey()} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} />;
+      case 'dashboard': return <DashboardView t={t} effectiveApiKey={getEffectiveKey()} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} momentumData={momentumData} />;
       case 'chat': return <ChatView chatMode={chatMode} setChatMode={setChatMode} userProfile={userProfile} userInstitutionName={userInstitutionName} messages={chatMessages} user={user} newMessage={newMessage} setNewMessage={setNewMessage} chatAgreed={chatAgreed} setChatAgreed={setChatAgreed} handleSendMessage={handleSendMessage} chatEndRef={chatEndRef} onInitiateDM={(peer) => { setDmRecipient(peer); setActiveTab('direct-messages'); }} />;
       case 'direct-messages': return <DirectMessageView initialRecipient={dmRecipient} />;
       case 'library': return <LibraryView documents={localDocuments} onRefresh={refreshLocalDocs} isLoading={isLoading} />;
       case 'synthesis': return <SynthesisView synthesisText={synthesisText} setSynthesisText={setSynthesisText} handleSynthesisAction={async (a) => {
         setIsLoading(true);
         try {
-          // Prepare Library Context for Grounding
           const allChunks = localDocuments.flatMap(d => chunkText(d.content, d.name));
           const relevantChunks = selectRelevantChunks(synthesisText, allChunks, 10);
           const contextExcerpts = relevantChunks.map(c => `[Library Reference: ${c.sourceName}]: ${c.text}`);
-
           if (a === 'refine') setSynthesisResult(await refineWriting({ text: synthesisText, mode: 'academic' }));
           if (a === 'integrity') setIntegrityResult(await checkIntegrity({ text: synthesisText, style: 'SBL', researchContext: contextExcerpts }));
           if (a === 'bib') setBibResult(await formatBibliography({ items: synthesisText.split('\n'), style: 'SBL' }));

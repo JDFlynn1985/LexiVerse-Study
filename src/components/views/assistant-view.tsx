@@ -1,8 +1,7 @@
-
 'use client';
 
 import React, { memo } from 'react';
-import { Sparkles, Search, Loader2, ExternalLink, Download, Save, FileText } from 'lucide-react';
+import { Sparkles, Search, Loader2, ExternalLink, Download, Save, FileText, Database } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -24,7 +23,7 @@ interface AssistantViewProps {
   setAssistantTerm: (term: string) => void;
   handleSearch: (term: string, type: ViewMode) => void;
   handleSaveSession: (title: string, type: string, data: any) => void;
-  handleExport: (format: 'pdf' | 'docx' | 'markdown' | 'txt' | 'bibtex', data: any) => void;
+  handleExport: (format: 'pdf' | 'docx' | 'markdown' | 'txt' | 'bibtex' | 'gdrive' | 'gdocs', data: any) => void;
   isLoading: boolean;
   assistantResult: AiStudyAssistantOutput | null;
   isUserSignedIn: boolean;
@@ -68,22 +67,23 @@ export const AssistantView = memo(({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Choose Format</DropdownMenuLabel>
-                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Scholarly Formats</DropdownMenuLabel>
                 <DropdownMenuItem onClick={() => handleExport('pdf', assistantResult)}>
-                  <FileText className="h-4 w-4 mr-2" /> Portable Document (PDF)
+                  <FileText className="h-4 w-4 mr-2" /> PDF Document
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleExport('docx', assistantResult)}>
                   <FileText className="h-4 w-4 mr-2" /> MS Word (DOCX)
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleExport('bibtex', assistantResult)}>
-                  <FileText className="h-4 w-4 mr-2" /> Citation Manager (BibTeX)
+                  <FileText className="h-4 w-4 mr-2" /> BibTeX (Zotero)
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport('markdown', assistantResult)}>
-                  <FileText className="h-4 w-4 mr-2" /> Markdown (MD)
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Google Workspace</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => handleExport('gdrive', assistantResult)}>
+                  <Database className="h-4 w-4 mr-2 text-primary" /> Save to Drive
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport('txt', assistantResult)}>
-                  <FileText className="h-4 w-4 mr-2" /> Plain Text (TXT)
+                <DropdownMenuItem onClick={() => handleExport('gdocs', assistantResult)}>
+                  <FileText className="h-4 w-4 mr-2 text-primary" /> Create Google Doc
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

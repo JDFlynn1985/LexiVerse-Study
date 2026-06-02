@@ -1,8 +1,7 @@
-
 'use client';
 
 import React, { memo, useState } from 'react';
-import { BookOpen, Search, Loader2, Download, Save, FileText, Sparkles, Languages } from 'lucide-react';
+import { BookOpen, Search, Loader2, Download, Save, FileText, Sparkles, Languages, Database } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -23,7 +22,7 @@ import { searchCommentariesForContext, type SearchCommentariesOutput } from '@/a
 interface LexiconViewProps {
   handleSearch: (term: string, type: ViewMode) => void;
   handleSaveSession: (title: string, type: string, data: any) => void;
-  handleExport: (format: 'pdf' | 'docx' | 'markdown' | 'txt' | 'bibtex', data: any) => void;
+  handleExport: (format: 'pdf' | 'docx' | 'markdown' | 'txt' | 'bibtex' | 'gdrive' | 'gdocs', data: any) => void;
   isLoading: boolean;
   lexiconResult: DefineAndAnalyzeTermOutput | null;
   isUserSignedIn: boolean;
@@ -72,7 +71,7 @@ export const LexiconView = memo(({
               onClick={() => handleSaveSession(lexiconResult.searchStrongNumber, 'lexicon', lexiconResult)}
               disabled={!isUserSignedIn}
             >
-              <Save className="h-4 w-4 mr-2" /> Save to Workspace
+              <Save className="h-4 w-4 mr-2" /> Save
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -81,19 +80,20 @@ export const LexiconView = memo(({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Format</DropdownMenuLabel>
-                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Scholarly Formats</DropdownMenuLabel>
                 <DropdownMenuItem onClick={() => handleExport('pdf', lexiconResult)}>
-                  <FileText className="h-4 w-4 mr-2" /> PDF
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport('docx', lexiconResult)}>
-                  <FileText className="h-4 w-4 mr-2" /> DOCX
+                  <FileText className="h-4 w-4 mr-2" /> PDF Document
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleExport('bibtex', lexiconResult)}>
                   <FileText className="h-4 w-4 mr-2" /> BibTeX (Zotero)
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport('markdown', lexiconResult)}>
-                  <FileText className="h-4 w-4 mr-2" /> Markdown
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Google Workspace</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => handleExport('gdrive', lexiconResult)}>
+                  <Database className="h-4 w-4 mr-2 text-primary" /> Save to Drive
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('gdocs', lexiconResult)}>
+                  <FileText className="h-4 w-4 mr-2 text-primary" /> Create Google Doc
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

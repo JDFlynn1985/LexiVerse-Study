@@ -37,6 +37,7 @@ interface DashboardViewProps {
   historyItems: any[];
   setActiveTab: (tab: ViewMode) => void;
   activeModules: any[];
+  momentumData: { day: string, queries: number }[];
 }
 
 const PROVIDERS: { id: AIProvider; label: string; icon: any }[] = [
@@ -47,16 +48,6 @@ const PROVIDERS: { id: AIProvider; label: string; icon: any }[] = [
   { id: 'deepseek', label: 'DEEPSEEK', icon: Cpu },
   { id: 'xai', label: 'XAI (ZAI)', icon: Cpu },
   { id: 'local', label: 'LOCAL OLLAMA', icon: Server }
-];
-
-const MOCK_MOMENTUM_DATA = [
-  { day: 'Mon', queries: 4 },
-  { day: 'Tue', queries: 7 },
-  { day: 'Wed', queries: 5 },
-  { day: 'Thu', queries: 12 },
-  { day: 'Fri', queries: 8 },
-  { day: 'Sat', queries: 15 },
-  { day: 'Sun', queries: 9 },
 ];
 
 export const DashboardView = memo(({ 
@@ -71,7 +62,8 @@ export const DashboardView = memo(({
   isLoading, 
   historyItems, 
   setActiveTab,
-  activeModules
+  activeModules,
+  momentumData
 }: DashboardViewProps) => {
   const { toast } = useToast();
   const [isRecording, setIsRecording] = useState(false);
@@ -276,7 +268,7 @@ export const DashboardView = memo(({
           </CardHeader>
           <CardContent className="h-40 p-0">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={MOCK_MOMENT_DATA} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+              <AreaChart data={momentumData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorQueries" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.3}/>
@@ -299,8 +291,8 @@ export const DashboardView = memo(({
           </CardContent>
           <CardFooter className="pt-2 border-t bg-muted/20">
              <div className="flex justify-between items-center w-full text-[10px] font-bold text-muted-foreground">
-               <span>TOTAL SESSIONS: {historyItems.length + 32}</span>
-               <span className="text-accent flex items-center gap-1"><Activity className="h-3 w-3" /> REAL-TIME FLOW</span>
+               <span>LAST 7 DAYS ANALYTICS</span>
+               <span className="text-accent flex items-center gap-1"><Activity className="h-3 w-3" /> LIVE FEED</span>
              </div>
           </CardFooter>
         </Card>
