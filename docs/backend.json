@@ -53,6 +53,23 @@
       },
       "required": ["uid"]
     },
+    "APIKey": {
+      "title": "API Key",
+      "description": "Authentication credentials for external research access.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "key": { "type": "string", "description": "The secret API key string." },
+        "ownerUid": { "type": "string" },
+        "label": { "type": "string", "description": "Identifier for the key (e.g. 'Logos Integration')." },
+        "tier": { "type": "string", "description": "The access tier (e.g. 'Basic', 'Scholar')." },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastUsedAt": { "type": "string", "format": "date-time" },
+        "usageCount": { "type": "number" },
+        "revoked": { "type": "boolean" }
+      },
+      "required": ["key", "ownerUid", "tier"]
+    },
     "WikiEntry": {
       "title": "Wiki Entry",
       "description": "A scholarly wiki article requiring citations and moderation.",
@@ -69,57 +86,26 @@
       },
       "required": ["title", "content", "status", "authorUid"]
     },
-    "BlogPost": {
-      "title": "Blog Post",
-      "description": "A reflective or narrative scholarly blog post.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "title": { "type": "string" },
-        "excerpt": { "type": "string" },
-        "content": { "type": "string" },
-        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
-        "authorUid": { "type": "string" },
-        "authorName": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "category": { 
-          "type": "string", 
-          "enum": ["Linguistics", "Theology", "History", "Archaeology", "Hermeneutics", "General"],
-          "description": "The primary scholarly category of the post."
-        },
-        "tags": { "type": "array", "items": { "type": "string" } }
-      },
-      "required": ["title", "content", "status", "authorUid", "category"]
-    },
-    "BlogComment": {
-      "title": "Blog Comment",
-      "description": "A scholar's comment on a blog post.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "postId": { "type": "string" },
-        "authorUid": { "type": "string" },
-        "authorName": { "type": "string" },
-        "authorCredentials": { "type": "string" },
-        "content": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["postId", "authorUid", "content", "createdAt"]
-    },
     "SystemSettings": {
       "title": "System Settings",
-      "description": "Global application configuration. Read/Write restricted to authenticated System Administrators only.",
+      "description": "Global application configuration.",
       "type": "object",
       "properties": {
-        "geminiApiKey": { "type": "string", "description": "System-wide guest API key." },
-        "gaMeasurementId": { "type": "string" },
-        "matomoSiteId": { "type": "string" },
-        "matomoUrl": { "type": "string" },
-        "ollamaUrl": { "type": "string" },
-        "localModelList": { "type": "array", "items": { "type": "string" }, "description": "A list of locally available models via Ollama." },
+        "geminiApiKey": { "type": "string" },
         "defaultModelProvider": { "type": "string", "enum": ["google", "local"] },
-        "defaultModel": { "type": "string", "description": "The system-wide default model name." },
-        "networkMode": { "type": "string", "enum": ["internet", "local-only"], "description": "Specifies if the deployment is internet-facing or isolated to a local network." },
+        "defaultModel": { "type": "string" },
+        "networkMode": { "type": "string", "enum": ["internet", "local-only"] },
+        "apiTiers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "requestsPerDay": { "type": "number" },
+              "description": { "type": "string" }
+            }
+          }
+        },
         "isConfigured": { "type": "boolean" }
       }
     }
@@ -130,23 +116,19 @@
   "firestore": {
     "/users/{userId}": {
       "schema": "#/backend/entities/UserStudyProfile",
-      "description": "User's study profile and role flags. Access restricted to OWNER or ADMIN."
+      "description": "User's study profile and role flags."
     },
     "/system/config": {
       "schema": "#/backend/entities/SystemSettings",
-      "description": "Global system configuration. Access restricted to ADMIN."
+      "description": "Global system configuration."
+    },
+    "/api_keys/{keyId}": {
+      "schema": "#/backend/entities/APIKey",
+      "description": "External access keys."
     },
     "/wiki_entries/{entryId}": {
       "schema": "#/backend/entities/WikiEntry",
-      "description": "Scholarly wiki articles. PUBLIC READ, MODERATOR WRITE."
-    },
-    "/blog_posts/{postId}": {
-      "schema": "#/backend/entities/BlogPost",
-      "description": "Scholarly blog posts. PUBLIC READ, MODERATOR WRITE."
-    },
-    "/blog_posts/{postId}/comments/{commentId}": {
-      "schema": "#/backend/entities/BlogComment",
-      "description": "Comments on a blog post. PUBLIC READ, AUTHENTICATED WRITE."
+      "description": "Scholarly wiki articles."
     }
   }
 }

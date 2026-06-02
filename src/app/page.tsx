@@ -59,7 +59,8 @@ import {
   Map as MapIcon,
   Scale,
   Cpu,
-  History
+  History,
+  Code
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -93,7 +94,7 @@ import { aiStudyAssistant, type AiStudyAssistantOutput } from '@/ai/flows/ai-stu
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 import { getAllLocalDocuments, type IDBDocument } from '@/lib/idb';
 
-type ViewMode = 'dashboard' | 'lexicon' | 'wiki' | 'blog' | 'theology-map' | 'timeline' | 'writing-assistant' | 'academic-integrity' | 'ai-assistant' | 'verse-explorer' | 'compare-translations' | 'research-library' | 'profile';
+type ViewMode = 'dashboard' | 'lexicon' | 'wiki' | 'blog' | 'theology-map' | 'timeline' | 'writing-assistant' | 'academic-integrity' | 'ai-assistant' | 'verse-explorer' | 'compare-translations' | 'research-library' | 'profile' | 'api-mgmt';
 
 interface UserProfile {
   uid: string;
@@ -212,47 +213,28 @@ export default function Home() {
   // CALCULATION OF EFFECTIVE AI STATE
   const effectiveApiKey = localApiKey || aiPrefs.customApiKey || systemConfig?.geminiApiKey;
   const isLocalMode = aiPrefs.modelProvider === 'local';
-  
-  // Format model string for Genkit (e.g. 'googleai/...' or 'ollama/...')
   const effectiveModel = isLocalMode 
     ? `ollama/${aiPrefs.selectedModel}` 
     : (aiPrefs.selectedModel.includes('/') ? aiPrefs.selectedModel : `googleai/${aiPrefs.selectedModel}`);
 
   const handleSearch = async (term: string, type: ViewMode) => {
     if (!term.trim()) return;
-    
-    // Safety check for API keys if using cloud
     if (!effectiveApiKey && !isLocalMode && ['lexicon', 'ai-assistant', 'verse-explorer', 'compare-translations', 'writing-assistant', 'academic-integrity', 'theology-map', 'timeline'].includes(type)) {
-      toast({ 
-        variant: 'destructive', 
-        title: "AI Hub Configuration Required", 
-        description: "Please supply your own Gemini API key or switch to a local engine in settings." 
-      });
+      toast({ variant: "destructive", title: "AI Hub Configuration Required", description: "Please supply your own Gemini API key or switch to a local engine in settings." });
       return;
     }
-
     setIsLoading(true);
     setActiveTab(type);
     logSearch(db, term, type, user?.uid);
     try {
       if (type === 'lexicon') {
-        const result = await defineAndAnalyzeTerm({ 
-          strongsNumber: term, 
-          model: effectiveModel,
-          apiKey: effectiveApiKey || undefined 
-        });
+        const result = await defineAndAnalyzeTerm({ strongsNumber: term, model: effectiveModel, apiKey: effectiveApiKey || undefined });
         setLexiconResult(result);
       } else if (type === 'ai-assistant') {
         const researchContext = localDocuments.map(d => d.content);
-        const result = await aiStudyAssistant({ 
-          term, 
-          researchContext,
-          model: effectiveModel,
-          apiKey: effectiveApiKey || undefined
-        });
+        const result = await aiStudyAssistant({ term, researchContext, model: effectiveModel, apiKey: effectiveApiKey || undefined });
         setAssistantResult(result);
       }
-
       const newHistory = [{id: Date.now().toString(), type, term, date: new Date().toLocaleString()}, ...history];
       setHistory(newHistory.slice(0, 10));
       localStorage.setItem('lexiverse_history', JSON.stringify(newHistory.slice(0, 10)));
@@ -267,8 +249,7 @@ export default function Home() {
     if (!user || !db) return;
     setIsLoading(true);
     try {
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
+      await updateDoc(doc(db, 'users', user.uid), {
         displayName: profileDraft.displayName,
         credentials: profileDraft.credentials,
         bio: profileDraft.bio,
@@ -296,14 +277,7 @@ export default function Home() {
         localStorage.removeItem('lexiverse_local_api_key');
         setLocalApiKey('');
       }
-
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        preferences: {
-          ...userProfile?.preferences,
-          ...newPrefs
-        }
-      });
+      await updateDoc(doc(db, 'users', user.uid), { preferences: { ...userProfile?.preferences, ...newPrefs } });
       setAiPrefs(prev => ({...prev, ...newPrefs}));
       toast({ title: "Preferences Saved", description: "Scholarly configuration refreshed." });
     } catch (e) {
@@ -320,18 +294,12 @@ export default function Home() {
       const snap = await getDoc(userRef);
       if (!snap.exists()) {
         await setDoc(userRef, { 
-          uid: result.user.uid, 
-          displayName: result.user.displayName, 
-          email: result.user.email,
-          photoURL: '',
-          isAdmin: false,
-          isModerator: false,
-          isTrustedContributor: false,
+          uid: result.user.uid, displayName: result.user.displayName, email: result.user.email, photoURL: '',
+          isAdmin: false, isModerator: false, isTrustedContributor: false,
           preferences: {
             modelProvider: systemConfig?.defaultModelProvider || 'google',
             selectedModel: systemConfig?.defaultModel || 'googleai/gemini-2.5-flash',
-            customApiKey: '',
-            storagePreference: 'local' 
+            customApiKey: '', storagePreference: 'local' 
           }
         });
       }
@@ -342,7 +310,6 @@ export default function Home() {
   };
 
   if (!mounted) return null;
-
   const effectiveAvatar = userProfile?.photoURL || (user?.email ? getGravatarUrl(user.email) : '');
 
   return (
@@ -359,344 +326,195 @@ export default function Home() {
             <SidebarGroup>
               <SidebarGroupLabel>General</SidebarGroupLabel>
               <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} tooltip="Dashboard">
-                    <LayoutDashboard className="h-5 w-5" /> <span>Dashboard</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'wiki'} onClick={() => setActiveTab('wiki')} tooltip="Scholarly Wiki">
-                    <GraduationCap className="h-5 w-5" /> <span>Scholarly Wiki</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'blog'} onClick={() => setActiveTab('blog')} tooltip="Journal (Blog)">
-                    <Newspaper className="h-5 w-5" /> <span>Scholar's Journal</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <SidebarMenuItem><SidebarMenuButton isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} tooltip="Dashboard"><LayoutDashboard className="h-5 w-5" /> <span>Dashboard</span></SidebarMenuButton></SidebarMenuItem>
+                <SidebarMenuItem><SidebarMenuButton isActive={activeTab === 'wiki'} onClick={() => setActiveTab('wiki')} tooltip="Scholarly Wiki"><GraduationCap className="h-5 w-5" /> <span>Scholarly Wiki</span></SidebarMenuButton></SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
 
             <SidebarGroup>
-              <SidebarGroupLabel className="flex items-center justify-between">
-                AI Research Hub
-                {isLocalMode ? (
-                  <Badge variant="outline" className="scale-75 origin-right border-green-500 text-green-600 font-bold"><Server className="h-3 w-3 mr-1" /> LOCAL</Badge>
-                ) : (
-                  <Badge variant="outline" className="scale-75 origin-right border-blue-500 text-blue-600 font-bold"><Globe className="h-3 w-3 mr-1" /> CLOUD</Badge>
-                )}
-              </SidebarGroupLabel>
+              <SidebarGroupLabel>AI Research Hub</SidebarGroupLabel>
               <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'ai-assistant'} onClick={() => setActiveTab('ai-assistant')} tooltip="Study Assistant">
-                    <Sparkles className="h-5 w-5" /> <span>Study Assistant</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'lexicon'} onClick={() => setActiveTab('lexicon')} tooltip="Lexicon Analysis">
-                    <BookOpen className="h-5 w-5" /> <span>Lexicon</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'verse-explorer'} onClick={() => setActiveTab('verse-explorer')} tooltip="Verse Explorer">
-                    <Highlighter className="h-5 w-5" /> <span>Verse Explorer</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'compare-translations'} onClick={() => setActiveTab('compare-translations')} tooltip="Compare Translations">
-                    <ArrowLeftRight className="h-5 w-5" /> <span>Compare Versions</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                <SidebarMenuItem><SidebarMenuButton isActive={activeTab === 'ai-assistant'} onClick={() => setActiveTab('ai-assistant')} tooltip="Study Assistant"><Sparkles className="h-5 w-5" /> <span>Study Assistant</span></SidebarMenuButton></SidebarMenuItem>
+                <SidebarMenuItem><SidebarMenuButton isActive={activeTab === 'lexicon'} onClick={() => setActiveTab('lexicon')} tooltip="Lexicon Analysis"><BookOpen className="h-5 w-5" /> <span>Lexicon</span></SidebarMenuButton></SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
 
-            <SidebarGroup>
-              <SidebarGroupLabel>Scholarly Synthesis</SidebarGroupLabel>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'writing-assistant'} onClick={() => setActiveTab('writing-assistant')} tooltip="Writing Assistant">
-                    <PenTool className="h-5 w-5" /> <span>Writing Assistant</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'academic-integrity'} onClick={() => setActiveTab('academic-integrity')} tooltip="Academic Integrity">
-                    <ShieldCheck className="h-5 w-5" /> <span>Integrity Scanner</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'theology-map'} onClick={() => setActiveTab('theology-map')} tooltip="Theology Map">
-                    <MapIcon className="h-5 w-5" /> <span>Theology Map</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')} tooltip="Historical Timeline">
-                    <Milestone className="h-5 w-5" /> <span>Historical Timeline</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroup>
-
-            <SidebarGroup>
-              <SidebarGroupLabel>Local Databases</SidebarGroupLabel>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'research-library'} onClick={() => setActiveTab('research-library')} tooltip="Research Library (Local-Only)">
-                    <Library className="h-5 w-5" /> <span>Research Library</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroup>
+            {userProfile?.isAdmin && (
+              <SidebarGroup>
+                <SidebarGroupLabel>Governance</SidebarGroupLabel>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton isActive={activeTab === 'api-mgmt'} onClick={() => setActiveTab('api-mgmt')} tooltip="API Management">
+                      <Code className="h-5 w-5" /> <span>API Management</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroup>
+            )}
           </SidebarContent>
           <SidebarFooter className="p-4 border-t flex flex-col gap-2">
-            {systemConfig?.networkMode === 'local-only' && (
-              <div className="px-2 mb-2">
-                <Badge variant="outline" className="w-full justify-center gap-1.5 py-1 border-green-600/50 text-green-700 bg-green-600/5">
-                  <WifiOff className="h-3 w-3" /> Local Network Only
-                </Badge>
-              </div>
-            )}
-            
             <div className="flex flex-row items-center justify-between w-full">
               <div className="flex items-center gap-1">
                 {(userProfile?.isAdmin || !user) && (
-                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open('/admin/settings', '_blank')}>
-                     <Settings className="h-4 w-4" />
-                   </Button>
+                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => window.open('/admin/settings', '_blank')}><Settings className="h-4 w-4" /></Button>
                 )}
                 {user ? (
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="p-0 h-8 w-8 rounded-full overflow-hidden border">
-                        <Avatar className="h-full w-full">
-                          <AvatarImage src={effectiveAvatar} />
-                          <AvatarFallback><UserIcon /></AvatarFallback>
-                        </Avatar>
-                      </Button>
-                    </DropdownMenuTrigger>
+                    <DropdownMenuTrigger asChild><Button variant="ghost" className="p-0 h-8 w-8 rounded-full overflow-hidden border"><Avatar className="h-full w-full"><AvatarImage src={effectiveAvatar} /><AvatarFallback><UserIcon /></AvatarFallback></Avatar></Button></DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuLabel>
-                        <div className="flex flex-col">
-                          <span>{userProfile?.displayName || user.displayName}</span>
-                          <span className="text-[10px] text-muted-foreground font-normal">{userProfile?.credentials}</span>
-                        </div>
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => setActiveTab('profile')}>
-                        <UserIcon className="h-4 w-4 mr-2" /> My Profile
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => signOut(auth)} className="text-destructive"><LogOut className="h-4 w-4 mr-2" /> Logout</DropdownMenuItem>
+                      <DropdownMenuLabel><div className="flex flex-col"><span>{userProfile?.displayName || user.displayName}</span><span className="text-[10px] text-muted-foreground font-normal">{userProfile?.credentials}</span></div></DropdownMenuLabel>
+                      <DropdownMenuSeparator /><DropdownMenuItem onClick={() => setActiveTab('profile')}><UserIcon className="h-4 w-4 mr-2" /> My Profile</DropdownMenuItem>
+                      <DropdownMenuSeparator /><DropdownMenuItem onClick={() => signOut(auth)} className="text-destructive"><LogOut className="h-4 w-4 mr-2" /> Logout</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                ) : (
-                  <Button variant="outline" size="sm" onClick={handleLogin}>Login</Button>
-                )}
+                ) : <Button variant="outline" size="sm" onClick={handleLogin}>Login</Button>}
               </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-                {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-              </Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}</Button>
             </div>
           </SidebarFooter>
         </Sidebar>
 
         <SidebarInset>
           <main id="main-content" className="container max-w-5xl mx-auto py-10 px-6 min-h-screen">
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              
-              {activeTab === 'dashboard' && (
-                <div className="space-y-8">
-                  <header>
-                    <h1 className="text-4xl font-bold font-headline">Research Workspace</h1>
-                    <p className="text-muted-foreground text-lg">Integrated AI and local-only databases for biblical scholarship.</p>
-                  </header>
-
-                  <div className="grid gap-6 md:grid-cols-3">
-                    <Card className="md:col-span-2 shadow-md border-primary/10">
-                      <CardHeader>
-                        <CardTitle className="font-headline flex items-center gap-2">
-                          <Sparkles className={cn("h-5 w-5", effectiveApiKey || isLocalMode ? "text-primary" : "text-muted-foreground")} /> 
-                          {isLocalMode ? `Local Assistant (${aiPrefs.selectedModel})` : "Cloud Assistant (Gemini)"}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="flex gap-2">
-                          <Input 
-                            placeholder={effectiveApiKey || isLocalMode ? "Analyze eschatological fragments..." : "AI Engine Configuration Needed"}
-                            value={assistantTerm} 
-                            onChange={e => setAssistantTerm(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && handleSearch(assistantTerm, 'ai-assistant')}
-                          />
-                          <Button onClick={() => handleSearch(assistantTerm, 'ai-assistant')} disabled={isLoading}>
-                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card className="shadow-md border-primary/10">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="font-headline text-sm flex items-center gap-2">
-                          <Library className="h-4 w-4 text-primary" /> Local Manuscripts
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-xs text-muted-foreground">
-                          Manuscripts ingested into your **Research Library** remain locally isolated on this system.
-                        </p>
-                        <Button variant="outline" size="sm" className="w-full mt-4" onClick={() => setActiveTab('research-library')}>
-                          Open Library
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {history.length > 0 && (
-                    <div className="space-y-4">
-                      <h3 className="font-bold flex items-center gap-2 text-muted-foreground">
-                        <History className="h-4 w-4" /> Recent Investigations
-                      </h3>
-                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {history.map(item => (
-                          <Card key={item.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSearch(item.term, item.type as any)}>
-                            <CardContent className="p-4 flex items-center justify-between">
-                              <div className="flex flex-col">
-                                <span className="font-bold text-sm truncate max-w-[150px]">{item.term}</span>
-                                <span className="text-[10px] text-muted-foreground">{item.date}</span>
-                              </div>
-                              <Badge variant="secondary" className="text-[9px] uppercase">{item.type}</Badge>
-                            </CardContent>
-                          </Card>
-                        ))}
+            {activeTab === 'dashboard' && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <header>
+                  <h1 className="text-4xl font-bold font-headline">Research Workspace</h1>
+                  <p className="text-muted-foreground text-lg">Integrated AI and local-only databases for biblical scholarship.</p>
+                </header>
+                <div className="grid gap-6 md:grid-cols-3">
+                  <Card className="md:col-span-2 shadow-md border-primary/10">
+                    <CardHeader><CardTitle className="font-headline flex items-center gap-2"><Sparkles className={cn("h-5 w-5", effectiveApiKey || isLocalMode ? "text-primary" : "text-muted-foreground")} /> {isLocalMode ? `Local Assistant (${aiPrefs.selectedModel})` : "Cloud Assistant (Gemini)"}</CardTitle></CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex gap-2">
+                        <Input placeholder={effectiveApiKey || isLocalMode ? "Analyze eschatological fragments..." : "AI Engine Configuration Needed"} value={assistantTerm} onChange={e => setAssistantTerm(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch(assistantTerm, 'ai-assistant')} />
+                        <Button onClick={() => handleSearch(assistantTerm, 'ai-assistant')} disabled={isLoading}>{isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}</Button>
                       </div>
-                    </div>
-                  )}
+                    </CardContent>
+                  </Card>
                 </div>
-              )}
-
-              {activeTab === 'profile' && userProfile && (
-                <div className="space-y-8">
-                  <header>
-                    <h1 className="text-3xl font-bold font-headline">Scholarly Profile</h1>
-                    <p className="text-muted-foreground">Manage your identity and research preferences.</p>
-                  </header>
-
-                  <div className="grid gap-8 md:grid-cols-3">
-                    <Card className="md:col-span-1 shadow-lg border-primary/10 h-fit">
-                      <CardHeader className="text-center pb-2">
-                        <div className="relative mx-auto w-32 h-32 mb-4">
-                          <Avatar className="w-full h-full border-4 border-background shadow-xl">
-                            <AvatarImage src={effectiveAvatar} />
-                            <AvatarFallback><UserIcon className="h-12 w-12" /></AvatarFallback>
-                          </Avatar>
+              </div>
+            )}
+            {activeTab === 'api-mgmt' && userProfile?.isAdmin && <APIKeyManagement />}
+            {activeTab === 'profile' && userProfile && (
+              <div className="space-y-8 animate-in fade-in duration-500">
+                <header><h1 className="text-3xl font-bold font-headline">Scholarly Profile</h1></header>
+                <div className="grid gap-8 md:grid-cols-3">
+                  <Card className="md:col-span-1 shadow-lg border-primary/10 h-fit">
+                    <CardHeader className="text-center pb-2">
+                      <div className="relative mx-auto w-32 h-32 mb-4"><Avatar className="w-full h-full border-4 border-background shadow-xl"><AvatarImage src={effectiveAvatar} /><AvatarFallback><UserIcon className="h-12 w-12" /></AvatarFallback></Avatar></div>
+                      <CardTitle className="font-headline">{userProfile.displayName}</CardTitle>
+                      <CardDescription><Award className="h-3 w-3 inline text-accent mr-1" /> {userProfile.credentials || "Scholar"}</CardDescription>
+                    </CardHeader>
+                  </Card>
+                  <div className="md:col-span-2 space-y-6">
+                    <Card className="shadow-lg border-primary/10">
+                      <CardHeader><CardTitle className="text-xl font-headline flex items-center gap-2"><Cpu className="h-5 w-5 text-primary" /> AI Hub Preferences</CardTitle></CardHeader>
+                      <CardContent className="space-y-6">
+                        <div className="grid gap-6 md:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label>AI Research Engine</Label>
+                            <Select value={aiPrefs.modelProvider} onValueChange={(val: any) => saveAiPreferences({ modelProvider: val, selectedModel: val === 'google' ? 'googleai/gemini-2.5-flash' : (systemConfig?.localModelList?.[0] || 'llama3') })}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent><SelectItem value="google">Google Gemini (Cloud)</SelectItem><SelectItem value="local">Ollama (Local Network)</SelectItem></SelectContent>
+                            </Select>
+                          </div>
                         </div>
-                        <CardTitle className="font-headline">{userProfile.displayName}</CardTitle>
-                        <CardDescription>
-                          <Award className="h-3 w-3 inline text-accent mr-1" /> {userProfile.credentials || "Scholar"}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="text-center text-xs text-muted-foreground italic">
-                        {userProfile.bio || "No scholarly bio added."}
                       </CardContent>
                     </Card>
-
-                    <div className="md:col-span-2 space-y-6">
-                      <Card className="shadow-lg border-primary/10">
-                        <CardHeader>
-                          <CardTitle className="text-xl font-headline flex items-center gap-2">
-                            <Cpu className="h-5 w-5 text-primary" /> AI Hub Preferences
-                          </CardTitle>
-                          <CardDescription>Choose how you want to power your research synthesis.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                           <div className="grid gap-6 md:grid-cols-2">
-                             <div className="space-y-2">
-                               <Label>AI Research Engine</Label>
-                               <Select value={aiPrefs.modelProvider} onValueChange={(val: any) => saveAiPreferences({ modelProvider: val, selectedModel: val === 'google' ? 'googleai/gemini-2.5-flash' : (systemConfig?.localModelList[0] || 'llama3') })}>
-                                 <SelectTrigger><SelectValue /></SelectTrigger>
-                                 <SelectContent>
-                                   <SelectItem value="google">Google Gemini (Cloud)</SelectItem>
-                                   <SelectItem value="local">Ollama (Local Network)</SelectItem>
-                                 </SelectContent>
-                               </Select>
-                             </div>
-                             <div className="space-y-2">
-                               <Label>Preferred Model</Label>
-                               {isLocalMode ? (
-                                  <Select value={aiPrefs.selectedModel} onValueChange={(val) => saveAiPreferences({ selectedModel: val })}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                      {systemConfig?.localModelList?.map((m: string) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                                      {!systemConfig?.localModelList?.length && <SelectItem value="llama3">llama3</SelectItem>}
-                                    </SelectContent>
-                                  </Select>
-                               ) : (
-                                  <Select value={aiPrefs.selectedModel} onValueChange={(val) => saveAiPreferences({ selectedModel: val })}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="googleai/gemini-2.5-flash">Gemini 2.5 Flash</SelectItem>
-                                      <SelectItem value="googleai/gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>
-                                      <SelectItem value="googleai/gemini-1.5-flash">Gemini 1.5 Flash</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                               )}
-                             </div>
-                           </div>
-
-                           <div className="space-y-4 pt-4 border-t">
-                             <div className="flex items-center justify-between">
-                               <Label className="flex items-center gap-2"><Key className="h-4 w-4" /> Personal Gemini API Key</Label>
-                               <Button variant="link" className="p-0 h-auto text-[10px]" asChild>
-                                 <a href="https://aistudio.google.com/app/apikey" target="_blank">Get Key <ExternalLink className="h-3 w-3 inline ml-1" /></a>
-                               </Button>
-                             </div>
-                             <Input 
-                               type="password" 
-                               placeholder={aiPrefs.storagePreference === 'local' ? "Stored securely in your browser" : "Synchronized with your account"}
-                               value={aiPrefs.storagePreference === 'local' ? localApiKey : aiPrefs.customApiKey}
-                               onChange={e => saveAiPreferences({ customApiKey: e.target.value })}
-                             />
-                             <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border text-xs">
-                               <div>
-                                 <p className="font-bold flex items-center gap-1.5"><Lock className="h-3.5 w-3.5 text-primary" /> Local-Only Credential Storage</p>
-                                 <p className="text-muted-foreground">Credentials stay on this device and are never sent to cloud servers.</p>
-                               </div>
-                               <Switch 
-                                 checked={aiPrefs.storagePreference === 'local'} 
-                                 onCheckedChange={(val) => saveAiPreferences({ storagePreference: val ? 'local' : 'cloud' })}
-                               />
-                             </div>
-                           </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card className="shadow-lg border-primary/10">
-                        <CardHeader><CardTitle className="text-xl font-headline">Identity & Credentials</CardTitle></CardHeader>
-                        <CardContent className="space-y-4">
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
-                              <Label>Display Name</Label>
-                              <Input value={profileDraft.displayName} onChange={e => setProfileDraft({...profileDraft, displayName: e.target.value})} />
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Institutional Titles</Label>
-                              <Input value={profileDraft.credentials} placeholder="e.g. PhD, MDiv, Seminary Student" onChange={e => setProfileDraft({...profileDraft, credentials: e.target.value})} />
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Researcher Biography</Label>
-                            <Textarea rows={3} value={profileDraft.bio} onChange={e => setProfileDraft({...profileDraft, bio: e.target.value})} />
-                          </div>
-                        </CardContent>
-                        <CardFooter className="justify-end"><Button onClick={updateProfile} disabled={isLoading}><Save className="mr-2 h-4 w-4" /> Update Profile</Button></CardFooter>
-                      </Card>
-                    </div>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </main>
         </SidebarInset>
       </div>
     </SidebarProvider>
+  );
+}
+
+function APIKeyManagement() {
+  // Nested to keep changes simple for the agent loop
+  const db = useFirestore();
+  const { user } = useUser();
+  const { toast } = useToast();
+  const [keys, setKeys] = useState<any[]>([]);
+  const [systemConfig, setSystemConfig] = useState<any>(null);
+  const [newKeyLabel, setNewKeyLabel] = useState('');
+  const [selectedTier, setSelectedTier] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      const configSnap = await getDoc(doc(db, 'system', 'config'));
+      setSystemConfig(configSnap.data());
+      const keysSnap = await getDocs(query(collection(db, 'api_keys'), orderBy('createdAt', 'desc')));
+      setKeys(keysSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      if (configSnap.data()?.apiTiers?.length > 0) setSelectedTier(configSnap.data().apiTiers[0].name);
+      setLoading(false);
+    }
+    load();
+  }, [db]);
+
+  const generate = async () => {
+    const key = `lv_${crypto.randomUUID().replace(/-/g, '')}`;
+    const keyData = { key, label: newKeyLabel, tier: selectedTier || 'Default', ownerUid: user?.uid, createdAt: new Date().toISOString(), usageCount: 0, revoked: false };
+    await setDoc(doc(db, 'api_keys', crypto.randomUUID()), keyData);
+    setKeys([keyData, ...keys]);
+    setNewKeyLabel('');
+    toast({ title: "API Key Created", description: "Integration token is now active." });
+  };
+
+  const revoke = async (id: string, current: boolean) => {
+    await updateDoc(doc(db, 'api_keys', id), { revoked: !current });
+    setKeys(keys.map(k => k.id === id ? { ...k, revoked: !current } : k));
+  };
+
+  if (loading) return <div className="p-20 text-center"><Loader2 className="animate-spin inline mr-2" /> Initializing Governance...</div>;
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <header className="border-b pb-6">
+        <h1 className="text-3xl font-bold font-headline flex items-center gap-3"><Key className="text-primary h-8 w-8" /> API Management</h1>
+        <p className="text-muted-foreground">Provision and govern external scholarly access.</p>
+      </header>
+      <div className="grid gap-8 md:grid-cols-3">
+        <Card className="md:col-span-1 shadow-md border-primary/10">
+          <CardHeader><CardTitle className="text-lg">Provision New Key</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2"><Label>Key Label</Label><Input value={newKeyLabel} onChange={e => setNewKeyLabel(e.target.value)} placeholder="e.g. Logos Integration" /></div>
+            <div className="space-y-2">
+              <Label>Tier</Label>
+              <Select value={selectedTier} onValueChange={setSelectedTier}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {systemConfig?.apiTiers?.map((t: any) => <SelectItem key={t.name} value={t.name}>{t.name}</SelectItem>)}
+                  <SelectItem value="Default">Default</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+          <CardFooter><Button className="w-full" onClick={generate} disabled={!newKeyLabel}><Plus className="mr-2 h-4 w-4" /> Generate Token</Button></CardFooter>
+        </Card>
+        <Card className="md:col-span-2 shadow-lg border-primary/10">
+          <CardContent className="pt-6">
+            <Table>
+              <TableHeader><TableRow><TableHead>Label</TableHead><TableHead>Tier</TableHead><TableHead>Usage</TableHead><TableHead>Status</TableHead><TableHead></TableHead></TableRow></TableHeader>
+              <TableBody>
+                {keys.map(k => (
+                  <TableRow key={k.id} className={k.revoked ? "opacity-50" : ""}>
+                    <TableCell className="font-medium">{k.label}</TableCell>
+                    <TableCell><Badge variant="secondary">{k.tier}</Badge></TableCell>
+                    <TableCell className="text-xs">{k.usageCount} calls</TableCell>
+                    <TableCell>{k.revoked ? <Badge variant="destructive">REVOKED</Badge> : <Badge variant="outline" className="text-green-600">ACTIVE</Badge>}</TableCell>
+                    <TableCell className="text-right"><Button variant="ghost" size="sm" onClick={() => revoke(k.id, k.revoked)}>{k.revoked ? "Enable" : "Disable"}</Button></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }
