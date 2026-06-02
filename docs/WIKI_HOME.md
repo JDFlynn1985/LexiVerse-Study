@@ -9,23 +9,21 @@ LexiVerse is built on the principle that academic research should be **local-fir
 
 ### 🎓 For Researchers
 - **[Researcher's Guide](RESEARCHER_GUIDE.md)**: Best practices for SBL writing, local RAG, and theological mapping.
+- **[Scholarly Style Guide](SCHOLARLY_STYLE_GUIDE.md)**: SBL citation standards and linguistic requirements.
 - **[Feature Catalog](features.md)**: A complete list of all active scholarly tools.
-- **[Privacy Standards](PRIVACY.md)**: Our commitment to local-first storage and researcher data rights.
-- **[Accessibility (WCAG)](ACCESSIBILITY.md)**: Commitment to inclusive design (WCAG 2.1 AA).
+- **[Privacy Standards](PRIVACY.md)**: Commitment to local-first storage and data rights.
 
 ### 🛠️ For Developers & Administrators
-- **[SDK Documentation](SDK_DOCUMENTATION.md)**: The technical manual for developers extending the platform.
-- **[AI Architecture](AI_ARCHITECTURE.md)**: Deep dive into Genkit flows, RAG implementation, and model routing.
-- **[Governance Manual](GOVERNANCE_MANUAL.md)**: Procedures for Wiki moderation, DMCA complaints, and institutional auditing.
-- **[FAQ & Troubleshooting](FAQ_TROUBLESHOOTING.md)**: Solving connectivity, parsing, and authorization issues.
-- **[Tech Stack](TECH_STACK.md)**: Detailed breakdown of the frameworks and libraries used.
-
-### 🌍 Platform Standards
-- **[Module Development Guide](MODULE_GUIDE.md)**: How to build and register new research tools using the LexiVerse Native Pattern.
-- **[Localization Guide](LOCALIZATION_GUIDE.md)**: Adding support for new languages and regional dialects.
+- **[SDK Documentation](SDK_DOCUMENTATION.md)**: Technical manual for developers.
+- **[AI Architecture](AI_ARCHITECTURE.md)**: Genkit flows, RAG logic, and model routing.
+- **[Database Schema](DATABASE_SCHEMA.md)**: Firestore structure and data relationships.
+- **[Governance Manual](GOVERNANCE_MANUAL.md)**: Moderation and DMCA procedures.
+- **[FAQ & Troubleshooting](FAQ_TROUBLESHOOTING.md)**: Technical hurdles and solutions.
+- **[Tech Stack](TECH_STACK.md)**: Breakdown of frameworks and libraries.
 
 ### 🚀 Integration
-- **[API Reference](API_REFERENCE.md)**: Documentation for external scholarly tools integrating with the LexiVerse research engine.
+- **[API Reference](API_REFERENCE.md)**: External integration and Bearer Token usage.
+- **[Roadmap](ROADMAP.md)**: Future technical milestones and unimplemented features.
 
 ---
 *© 2026 LexiVerse Explorer Team. Supporting the advancement of theological research through technology.*

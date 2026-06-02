@@ -11,15 +11,17 @@
 - [x] **Research Archive Hub**: Session restoration and management.
 - [x] **Governance Audit Dashboard**: Live trend and stability monitoring.
 
-## 📚 Data Integration (High Priority)
-- [ ] **Structured Lexicon Fetching**: Direct API connector to STEPBible/OpenBible (Replace AI simulation).
-- [ ] **Firestore Vector Search**: Transition from keyword ranking to vector embeddings for RAG.
-- [ ] **Institutional SSO**: SAML/OIDC integration for seminary networks.
+## 📚 Data Integration (High Priority - Missing)
+- [ ] **Structured Lexicon Fetching**: Transition from AI-simulated Strong's data to a direct API connector (e.g., STEPBible or OpenBible).
+- [ ] **Commentary Aggregator**: Implement a verified commentary database (e.g., JFB, Keil & Delitzsch) to replace LLM-generated summaries.
+- [ ] **Bible Version Licensing**: Add OAuth flow for licensed modern translations (NIV, ESV, NASB).
 
-## 📄 Document Management
-- [ ] **OCR Layout Preservation**: Handle multi-column papyrus fragments in Manuscript Hub.
-- [ ] **Zotero Bidirectional Sync**: Full API integration for collections.
+## 📄 Document Management (Advanced RAG)
+- [ ] **Firestore Vector Search**: Migrate from keyword-overlap ranking to server-side vector embeddings for semantic precision.
+- [ ] **OCR Layout Preservation**: Enhance the Manuscript Hub to handle multi-column papyrus fragments.
+- [ ] **Zotero Bidirectional Sync**: Full API integration for collections, moving beyond one-way BibTeX export.
 
 ## 🧪 Advanced Infrastructure
-- [ ] **Ollama Streaming**: Real-time progress updates for model pulls.
+- [ ] **Ollama Progress Streaming**: Implement WebSockets for real-time download progress of local models.
+- [ ] **Institutional SSO**: OIDC/SAML integration for seminary-wide single sign-on.
 - [ ] **Offline PWA Sync**: Service worker optimization for weak network environments.
