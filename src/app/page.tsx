@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTheme } from 'next-themes';
 import Image from 'next/image';
+import Link from 'next/link';
 import { 
   signInWithPopup, 
   GoogleAuthProvider, 
@@ -76,7 +77,8 @@ import {
   Lock,
   CloudOff,
   WifiOff,
-  Map as MapIcon
+  Map as MapIcon,
+  Scale
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -268,12 +270,11 @@ export default function Home() {
   const handleSearch = async (term: string, type: ViewMode) => {
     if (!term.trim()) return;
     
-    // Safety check for AI availability
     if (!effectiveApiKey && aiPrefs.modelProvider === 'google' && ['lexicon', 'ai-assistant', 'verse-explorer', 'compare-translations', 'writing-assistant', 'academic-integrity', 'theology-map', 'timeline'].includes(type)) {
       toast({ 
         variant: 'destructive', 
         title: "AI Key Required", 
-        description: "Please supply your own Gemini API Key in your profile settings to enable scholarly analysis." 
+        description: "Please supply your own personal API key in your profile settings to enable scholarly analysis." 
       });
       return;
     }
@@ -337,7 +338,7 @@ export default function Home() {
         if (newPrefs.customApiKey !== undefined) {
           localStorage.setItem('lexiverse_local_api_key', newPrefs.customApiKey);
           setLocalApiKey(newPrefs.customApiKey);
-          newPrefs.customApiKey = ""; // Don't sync to cloud
+          newPrefs.customApiKey = ""; 
         }
       } else if (storageMode === 'cloud') {
         localStorage.removeItem('lexiverse_local_api_key');
@@ -512,6 +513,16 @@ export default function Home() {
                 </Badge>
               </div>
             )}
+            
+            <div className="flex flex-col gap-1 px-2 mb-2 group-data-[collapsible=icon]:hidden">
+              <Link href="/privacy" prefetch={false} className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-1">
+                <ShieldCheck className="h-2.5 w-2.5" /> Privacy Policy
+              </Link>
+              <Link href="/terms" prefetch={false} className="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-1">
+                <Scale className="h-2.5 w-2.5" /> Terms of Use
+              </Link>
+            </div>
+
             <div className="flex flex-row items-center justify-between w-full">
               <div className="flex items-center gap-1">
                 {(userProfile?.isAdmin || !user) && (
@@ -727,7 +738,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* View Components Placeholders (to be populated by AI Flows/Features) */}
               {!['dashboard', 'profile'].includes(activeTab) && (
                 <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4 text-center">
                   <div className="p-6 bg-primary/5 rounded-full border-2 border-primary/10">

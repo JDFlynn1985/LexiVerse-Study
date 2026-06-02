@@ -16,7 +16,7 @@ export default function PrivacyPolicy() {
       <div className="max-w-4xl mx-auto space-y-8">
         <header className="flex items-center justify-between border-b pb-6">
           <div className="flex items-center gap-4">
-            <Link href="/">
+            <Link href="/" prefetch={false}>
               <Button variant="ghost" size="icon">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
@@ -84,7 +84,6 @@ export default function PrivacyPolicy() {
           </CardContent>
         </Card>
 
-        {/* Banner Ad Placeholder */}
         <div className="mt-12 pt-8 border-t">
           <div 
             className="w-full h-24 bg-muted/20 border-2 border-dashed rounded-xl flex items-center justify-center group cursor-pointer hover:bg-muted/30 transition-colors"
