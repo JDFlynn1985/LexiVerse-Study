@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -47,30 +46,36 @@
         </aside>
 
         <section class="prose">
-            <h1>Developer SDK Manual</h1>
-            <p>LexiVerse follows a <strong>Unified Native Architecture</strong>. Research modules are not isolated sub-apps but integrated components of the core engine.</p>
+            <h1>Developer SDK Manual (v1.2)</h1>
+            <p>LexiVerse follows a <strong>Unified Native Architecture</strong>. Research modules are integrated components of the core engine, now featuring <strong>Grounded Intelligence</strong> for academic precision.</p>
             
             <h2>Core Directories</h2>
-            <p>The project is structured to separate intelligence from interface while maintaining high-performance reactivity.</p>
-            <pre><code>src/ai/flows/    // The intelligence layer
-src/components/views/ // The UI layer (Memoized)
-src/firebase/    // The data layer (RBAC)
-src/lib/         // Utilities (RAG, Sanitization)</code></pre>
+            <p>The project separates intelligence, infrastructure, and interface to maintain high performance.</p>
+            <pre><code>src/ai/flows/    // Intelligence Layer (Genkit)
+src/app/actions/ // Infrastructure Layer (Server Actions)
+src/components/views/ // UI Layer (Memoized React)
+src/firebase/    // Data Layer (RBAC & Sync)
+src/lib/         // Utility Layer (RAG & Sanitization)</code></pre>
 
-            <h2>Developing AI Flows</h2>
-            <p>All AI logic MUST use the global <code>ai</code> instance from <code>@/ai/genkit</code>.</p>
+            <h2>Grounded AI Patterns</h2>
+            <p>All AI logic MUST utilize <strong>Grounded Tool Calling</strong> to prevent hallucinations. The engine is instructed to fetch primary lexical and commentary data before performing synthesis.</p>
             <ul>
-                <li><strong>Pattern</strong>: Define a Prompt, wrap it in a Flow, and export a server wrapper.</li>
-                <li><strong>Grounding</strong>: Always prefer the <code>searchBibleVerse</code> tool for scripture analysis.</li>
+                <li><strong>fetchStrongsData</strong>: Retrieves verified linguistic data.</li>
+                <li><strong>searchBibleVerse</strong>: Fetches real-time scripture text.</li>
+                <li><strong>aggregateCommentary</strong>: Pulls from historical scholarly works.</li>
             </ul>
 
             <h2>Sanitization Policy</h2>
-            <p>Security is paramount in scholarly environments. Every user-controllable text field MUST be sanitized.</p>
-            <pre><code>import { sanitizeHtml } from '@/lib/sanitization';
-const cleanInput = sanitizeHtml(userInput);</code></pre>
+            <p>Security is paramount. Every user-controllable text field MUST be sanitized using the standardized utilities.</p>
+            <pre><code>import { sanitizeHtml, sanitizeRichText } from '@/lib/sanitization';
+const cleanSearch = sanitizeHtml(userInput);
+const cleanWiki = sanitizeRichText(editorContent);</code></pre>
+
+            <h2>Institutional Integration</h2>
+            <p>Developers must respect <code>UserStudyProfile</code> flags. Access to modern Bible versions and administrative portals is governed by the <code>licensedVersions</code> and <code>isAdmin</code> metadata stored in Firestore.</p>
 
             <div class="docs-footer">
-                <span>Last Updated: February 2026</span>
+                <span>Last Updated: February 2026 (v1.2.0)</span>
                 <a href="index.html" style="color: inherit;">Back to Index</a>
             </div>
         </section>
