@@ -6,19 +6,33 @@
 
 /**
  * @fileOverview Registry for LexiVerse localization.
- * Updated to include the full global top 5 and European language set.
+ * Updated to include local copies for global top 5 and major European languages.
  */
 
 import { enUS } from './locales/en-US';
 import { enGB } from './locales/en-GB';
 import { esES } from './locales/es-ES';
 import { esMX } from './locales/es-MX';
+import { zhCN } from './locales/zh-CN';
+import { hiIN } from './locales/hi-IN';
+import { frFR } from './locales/fr-FR';
+import { deDE } from './locales/de-DE';
+import { arSA } from './locales/ar-SA';
+import { ptBR } from './locales/pt-BR';
+import { itIT } from './locales/it-IT';
 
 export const locales = {
   'en-US': enUS,
   'en-GB': enGB,
   'es-ES': esES,
   'es-MX': esMX,
+  'zh-CN': zhCN,
+  'hi-IN': hiIN,
+  'fr-FR': frFR,
+  'de-DE': deDE,
+  'ar-SA': arSA,
+  'pt-BR': ptBR,
+  'it-IT': itIT,
 };
 
 export type LocaleType = string;
@@ -30,17 +44,18 @@ export const availableLanguages = [
   { id: 'es-MX', name: 'Español (México)' },
   { id: 'es-ES', name: 'Español (España)' },
   
-  // Global Top 5
+  // Global Top 5 (Local Copies Enabled)
   { id: 'zh-CN', name: '简体中文 (Mandarin)' },
   { id: 'hi-IN', name: 'हिन्दी (Hindi)' },
   { id: 'ar-SA', name: 'العربية (Arabic)' },
   { id: 'pt-BR', name: 'Português (Brasil)' },
-  { id: 'bn-BD', name: 'বাংলা (Bengali)' },
-
-  // European Set
+  
+  // Major European (Local Copies Enabled)
   { id: 'fr-FR', name: 'Français (France)' },
   { id: 'de-DE', name: 'Deutsch (Deutschland)' },
   { id: 'it-IT', name: 'Italiano (Italia)' },
+
+  // Remaining European (Cloud-Sync Only)
   { id: 'nl-NL', name: 'Nederlands (Nederland)' },
   { id: 'pt-PT', name: 'Português (Portugal)' },
   { id: 'ru-RU', name: 'Русский (Rossiya)' },
