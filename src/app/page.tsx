@@ -49,7 +49,11 @@ import {
   ShieldAlert,
   GraduationCap,
   Highlighter,
-  Link2
+  Link2,
+  Newspaper,
+  PenTool,
+  CheckCircle2,
+  Clock
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -75,11 +79,10 @@ import { analyzeTheologicalConcept, type TheologicalConceptOutput } from '@/ai/f
 import { generateHistoricalTimeline, type HistoricalTimelineOutput } from '@/ai/flows/historical-timeline-flow';
 import { aiStudyAssistant, type AiStudyAssistantOutput } from '@/ai/flows/ai-study-assistant';
 import { transcribeAudio } from '@/ai/flows/transcribe-flow';
-import { findCovertLinks, type CovertReferenceOutput } from '@/ai/flows/cross-reference-ai';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 import { getAllLocalDocuments, type IDBDocument } from '@/lib/idb';
 
-type ViewMode = 'dashboard' | 'lexicon' | 'wiki' | 'theology-map' | 'timeline' | 'writing-assistant' | 'ai-settings' | 'ai-assistant' | 'verse-explorer' | 'compare-translations' | 'research-library' | 'moderation';
+type ViewMode = 'dashboard' | 'lexicon' | 'wiki' | 'blog' | 'theology-map' | 'timeline' | 'writing-assistant' | 'ai-settings' | 'ai-assistant' | 'verse-explorer' | 'compare-translations' | 'research-library' | 'moderation';
 
 interface UserProfile {
   uid: string;
@@ -105,6 +108,18 @@ interface WikiArticle {
   authorUid: string;
   authorName: string;
   createdAt: string;
+}
+
+interface BlogPost {
+  id: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  status: 'pending' | 'approved' | 'rejected';
+  authorUid: string;
+  authorName: string;
+  createdAt: string;
+  tags?: string[];
 }
 
 function HighlightedText({ text, highlights }: { text: string; highlights: string[] }) {
@@ -162,8 +177,16 @@ export default function Home() {
   const wikiQuery = useMemo(() => query(collection(db, 'wiki_entries'), orderBy('createdAt', 'desc')), [db]);
   const { data: wikiArticles } = useCollection<WikiArticle>(wikiQuery);
 
-  const moderationQuery = useMemo(() => query(collection(db, 'wiki_entries'), where('status', '==', 'pending')), [db]);
-  const { data: pendingArticles } = useCollection<WikiArticle>(moderationQuery);
+  // Blog State
+  const [blogDraft, setBlogDraft] = useState({ title: '', excerpt: '', content: '' });
+  const blogQuery = useMemo(() => query(collection(db, 'blog_posts'), where('status', '==', 'approved'), orderBy('createdAt', 'desc')), [db]);
+  const { data: blogPosts } = useCollection<BlogPost>(blogQuery);
+
+  // Moderation State
+  const pendingWikiQuery = useMemo(() => query(collection(db, 'wiki_entries'), where('status', '==', 'pending')), [db]);
+  const { data: pendingArticles } = useCollection<WikiArticle>(pendingWikiQuery);
+  const pendingBlogQuery = useMemo(() => query(collection(db, 'blog_posts'), where('status', '==', 'pending')), [db]);
+  const { data: pendingBlogPosts } = useCollection<BlogPost>(pendingBlogQuery);
 
   const refreshLocalDocs = useCallback(async () => {
     const docs = await getAllLocalDocuments();
@@ -298,10 +321,35 @@ export default function Home() {
     }
   };
 
-  const moderateWiki = async (id: string, status: 'approved' | 'rejected') => {
+  const submitBlogPost = async () => {
+    if (!user || !blogDraft.title || !blogDraft.content) return;
+    setIsLoading(true);
     try {
-      await updateDoc(doc(db, 'wiki_entries', id), { status });
-      toast({ title: `Article ${status}` });
+      const status = userProfile?.isTrustedContributor || userProfile?.isAdmin ? 'approved' : 'pending';
+      await addDoc(collection(db, 'blog_posts'), {
+        ...blogDraft,
+        status: status,
+        authorUid: user.uid,
+        authorName: user.displayName || 'Scholar',
+        createdAt: new Date().toISOString(),
+        tags: []
+      });
+      setBlogDraft({ title: '', excerpt: '', content: '' });
+      toast({ 
+        title: status === 'approved' ? "Post Published" : "Post Submitted", 
+        description: status === 'approved' ? "Your post is now live in the journal." : "Your post is awaiting review." 
+      });
+    } catch (e) {
+      toast({ variant: 'destructive', title: "Blog submission failed" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const moderateContent = async (id: string, collectionName: string, status: 'approved' | 'rejected') => {
+    try {
+      await updateDoc(doc(db, collectionName, id), { status });
+      toast({ title: `Content ${status}` });
     } catch (e) {
       toast({ variant: 'destructive', title: "Moderation action failed" });
     }
@@ -339,26 +387,6 @@ export default function Home() {
               <div className="bg-primary text-primary-foreground p-1.5 rounded-lg shadow-md"><Globe className="h-6 w-6" /></div>
               <span className="text-xl font-bold font-headline group-data-[collapsible=icon]:hidden">{t.app_title}</span>
             </div>
-            <div className="px-2 pb-4 group-data-[collapsible=icon]:hidden">
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder={t.common.search_placeholder}
-                  className="pl-8 bg-muted/50 border-none h-9 text-xs focus-visible:ring-primary/30"
-                  value={sidebarSearchTerm}
-                  onChange={(e) => setSidebarSearchTerm(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch(sidebarSearchTerm, 'ai-assistant')}
-                />
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className={`absolute right-1 top-1 h-7 w-7 ${isRecording ? 'text-red-500 animate-pulse' : ''}`}
-                  onClick={handleVoiceSearch}
-                >
-                  <Mic className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
           </SidebarHeader>
           <SidebarContent>
             <SidebarGroup>
@@ -372,6 +400,11 @@ export default function Home() {
                 <SidebarMenuItem>
                   <SidebarMenuButton isActive={activeTab === 'wiki'} onClick={() => setActiveTab('wiki')} tooltip="Scholarly Wiki">
                     <GraduationCap className="h-5 w-5" /> <span>Scholarly Wiki</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'blog'} onClick={() => setActiveTab('blog')} tooltip="Scholar's Journal">
+                    <Newspaper className="h-5 w-5" /> <span>Scholar's Journal</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 {userProfile?.isModerator && (
@@ -399,17 +432,6 @@ export default function Home() {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
-              </SidebarMenu>
-            </SidebarGroup>
-            
-            <SidebarGroup>
-              <SidebarGroupLabel>Repository</SidebarGroupLabel>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'research-library'} onClick={() => setActiveTab('research-library')} tooltip="Local Library">
-                    <Library className="h-5 w-5" /> <span>Local Library</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
           </SidebarContent>
@@ -485,11 +507,11 @@ export default function Home() {
                     <Card className="shadow-md border-primary/10">
                       <CardHeader className="pb-3">
                         <CardTitle className="font-headline text-sm flex items-center gap-2">
-                          <History className="h-4 w-4 text-primary" /> Search History
+                          <History className="h-4 w-4 text-primary" /> Recent Activity
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="p-0">
-                        <ScrollArea className="h-[150px]">
+                        <ScrollArea className="h-[200px]">
                           {history.map(h => (
                             <div key={h.id} className="p-3 border-b hover:bg-muted/50 transition-colors cursor-pointer text-xs" onClick={() => handleSearch(h.term, h.type as any)}>
                               <p className="font-bold truncate">{h.term}</p>
@@ -510,61 +532,119 @@ export default function Home() {
                        <h1 className="text-3xl font-bold font-headline">Scholarly Wiki</h1>
                        <p className="text-muted-foreground">Collaborative repository of verified theological insights.</p>
                      </div>
-                     <Tabs defaultValue="browse" className="w-[400px]">
-                       <TabsList className="grid w-full grid-cols-2">
-                         <TabsTrigger value="browse">Browse Wiki</TabsTrigger>
-                         <TabsTrigger value="submit">Submit Entry</TabsTrigger>
-                       </TabsList>
-                       <TabsContent value="browse" className="mt-6">
-                         <div className="space-y-4">
-                           {wikiArticles?.filter(a => a.status === 'approved').map(article => (
-                             <Card key={article.id} className="shadow-sm">
-                               <CardHeader>
-                                 <CardTitle className="text-lg font-headline">{article.title}</CardTitle>
-                                 <CardDescription>By {article.authorName} • {new Date(article.createdAt).toLocaleDateString()}</CardDescription>
-                               </CardHeader>
-                               <CardContent>
-                                 <p className="text-sm line-clamp-3 mb-4">{article.content}</p>
-                                 <Badge variant="outline">Verified Scholarly Content</Badge>
-                               </CardContent>
-                             </Card>
-                           ))}
-                         </div>
-                       </TabsContent>
-                       <TabsContent value="submit" className="mt-6">
-                         <Card>
-                           <CardHeader>
-                             <CardTitle className="text-lg">New Wiki Contribution</CardTitle>
-                             <CardDescription>
-                               {userProfile?.isTrustedContributor 
-                                 ? "As a Trusted Contributor, your post will go live immediately." 
-                                 : "All submissions undergo peer review by moderators."}
-                             </CardDescription>
-                           </CardHeader>
-                           <CardContent className="space-y-4">
-                             <div className="space-y-2">
-                               <Label>Title</Label>
-                               <Input value={wikiDraft.title} onChange={e => setWikiDraft({...wikiDraft, title: e.target.value})} />
-                             </div>
-                             <div className="space-y-2">
-                               <Label>Scholarly Synthesis</Label>
-                               <Textarea rows={6} value={wikiDraft.content} onChange={e => setWikiDraft({...wikiDraft, content: e.target.value})} />
-                             </div>
-                             <div className="space-y-2">
-                               <Label>Works Cited (SBL/Turabian)</Label>
-                               <Input value={wikiDraft.worksCited} onChange={e => setWikiDraft({...wikiDraft, worksCited: e.target.value})} />
-                             </div>
-                           </CardContent>
-                           <CardFooter>
-                             <Button className="w-full" onClick={submitWikiEntry} disabled={isLoading || !user}>
-                               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4" />}
-                               {userProfile?.isTrustedContributor ? "Publish Article" : "Submit for Review"}
-                             </Button>
-                           </CardFooter>
-                         </Card>
-                       </TabsContent>
-                     </Tabs>
                    </header>
+                   <Tabs defaultValue="browse" className="w-full">
+                     <TabsList>
+                       <TabsTrigger value="browse">Browse Articles</TabsTrigger>
+                       <TabsTrigger value="submit">Submit Entry</TabsTrigger>
+                     </TabsList>
+                     <TabsContent value="browse" className="pt-6 grid gap-4 md:grid-cols-2">
+                        {wikiArticles?.filter(a => a.status === 'approved').map(article => (
+                          <Card key={article.id} className="shadow-sm">
+                            <CardHeader>
+                              <CardTitle className="text-lg font-headline">{article.title}</CardTitle>
+                              <CardDescription>By {article.authorName} • {new Date(article.createdAt).toLocaleDateString()}</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                              <p className="text-sm line-clamp-3 mb-4">{article.content}</p>
+                              <Badge variant="outline">Peer Reviewed</Badge>
+                            </CardContent>
+                          </Card>
+                        ))}
+                     </TabsContent>
+                     <TabsContent value="submit" className="pt-6">
+                        <Card className="max-w-2xl mx-auto">
+                          <CardHeader>
+                            <CardTitle>Contribute to Wiki</CardTitle>
+                            <CardDescription>Share linguistic or theological findings with citations.</CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div className="space-y-2">
+                              <Label>Title</Label>
+                              <Input value={wikiDraft.title} onChange={e => setWikiDraft({...wikiDraft, title: e.target.value})} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Content</Label>
+                              <Textarea rows={6} value={wikiDraft.content} onChange={e => setWikiDraft({...wikiDraft, content: e.target.value})} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Citations (SBL Style)</Label>
+                              <Input value={wikiDraft.worksCited} onChange={e => setWikiDraft({...wikiDraft, worksCited: e.target.value})} />
+                            </div>
+                          </CardContent>
+                          <CardFooter>
+                            <Button className="w-full" onClick={submitWikiEntry} disabled={isLoading || !user}>
+                              {userProfile?.isTrustedContributor ? "Publish Now" : "Submit for Peer Review"}
+                            </Button>
+                          </CardFooter>
+                        </Card>
+                     </TabsContent>
+                   </Tabs>
+                </div>
+              )}
+
+              {activeTab === 'blog' && (
+                <div className="space-y-8">
+                  <header className="flex justify-between items-center">
+                    <div>
+                      <h1 className="text-3xl font-bold font-headline">Scholar's Journal</h1>
+                      <p className="text-muted-foreground">Academic blog for theological reflections and scholarly news.</p>
+                    </div>
+                  </header>
+                  <Tabs defaultValue="read" className="w-full">
+                    <TabsList>
+                      <TabsTrigger value="read">Read Journal</TabsTrigger>
+                      <TabsTrigger value="write">New Entry</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="read" className="pt-6 space-y-6">
+                      {blogPosts?.map(post => (
+                        <Card key={post.id} className="shadow-md border-primary/5 bg-card/50">
+                          <CardHeader>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <CardTitle className="text-2xl font-headline mb-1">{post.title}</CardTitle>
+                                <CardDescription className="flex items-center gap-2">
+                                  <PenTool className="h-3 w-3" /> {post.authorName} • {new Date(post.createdAt).toLocaleDateString()}
+                                </CardDescription>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{post.content}</p>
+                          </CardContent>
+                          <CardFooter className="flex gap-2">
+                            {post.tags?.map(tag => <Badge key={tag} variant="secondary">{tag}</Badge>)}
+                          </CardFooter>
+                        </Card>
+                      ))}
+                      {blogPosts?.length === 0 && (
+                        <div className="text-center py-12 text-muted-foreground italic">No journal entries found. Be the first to contribute!</div>
+                      )}
+                    </TabsContent>
+                    <TabsContent value="write" className="pt-6">
+                      <Card className="max-w-2xl mx-auto">
+                        <CardHeader>
+                          <CardTitle>Draft Journal Post</CardTitle>
+                          <CardDescription>Share your research journey or theological reflections.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="space-y-2">
+                            <Label>Headline</Label>
+                            <Input placeholder="e.g., The Eschatological Implications of 'Logos'" value={blogDraft.title} onChange={e => setBlogDraft({...blogDraft, title: e.target.value})} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Academic Reflection</Label>
+                            <Textarea rows={10} placeholder="Type your scholarly content here..." value={blogDraft.content} onChange={e => setBlogDraft({...blogDraft, content: e.target.value})} />
+                          </div>
+                        </CardContent>
+                        <CardFooter>
+                          <Button className="w-full" onClick={submitBlogPost} disabled={isLoading || !user}>
+                            {userProfile?.isAdmin || userProfile?.isTrustedContributor ? <><CheckCircle2 className="mr-2 h-4 w-4" /> Publish to Journal</> : <><Clock className="mr-2 h-4 w-4" /> Submit for Review</>}
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    </TabsContent>
+                  </Tabs>
                 </div>
               )}
 
@@ -572,31 +652,50 @@ export default function Home() {
                 <div className="space-y-6">
                   <header>
                     <h1 className="text-3xl font-bold font-headline flex items-center gap-2">
-                      <ShieldAlert className="h-8 w-8 text-accent" /> Peer Review Moderation
+                      <ShieldAlert className="h-8 w-8 text-accent" /> Scholarly Peer Review
                     </h1>
-                    <p className="text-muted-foreground">Approve or reject scholarly contributions to the wiki.</p>
+                    <p className="text-muted-foreground">Manage pending contributions across the wiki and journal.</p>
                   </header>
 
-                  <div className="grid gap-6">
-                    {pendingArticles?.map(article => (
-                      <Card key={article.id} className="border-accent/20 bg-accent/5">
-                        <CardHeader>
-                          <CardTitle className="font-headline">{article.title}</CardTitle>
-                          <CardDescription>Author: {article.authorName} ({article.authorUid})</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          <p className="text-sm leading-relaxed">{article.content}</p>
-                          <div className="p-3 bg-background rounded border text-xs italic">
-                            <strong>Citations:</strong> {article.worksCited}
-                          </div>
-                        </CardContent>
-                        <CardFooter className="flex gap-2">
-                          <Button variant="default" className="bg-green-600 hover:bg-green-700" onClick={() => moderateWiki(article.id, 'approved')}>Approve</Button>
-                          <Button variant="destructive" onClick={() => moderateWiki(article.id, 'rejected')}>Reject</Button>
-                        </CardFooter>
-                      </Card>
-                    ))}
-                    {pendingArticles?.length === 0 && <p className="text-center py-12 text-muted-foreground italic">No articles currently awaiting peer review.</p>}
+                  <div className="grid gap-8">
+                    <section className="space-y-4">
+                      <h2 className="text-lg font-bold flex items-center gap-2"><GraduationCap className="h-5 w-5" /> Pending Wiki Articles</h2>
+                      {pendingArticles?.map(article => (
+                        <Card key={article.id} className="border-accent/20 bg-accent/5">
+                          <CardHeader>
+                            <CardTitle className="font-headline">{article.title}</CardTitle>
+                            <CardDescription>Author: {article.authorName}</CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-sm mb-2">{article.content}</p>
+                            <p className="text-xs italic text-muted-foreground">Citations: {article.worksCited}</p>
+                          </CardContent>
+                          <CardFooter className="flex gap-2">
+                            <Button size="sm" onClick={() => moderateContent(article.id, 'wiki_entries', 'approved')}>Approve</Button>
+                            <Button size="sm" variant="destructive" onClick={() => moderateContent(article.id, 'wiki_entries', 'rejected')}>Reject</Button>
+                          </CardFooter>
+                        </Card>
+                      ))}
+                    </section>
+
+                    <section className="space-y-4">
+                      <h2 className="text-lg font-bold flex items-center gap-2"><Newspaper className="h-5 w-5" /> Pending Blog Posts</h2>
+                      {pendingBlogPosts?.map(post => (
+                        <Card key={post.id} className="border-accent/20 bg-accent/5">
+                          <CardHeader>
+                            <CardTitle className="font-headline">{post.title}</CardTitle>
+                            <CardDescription>Author: {post.authorName}</CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-sm">{post.content}</p>
+                          </CardContent>
+                          <CardFooter className="flex gap-2">
+                            <Button size="sm" onClick={() => moderateContent(post.id, 'blog_posts', 'approved')}>Approve</Button>
+                            <Button size="sm" variant="destructive" onClick={() => moderateContent(post.id, 'blog_posts', 'rejected')}>Reject</Button>
+                          </CardFooter>
+                        </Card>
+                      ))}
+                    </section>
                   </div>
                 </div>
               )}

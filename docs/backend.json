@@ -11,8 +11,8 @@
         "email": { "type": "string" },
         "photoURL": { "type": "string" },
         "isAdmin": { "type": "boolean", "description": "Whether the user has administrative privileges." },
-        "isModerator": { "type": "boolean", "description": "Whether the user has moderator privileges for the wiki." },
-        "isTrustedContributor": { "type": "boolean", "description": "Whether the user can post wiki entries without peer review." },
+        "isModerator": { "type": "boolean", "description": "Whether the user has moderator privileges for the wiki and blog." },
+        "isTrustedContributor": { "type": "boolean", "description": "Whether the user can post wiki and blog entries without peer review." },
         "preferences": {
           "type": "object",
           "properties": {
@@ -50,6 +50,23 @@
       },
       "required": ["title", "content", "status", "authorUid"]
     },
+    "BlogPost": {
+      "title": "Blog Post",
+      "description": "A reflective or narrative scholarly blog post.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "excerpt": { "type": "string" },
+        "content": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "authorUid": { "type": "string" },
+        "authorName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "tags": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["title", "content", "status", "authorUid"]
+    },
     "SystemSettings": {
       "title": "System Settings",
       "description": "Global application configuration stored in Firestore.",
@@ -77,6 +94,10 @@
     "/wiki_entries/{entryId}": {
       "schema": "#/backend/entities/WikiEntry",
       "description": "Scholarly wiki articles."
+    },
+    "/blog_posts/{postId}": {
+      "schema": "#/backend/entities/BlogPost",
+      "description": "Scholarly blog posts."
     }
   }
 }
