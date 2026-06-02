@@ -1,14 +1,15 @@
+
 'use client';
 
 /**
  * @fileOverview Governance Audit Dashboard.
- * Provides administrators with real-time oversight of error logs, search analytics, and DMCA complaints.
+ * Enhanced with Research Volume analytics using Recharts.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { collection, query, orderBy, limit, getDocs, doc, deleteDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore, useUser, useDoc } from '@/firebase';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Activity, 
@@ -20,13 +21,26 @@ import {
   Clock,
   User,
   Trash2,
-  CheckCircle2
+  CheckCircle2,
+  TrendingUp,
+  BarChart3
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip as ChartTooltip, 
+  ResponsiveContainer, 
+  Cell 
+} from 'recharts';
+import { cn } from '@/lib/utils';
 
 export default function GovernanceAudit() {
   const db = useFirestore();
@@ -47,7 +61,7 @@ export default function GovernanceAudit() {
     try {
       const [errSnap, searchSnap, dmcaSnap] = await Promise.all([
         getDocs(query(collection(db, 'error_logs'), orderBy('timestamp', 'desc'), limit(50))),
-        getDocs(query(collection(db, 'search_logs'), orderBy('timestamp', 'desc'), limit(50))),
+        getDocs(query(collection(db, 'search_logs'), orderBy('timestamp', 'desc'), limit(100))),
         getDocs(query(collection(db, 'dmca_complaints'), orderBy('createdAt', 'desc'), limit(20)))
       ]);
 
@@ -64,6 +78,15 @@ export default function GovernanceAudit() {
   useEffect(() => {
     fetchAuditData();
   }, [db, isAdmin]);
+
+  const searchStats = useMemo(() => {
+    const stats: Record<string, number> = {};
+    searches.forEach(s => {
+      const type = s.type || 'unknown';
+      stats[type] = (stats[type] || 0) + 1;
+    });
+    return Object.entries(stats).map(([name, value]) => ({ name: name.toUpperCase(), value }));
+  }, [searches]);
 
   const resolveDMCA = async (complaintId: string) => {
     try {
@@ -90,6 +113,8 @@ export default function GovernanceAudit() {
     }
   };
 
+  const COLORS = ['#301934', '#DAA520', '#3B82F6', '#10B981', '#F43F5E'];
+
   if (!isAdmin && !loading) return <div className="p-20 text-center font-headline text-2xl">Access Restricted to System Administrators</div>;
   if (loading) return <div className="p-20 flex justify-center"><Loader2 className="animate-spin text-primary h-12 w-12" /></div>;
 
@@ -109,27 +134,116 @@ export default function GovernanceAudit() {
         <p className="text-muted-foreground ml-12">Administrative oversight of scholarly platform stability and integrity.</p>
       </header>
 
-      <Tabs defaultValue="errors" className="w-full">
+      <div className="grid gap-8 lg:grid-cols-3">
+        <Card className="lg:col-span-2 shadow-sm border-primary/10">
+          <CardHeader>
+            <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+               <BarChart3 className="h-4 w-4" /> Theological Research Trends
+            </CardTitle>
+            <CardDescription>Volume of queries by scholarly module.</CardDescription>
+          </CardHeader>
+          <CardContent className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={searchStats} margin={{ top: 20, right: 30, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
+                <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} />
+                <YAxis fontSize={10} axisLine={false} tickLine={false} />
+                <ChartTooltip 
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
+                />
+                <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={40}>
+                  {searchStats.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+          <CardFooter className="bg-muted/10 p-3 border-t">
+             <div className="flex justify-between items-center w-full text-[10px] font-bold text-muted-foreground px-2">
+                <span>TOTAL LOGGED QUERIES: {searches.length}</span>
+                <span className="flex items-center gap-1"><TrendingUp className="h-3 w-3 text-accent" /> REAL-TIME ANALYTICS</span>
+             </div>
+          </CardFooter>
+        </Card>
+
+        <Card className="shadow-sm border-accent/20 bg-accent/5">
+          <CardHeader>
+             <CardTitle className="text-sm font-bold uppercase tracking-widest text-accent">Active Oversight</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+             <div className="p-4 bg-background rounded-lg border flex items-center justify-between shadow-sm">
+                <div className="space-y-0.5">
+                   <p className="text-xs text-muted-foreground">Pending Complaints</p>
+                   <p className="text-2xl font-bold font-headline">{complaints.filter(c => c.status === 'pending').length}</p>
+                </div>
+                <ShieldAlert className="h-8 w-8 text-destructive opacity-20" />
+             </div>
+             <div className="p-4 bg-background rounded-lg border flex items-center justify-between shadow-sm">
+                <div className="space-y-0.5">
+                   <p className="text-xs text-muted-foreground">System Alerts</p>
+                   <p className="text-2xl font-bold font-headline">{errors.length}</p>
+                </div>
+                <AlertCircle className="h-8 w-8 text-primary opacity-20" />
+             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs defaultValue="searches" className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-8">
-          <TabsTrigger value="errors" className="gap-2"><AlertCircle className="h-4 w-4" /> System Errors</TabsTrigger>
-          <TabsTrigger value="searches" className="gap-2"><Search className="h-4 w-4" /> Research Trends</TabsTrigger>
-          <TabsTrigger value="dmca" className="gap-2"><ShieldAlert className="h-4 w-4" /> DMCA Complaints</TabsTrigger>
+          <TabsTrigger value="searches" className="gap-2"><Search className="h-4 w-4" /> Search Logs</TabsTrigger>
+          <TabsTrigger value="errors" className="gap-2"><AlertCircle className="h-4 w-4" /> Runtime Errors</TabsTrigger>
+          <TabsTrigger value="dmca" className="gap-2"><ShieldAlert className="h-4 w-4" /> DMCA Queue</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="errors">
+        <TabsContent value="searches">
           <Card>
             <CardHeader>
-              <CardTitle>Runtime & Permission Logs</CardTitle>
-              <CardDescription>The last 50 recorded system events requiring attention.</CardDescription>
+              <CardTitle>Research Query Feed</CardTitle>
+              <CardDescription>Identifying high-demand topics for institutional wiki population.</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="bg-muted/50">
+                    <TableHead>Term</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Timestamp</TableHead>
+                    <TableHead>Researcher</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {searches.map(log => (
+                    <TableRow key={log.id}>
+                      <TableCell className="font-bold text-primary">{log.term}</TableCell>
+                      <TableCell><Badge variant="secondary" className="text-[9px] uppercase">{log.type}</Badge></TableCell>
+                      <TableCell className="text-[10px] text-muted-foreground">
+                        {log.timestamp?.seconds ? new Date(log.timestamp.seconds * 1000).toLocaleString() : 'N/A'}
+                      </TableCell>
+                      <TableCell className="text-[10px] font-mono">{log.uid?.substring(0, 8)}...</TableCell>
+                    </TableRow>
+                  ))}
+                  {searches.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-10 italic opacity-50">No search activity logged.</TableCell></TableRow>}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="errors">
+          <Card>
+            <CardHeader>
+              <CardTitle>Platform Stability Logs</CardTitle>
+              <CardDescription>Reviewing technical and permission-based exceptions.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
                     <TableHead>Timestamp</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Message</TableHead>
-                    <TableHead>User</TableHead>
                     <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -145,7 +259,6 @@ export default function GovernanceAudit() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs max-w-xs truncate" title={log.message}>{log.message}</TableCell>
-                      <TableCell className="text-[10px] text-muted-foreground">{log.userId}</TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => dismissLog('error_logs', log.id)}>
                            <Trash2 className="h-3 w-3" />
@@ -153,41 +266,7 @@ export default function GovernanceAudit() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {errors.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-10 italic opacity-50">No error logs found.</TableCell></TableRow>}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="searches">
-          <Card>
-            <CardHeader>
-              <CardTitle>Research Query Analytics</CardTitle>
-              <CardDescription>Analyzing what scholars are searching to prioritize wiki content.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Term</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Scholar</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {searches.map(log => (
-                    <TableRow key={log.id}>
-                      <TableCell className="font-bold text-primary">{log.term}</TableCell>
-                      <TableCell><Badge variant="secondary" className="text-[9px] uppercase">{log.type}</Badge></TableCell>
-                      <TableCell className="text-[10px] text-muted-foreground">
-                        {log.timestamp?.seconds ? new Date(log.timestamp.seconds * 1000).toLocaleDateString() : 'N/A'}
-                      </TableCell>
-                      <TableCell className="text-[10px]">{log.uid || 'Guest'}</TableCell>
-                    </TableRow>
-                  ))}
-                  {searches.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-10 italic opacity-50">No search activity logged.</TableCell></TableRow>}
+                  {errors.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-10 italic opacity-50">No stability issues logged.</TableCell></TableRow>}
                 </TableBody>
               </Table>
             </CardContent>
@@ -197,18 +276,16 @@ export default function GovernanceAudit() {
         <TabsContent value="dmca">
           <Card>
             <CardHeader>
-              <CardTitle>Legal Infringement Queue</CardTitle>
-              <CardDescription>Formal complaints requiring investigation and resolution.</CardDescription>
+              <CardTitle>Copyright & Intellectual Property Queue</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {complaints.map(dmca => (
-                  <Card key={dmca.id} className={cn("overflow-hidden shadow-sm transition-all", dmca.status === 'resolved' ? "border-green-500/20 bg-green-50/5" : "border-destructive/20")}>
-                    <div className={cn("h-1 w-full", dmca.status === 'resolved' ? "bg-green-500" : "bg-destructive")} />
+                  <Card key={dmca.id} className={cn("overflow-hidden shadow-sm transition-all border-l-4", dmca.status === 'resolved' ? "border-l-green-500 bg-green-50/5" : "border-l-destructive")}>
                     <CardHeader className="py-4">
                       <div className="flex justify-between items-start">
                         <div>
-                          <CardTitle className="text-lg font-headline">Complaint: {dmca.contentType} #{dmca.contentId}</CardTitle>
+                          <CardTitle className="text-lg font-headline">Complaint: {dmca.contentType} #{dmca.contentId?.substring(0, 8)}</CardTitle>
                           <CardDescription className="flex items-center gap-2">
                              <Clock className="h-3 w-3" /> Submitted {new Date(dmca.createdAt?.seconds * 1000).toLocaleString()}
                           </CardDescription>
@@ -227,7 +304,7 @@ export default function GovernanceAudit() {
                         </div>
                         <div className="p-3 bg-muted rounded-lg">
                           <p className="font-bold text-primary mb-1">Physical Address</p>
-                          <p>{dmca.complainantAddress}</p>
+                          <p className="truncate">{dmca.complainantAddress}</p>
                         </div>
                       </div>
                       <div className="text-sm p-4 border rounded-lg bg-background font-serif italic shadow-inner">

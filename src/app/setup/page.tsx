@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ShieldCheck, Database, Sparkles, Activity, Key, CheckCircle2, Loader2, LogIn, Globe, WifiOff, Layers } from 'lucide-react';
+import { ShieldCheck, Database, Sparkles, Activity, Key, CheckCircle2, Loader2, LogIn, Globe, WifiOff, Layers, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { useAuth } from '@/firebase';
@@ -68,10 +68,15 @@ export default function SetupWizard() {
     try {
       const batch = writeBatch(db);
 
-      // 1. System Config
+      // 1. System Config with Tiers
       batch.set(doc(db, 'system', 'config'), {
         ...formData,
         isConfigured: true,
+        apiTiers: [
+          { name: "Basic", requestsPerDay: 20 },
+          { name: "Scholar", requestsPerDay: 100 },
+          { name: "Institution", requestsPerDay: 5000 }
+        ],
         updatedAt: new Date().toISOString()
       });
 
@@ -79,7 +84,6 @@ export default function SetupWizard() {
       const allModules = [...DEFAULT_MODULES, ...GOVERNANCE_MODULES];
       
       allModules.forEach(mod => {
-        // Map Lucide components back to their string keys used in ICON_MAP
         const iconName = mod.id === 'dashboard' ? 'layout-dashboard' : 
                          mod.id === 'chat' ? 'message-square' :
                          mod.id === 'wiki' ? 'graduation-cap' :
@@ -93,7 +97,8 @@ export default function SetupWizard() {
                          mod.id === 'geography' ? 'globe' :
                          mod.id === 'timeline' ? 'history' :
                          mod.id === 'profile' ? 'key' :
-                         mod.labelKey === 'nav.audit' ? 'activity' : 'globe';
+                         mod.labelKey === 'nav.audit' ? 'activity' : 
+                         mod.id === 'archaeology' ? 'layers' : 'globe';
 
         const docId = (mod.id + '-' + (mod.path?.replace(/\//g, '') || 'tab')).toLowerCase();
         batch.set(doc(db, 'modules', docId), {
@@ -101,7 +106,7 @@ export default function SetupWizard() {
           labelKey: mod.labelKey,
           iconName: iconName,
           group: mod.group,
-          enabled: true, // ENABLED BY DEFAULT
+          enabled: true,
           adminOnly: mod.adminOnly || false,
           path: mod.path || null,
           createdAt: new Date().toISOString()
@@ -122,7 +127,7 @@ export default function SetupWizard() {
 
       await batch.commit();
 
-      toast({ title: "Configuration Saved", description: "Your scholarly workspace is ready, and modules have been initialized as active." });
+      toast({ title: "Configuration Saved", description: "Your scholarly workspace is ready with Tiered Access and AI Governance." });
       router.push('/');
     } catch (e: any) {
       toast({ variant: 'destructive', title: "Setup Failed", description: e.message });
@@ -219,16 +224,20 @@ export default function SetupWizard() {
             <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
               <div className="flex items-center gap-2 text-primary font-bold">
                 <Layers className="h-5 w-5" />
-                <h3>Module Provisioning</h3>
+                <h3>Governance Provisioning</h3>
               </div>
-              <p className="text-sm text-muted-foreground">The platform will automatically initialize the following scholarly tools for your environment:</p>
+              <p className="text-sm text-muted-foreground">The platform will initialize **Tiered Access Control** and the following modules:</p>
               <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-4 bg-muted/30 rounded-lg border">
                 {[...DEFAULT_MODULES, ...GOVERNANCE_MODULES].map((m, i) => (
                   <div key={i} className="flex items-center gap-2 text-[10px]">
                     <CheckCircle2 className="h-3 w-3 text-green-600" />
-                    <span className="truncate">{m.id} - {m.labelKey}</span>
+                    <span className="truncate">{m.id}</span>
                   </div>
                 ))}
+              </div>
+              <div className="flex items-center gap-2 p-3 bg-accent/5 border border-accent/20 rounded-lg">
+                <ShieldAlert className="h-4 w-4 text-accent" />
+                <p className="text-[10px] text-muted-foreground italic">Default tiers: Basic (20), Scholar (100), Institution (5000) queries/day.</p>
               </div>
             </div>
           )}
@@ -261,7 +270,7 @@ export default function SetupWizard() {
             <div className="text-center space-y-4 py-6 animate-in zoom-in-95">
               <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto" />
               <h3 className="text-xl font-bold font-headline">Ready for Deployment</h3>
-              <p className="text-sm text-muted-foreground">All parameters have been validated and the modules registry is prepared. Click complete to finalize.</p>
+              <p className="text-sm text-muted-foreground">All parameters validated. Tiers and modules are prepared for installation.</p>
             </div>
           )}
         </CardContent>

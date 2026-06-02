@@ -68,6 +68,47 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "title", "data"]
+    },
+    "AcademicInstitution": {
+      "title": "Academic Institution",
+      "description": "A registered seminary or university in the LexiVerse directory.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "website": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "SystemSettings": {
+      "title": "System Settings",
+      "description": "Global configuration for AI models, API tiers, and network settings.",
+      "type": "object",
+      "properties": {
+        "geminiApiKey": { "type": "string" },
+        "openaiApiKey": { "type": "string" },
+        "anthropicApiKey": { "type": "string" },
+        "mistralApiKey": { "type": "string" },
+        "deepseekApiKey": { "type": "string" },
+        "xaiApiKey": { "type": "string" },
+        "ollamaUrl": { "type": "string" },
+        "defaultModelProvider": { "type": "string" },
+        "defaultModel": { "type": "string" },
+        "localModelList": { "type": "array", "items": { "type": "string" } },
+        "networkMode": { "type": "string", "enum": ["internet", "local-only"] },
+        "apiTiers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "requestsPerDay": { "type": "number" }
+            }
+          }
+        },
+        "isConfigured": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "auth": {
@@ -85,6 +126,10 @@
     "/system/config": {
       "schema": "#/backend/entities/SystemSettings",
       "description": "Global system configuration."
+    },
+    "/institutions/{instId}": {
+      "schema": "#/backend/entities/AcademicInstitution",
+      "description": "Institutional registry entries."
     }
   }
 }
