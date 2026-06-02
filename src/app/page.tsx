@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -72,7 +73,7 @@ import { TheologyView } from '@/components/views/theology-view';
 import { LexiconView } from '@/components/views/lexicon-view';
 import { AssistantView } from '@/components/views/assistant-view';
 import { ProfileView } from '@/components/views/profile-view';
-import { BoilerplateView } from '@/components/views/boilerplate-view'; // Added Boilerplate View
+import { BoilerplateView } from '@/components/views/boilerplate-view';
 
 // AI & API Imports
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
@@ -81,7 +82,7 @@ import { refineWriting, type WritingAssistantOutput } from '@/ai/flows/writing-a
 import { checkIntegrity, type AcademicIntegrityOutput } from '@/ai/flows/academic-integrity-ai';
 import { formatBibliography, type FormatBibliographyOutput } from '@/ai/flows/format-bibliography-ai';
 import { analyzeTheologicalConcept, type TheologicalConceptOutput } from '@/ai/flows/theological-concept-analysis';
-import { runBoilerplateAnalysis, type BoilerplateOutput } from '@/ai/flows/boilerplate-flow'; // Added Boilerplate Flow
+import { runBoilerplateAnalysis, type BoilerplateOutput } from '@/ai/flows/boilerplate-flow';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 import { getAllLocalDocuments, type IDBDocument } from '@/lib/idb';
 
@@ -123,7 +124,7 @@ export default function Home() {
   const [assistantTerm, setAssistantTerm] = useState('');
   const [lexiconResult, setLexiconResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
   const [assistantResult, setAssistantResult] = useState<AiStudyAssistantOutput | null>(null);
-  const [boilerplateResult, setBoilerplateResult] = useState<BoilerplateOutput | null>(null); // Added Boilerplate State
+  const [boilerplateResult, setBoilerplateResult] = useState<BoilerplateOutput | null>(null);
   
   const [profileDraft, setProfileDraft] = useState({ 
     displayName: '', 
@@ -278,7 +279,7 @@ export default function Home() {
       } else if (type === 'theology') {
         const result = await analyzeTheologicalConcept({ concept: term });
         setTheologyResult(result);
-      } else if (type === 'boilerplate') { // Added Boilerplate Handler
+      } else if (type === 'boilerplate') {
         const result = await runBoilerplateAnalysis({ query: term });
         setBoilerplateResult(result);
       }
@@ -404,19 +405,19 @@ export default function Home() {
               <SidebarGroupLabel>General</SidebarGroupLabel>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} tooltip="Dashboard">
-                    <LayoutDashboard className="h-5 w-5" /> <span>Dashboard</span>
+                  <SidebarMenuButton isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} tooltip={t.nav.dashboard}>
+                    <LayoutDashboard className="h-5 w-5" /> <span>{t.nav.dashboard}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'chat'} onClick={() => setActiveTab('chat')} tooltip="Chat Hub">
-                    <MessageSquare className="h-5 w-5" /> <span>Chat Hub</span>
+                  <SidebarMenuButton isActive={activeTab === 'chat'} onClick={() => setActiveTab('chat')} tooltip={t.nav.chat_hub || "Chat Hub"}>
+                    <MessageSquare className="h-5 w-5" /> <span>{t.nav.chat_hub || "Chat Hub"}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="Scholarly Wiki" isActive={activeTab === 'wiki'}>
+                  <SidebarMenuButton asChild tooltip={t.nav.wiki} isActive={activeTab === 'wiki'}>
                     <Link href="/wiki">
-                        <GraduationCap className="h-5 w-5" /> <span>Scholarly Wiki</span>
+                        <GraduationCap className="h-5 w-5" /> <span>{t.nav.wiki}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -424,16 +425,16 @@ export default function Home() {
             </SidebarGroup>
 
             <SidebarGroup>
-              <SidebarGroupLabel>AI Research Hub</SidebarGroupLabel>
+              <SidebarGroupLabel>{t.nav.ai_hub}</SidebarGroupLabel>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'ai-assistant'} onClick={() => setActiveTab('ai-assistant')} tooltip="Study Assistant">
-                    <Sparkles className="h-5 w-5" /> <span>Study Assistant</span>
+                  <SidebarMenuButton isActive={activeTab === 'ai-assistant'} onClick={() => setActiveTab('ai-assistant')} tooltip={t.nav.study_assistant}>
+                    <Sparkles className="h-5 w-5" /> <span>{t.nav.study_assistant}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'theology'} onClick={() => setActiveTab('theology')} tooltip="Theology Explorer">
-                    <History className="h-5 w-5" /> <span>Theology Map</span>
+                  <SidebarMenuButton isActive={activeTab === 'theology'} onClick={() => setActiveTab('theology')} tooltip={t.nav.theology_map}>
+                    <History className="h-5 w-5" /> <span>{t.nav.theology_map}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
@@ -444,18 +445,18 @@ export default function Home() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'lexicon'} onClick={() => setActiveTab('lexicon')} tooltip="Lexicon Analysis">
-                    <BookOpen className="h-5 w-5" /> <span>Lexicon</span>
+                  <SidebarMenuButton isActive={activeTab === 'lexicon'} onClick={() => setActiveTab('lexicon')} tooltip={t.nav.lexicon}>
+                    <BookOpen className="h-5 w-5" /> <span>{t.nav.lexicon}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'synthesis'} onClick={() => setActiveTab('synthesis')} tooltip="Writing Hub">
-                    <Feather className="h-5 w-5" /> <span>Writing Hub</span>
+                  <SidebarMenuButton isActive={activeTab === 'synthesis'} onClick={() => setActiveTab('synthesis')} tooltip={t.nav.synthesis}>
+                    <Feather className="h-5 w-5" /> <span>{t.nav.synthesis}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'boilerplate'} onClick={() => setActiveTab('boilerplate')} tooltip="Module Boilerplate">
-                    <Puzzle className="h-5 w-5" /> <span>Module Boilerplate</span>
+                  <SidebarMenuButton isActive={activeTab === 'boilerplate'} onClick={() => setActiveTab('boilerplate')} tooltip={t.nav.boilerplate}>
+                    <Puzzle className="h-5 w-5" /> <span>{t.nav.boilerplate}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>

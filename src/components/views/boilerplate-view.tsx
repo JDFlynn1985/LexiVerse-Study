@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { memo, useState } from 'react';
@@ -8,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { BoilerplateOutput } from '@/ai/flows/boilerplate-flow';
+import { useLanguage } from '@/components/language-provider';
 
 interface BoilerplateViewProps {
   isLoading: boolean;
@@ -20,6 +22,7 @@ interface BoilerplateViewProps {
  * Uses React.memo to ensure re-renders only occur when props change.
  */
 export const BoilerplateView = memo(({ isLoading, result, onSearch }: BoilerplateViewProps) => {
+  const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -32,16 +35,16 @@ export const BoilerplateView = memo(({ isLoading, result, onSearch }: Boilerplat
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
       <header>
         <h1 className="text-3xl font-bold font-headline flex items-center gap-3">
-          <Puzzle className="h-8 w-8 text-primary" /> Boilerplate Research Tool
+          <Puzzle className="h-8 w-8 text-primary" /> {t.boilerplate.title}
         </h1>
-        <p className="text-muted-foreground">Template for developing new scholarly modules and AI flows.</p>
+        <p className="text-muted-foreground">{t.boilerplate.description}</p>
       </header>
 
       <div className="flex gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground" />
           <Input 
-            placeholder="Enter research topic..." 
+            placeholder={t.boilerplate.placeholder} 
             className="h-12 pl-10 shadow-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -50,7 +53,7 @@ export const BoilerplateView = memo(({ isLoading, result, onSearch }: Boilerplat
         </div>
         <Button size="lg" onClick={() => onSearch(searchTerm)} disabled={isLoading || !searchTerm.trim()}>
           {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-          Run Analysis
+          {t.boilerplate.action}
         </Button>
       </div>
 
@@ -61,7 +64,7 @@ export const BoilerplateView = memo(({ isLoading, result, onSearch }: Boilerplat
               <div className="h-1.5 bg-primary w-full" />
               <CardHeader>
                 <CardTitle className="font-headline text-2xl flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-primary" /> Analysis Summary
+                  <BookOpen className="h-5 w-5 text-primary" /> {t.boilerplate.sections.summary}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -73,7 +76,7 @@ export const BoilerplateView = memo(({ isLoading, result, onSearch }: Boilerplat
                 
                 <div>
                   <h4 className="font-bold text-sm uppercase text-primary mb-3 flex items-center gap-2">
-                    <ListChecks className="h-4 w-4" /> Key Findings
+                    <ListChecks className="h-4 w-4" /> {t.boilerplate.sections.findings}
                   </h4>
                   <ul className="space-y-2">
                     {result.keyPoints.map((point, i) => (
@@ -91,7 +94,7 @@ export const BoilerplateView = memo(({ isLoading, result, onSearch }: Boilerplat
 
             <Card className="border-accent/20 bg-accent/5">
               <CardHeader>
-                <CardTitle className="text-lg font-headline">Theological Nuance</CardTitle>
+                <CardTitle className="text-lg font-headline">{t.boilerplate.sections.nuance}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm italic leading-relaxed text-muted-foreground">
@@ -104,7 +107,7 @@ export const BoilerplateView = memo(({ isLoading, result, onSearch }: Boilerplat
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg font-headline">Suggested Sources</CardTitle>
+                <CardTitle className="text-lg font-headline">{t.boilerplate.sections.sources}</CardTitle>
                 <CardDescription>Academic references for further study.</CardDescription>
               </CardHeader>
               <CardContent>
@@ -128,9 +131,9 @@ export const BoilerplateView = memo(({ isLoading, result, onSearch }: Boilerplat
         !isLoading && (
           <div className="text-center py-24 bg-muted/30 rounded-[2rem] border-2 border-dashed border-primary/10">
             <Puzzle className="h-16 w-16 mx-auto mb-4 text-primary opacity-10" />
-            <h3 className="text-xl font-headline font-bold text-muted-foreground">Ready for Development</h3>
+            <h3 className="text-xl font-headline font-bold text-muted-foreground">{t.boilerplate.empty_state}</h3>
             <p className="text-sm text-muted-foreground max-w-md mx-auto mt-2 italic">
-              "Every great tool begins with a clean template."
+              {t.boilerplate.empty_sub}
             </p>
           </div>
         )

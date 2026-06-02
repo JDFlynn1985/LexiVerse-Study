@@ -25,7 +25,8 @@ export const enUS = {
     settings: "Settings",
     help: "Help Center",
     logout: "Logout",
-    login_google: "Link Google"
+    login_google: "Link Google",
+    boilerplate: "Module Boilerplate"
   },
   dashboard: {
     title: "Research Workspace",
@@ -41,7 +42,27 @@ export const enUS = {
     stats_title: "Bibliographic Overview",
     wiki_articles: "Wiki Articles",
     logs: "Analytic Logs",
-    upload_paper: "Upload Paper"
+    upload_paper: "Upload Paper",
+    tools: {
+      boilerplate: {
+        title: "Module Boilerplate",
+        desc: "Template for new research tools."
+      }
+    }
+  },
+  boilerplate: {
+    title: "Boilerplate Research Tool",
+    description: "Template for developing new scholarly modules and AI flows.",
+    placeholder: "Enter research topic...",
+    action: "Run Analysis",
+    empty_state: "Ready for Development",
+    empty_sub: "\"Every great tool begins with a clean template.\"",
+    sections: {
+      summary: "Analysis Summary",
+      findings: "Key Findings",
+      nuance: "Theological Nuance",
+      sources: "Suggested Sources"
+    }
   },
   settings: {
     title: "Scholar Preferences & Settings",

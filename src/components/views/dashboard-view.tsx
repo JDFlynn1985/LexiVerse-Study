@@ -1,7 +1,8 @@
+
 'use client';
 
 import React, { memo } from 'react';
-import { Sparkles, GraduationCap, Clock, ArrowRight, History, FileSearch2, Feather, MessageSquare } from 'lucide-react';
+import { Sparkles, GraduationCap, Clock, ArrowRight, History, FileSearch2, Feather, MessageSquare, Puzzle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -131,10 +132,10 @@ export const DashboardView = memo(({
         onClick={() => setActiveTab('synthesis')} 
       />
       <QuickToolCard 
-        title="Chat Hub" 
-        desc="Real-time scholarly dialogue" 
-        icon={<MessageSquare className="h-6 w-6" />} 
-        onClick={() => setActiveTab('chat')} 
+        title={t.dashboard.tools.boilerplate.title} 
+        desc={t.dashboard.tools.boilerplate.desc} 
+        icon={<Puzzle className="h-6 w-6" />} 
+        onClick={() => setActiveTab('boilerplate')} 
       />
     </div>
   </div>
