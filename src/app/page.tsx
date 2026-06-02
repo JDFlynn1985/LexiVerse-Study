@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -202,6 +203,7 @@ export default function Home() {
     getVersions().then(setAvailableVersions);
 
     async function fetchInstitutions() {
+      if (!db) return;
       try {
         const snap = await getDocs(query(collection(db, 'institutions'), orderBy('name', 'asc')));
         setInstitutions(snap.docs.map(d => ({ id: d.id, name: d.data().name })));
@@ -211,6 +213,7 @@ export default function Home() {
     }
     fetchInstitutions();
 
+    if (!db) return;
     const unsubConfig = onSnapshot(doc(db, 'system', 'config'), (snap) => {
       if (snap.exists()) {
         const data = snap.data();
@@ -1061,7 +1064,7 @@ export default function Home() {
                   />
                   <Button size="lg" onClick={() => {
                     const el = document.querySelector('input[placeholder*="Strong"]') as HTMLInputElement;
-                    handleSearch(el.value, 'lexicon');
+                    if (el) handleSearch(el.value, 'lexicon');
                   }} disabled={isLoading}>
                     {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
                   </Button>
@@ -1151,13 +1154,13 @@ export default function Home() {
                             </div>
                           ))}
                         </CardContent>
-                      </Card>
 
                       <Card className="bg-primary text-primary-foreground">
                         <CardHeader><CardTitle className="text-lg font-headline">Bibliography</CardTitle></CardHeader>
                         <CardContent>
                           <p className="text-[11px] font-mono leading-relaxed whitespace-pre-wrap opacity-80">{lexiconResult.bibliography}</p>
                         </CardContent>
+                      </Card>
                       </Card>
                     </div>
                   </div>
