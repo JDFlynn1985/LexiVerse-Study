@@ -9,7 +9,7 @@
 
 /**
  * @fileOverview Primary Research Dashboard Orchestrator.
- * Enhanced with Universal AI Provider support (Google, OpenAI, Anthropic, Mistral, etc.).
+ * Enhanced with Research Persistence and Universal Export Hub.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -20,7 +20,7 @@ import {
   GoogleAuthProvider, 
   signOut
 } from 'firebase/auth';
-import { doc, onSnapshot, getDocs, collection, query, orderBy, addDoc, limit, where, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, getDocs, collection, query, orderBy, addDoc, limit, where, serverTimestamp, updateDoc, setDoc } from 'firebase/firestore';
 import { useAuth, useFirestore, useUser, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { logSearch } from '@/lib/search-logging';
 import { useLanguage } from '@/components/language-provider';
@@ -90,8 +90,9 @@ import { runArchaeologyAnalysis, type ArchaeologyOutput } from '@/ai/flows/archa
 import { generateHistoricalTimeline, type HistoricalTimelineOutput } from '@/ai/flows/historical-timeline-flow';
 import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/compare-translations-ai';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
-import { getAllLocalDocuments, type IDBDocument } from '@/lib/idb';
+import { getAllLocalDocuments, saveLocalDocument, type IDBDocument } from '@/lib/idb';
 import { chunkText, selectRelevantChunks } from '@/lib/rag-engine';
+import { exportToPDF, exportToWord, exportToMarkdown, exportToText } from '@/lib/export-service';
 
 export default function Home() {
   const { language, t } = useLanguage();
@@ -207,7 +208,7 @@ export default function Home() {
     if (chatMode === 'global') {
       chatQ = query(collection(db, 'messages'), where('mode', '==', 'global'), orderBy('createdAt', 'desc'), limit(50));
     } else {
-      const instId = userProfile?.institutionId || 'unknown';
+      const instId = userProfile?.institutionId || 'independent';
       chatQ = query(collection(db, 'messages'), where('mode', '==', 'institutional'), where('institutionId', '==', instId), orderBy('createdAt', 'desc'), limit(50));
     }
 
@@ -293,6 +294,54 @@ export default function Home() {
       }
     } catch (error: any) { toast({ variant: 'destructive', title: 'Research Engine Error', description: error.message }); }
     finally { setIsLoading(false); }
+  };
+
+  const handleSaveSession = async (title: string, type: string, data: any) => {
+    if (!user || !db) return;
+    try {
+      const sessionRef = doc(collection(db, 'users', user.uid, 'sessions'));
+      await setDoc(sessionRef, {
+        uid: user.uid,
+        title,
+        type,
+        data,
+        createdAt: serverTimestamp()
+      });
+      toast({ title: "Research Saved", description: `Session '${title}' preserved in workspace.` });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: "Save Failed" });
+    }
+  };
+
+  const handleExport = (format: 'pdf' | 'docx' | 'markdown' | 'txt', data: any) => {
+    if (!data) return;
+    try {
+      if (format === 'pdf') exportToPDF(data);
+      else if (format === 'docx') exportToWord(data);
+      else if (format === 'markdown') exportToMarkdown(data);
+      else if (format === 'txt') exportToText(data);
+      toast({ title: "Export Started", description: "Your scholarly report is being generated." });
+    } catch (e) {
+      toast({ variant: 'destructive', title: "Export Failed" });
+    }
+  };
+
+  const handleSaveDraftToLibrary = async (name: string, content: string) => {
+    try {
+      const newDoc: IDBDocument = {
+        id: crypto.randomUUID(),
+        name: `${name}-${new Date().toLocaleDateString()}.txt`,
+        type: 'text/plain',
+        content,
+        uploadDate: new Date().toISOString(),
+        synced: false
+      };
+      await saveLocalDocument(newDoc);
+      await refreshLocalDocs();
+      toast({ title: "Draft Saved", description: "Successfully added to your local library for future RAG context." });
+    } catch (e) {
+      toast({ variant: 'destructive', title: "Failed to save draft" });
+    }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -384,10 +433,13 @@ export default function Home() {
           if (a === 'cross-ref') setCrossRefResult(await findCovertLinks(synthesisText));
         } catch (e: any) { toast({ variant: 'destructive', title: "Synthesis Error" }); }
         finally { setIsLoading(false); }
+      }} handleSaveDraftToLibrary={handleSaveDraftToLibrary} handleExportText={(fmt, title, text) => {
+        const mockData: any = { originalWord: title, aiInsights: text, verseUsages: [], bibliography: [], transliteration: 'Draft', pronunciation: '' };
+        handleExport(fmt, mockData);
       }} isLoading={isLoading} synthesisResult={synthesisResult} integrityResult={integrityResult} bibResult={bibResult} crossRefResult={crossRefResult} />;
       case 'theology': return <TheologyView theologyTerm={theologyTerm} setTheologyTerm={setTheologyTerm} handleSearch={handleSearch} isLoading={isLoading} theologyResult={theologyResult} />;
-      case 'lexicon': return <LexiconView handleSearch={handleSearch} isLoading={isLoading} lexiconResult={lexiconResult} />;
-      case 'ai-assistant': return <AssistantView assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} assistantResult={assistantResult} />;
+      case 'lexicon': return <LexiconView handleSearch={handleSearch} handleSaveSession={handleSaveSession} handleExport={handleExport} isLoading={isLoading} lexiconResult={lexiconResult} isUserSignedIn={!!user} />;
+      case 'ai-assistant': return <AssistantView assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} handleSaveSession={handleSaveSession} handleExport={handleExport} isLoading={isLoading} assistantResult={assistantResult} isUserSignedIn={!!user} />;
       case 'translation-compare': return <TranslationCompareView isLoading={isLoading} result={translationResult} availableVersions={availableVersions} onCompare={async (w, l, v) => {
         setIsLoading(true);
         try { setTranslationResult(await compareTranslations({ word: w, language: l, versions: v })); }

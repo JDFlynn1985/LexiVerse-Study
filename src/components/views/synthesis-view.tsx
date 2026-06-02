@@ -2,7 +2,7 @@
 'use client';
 
 import React, { memo } from 'react';
-import { Feather, Sparkles, ShieldCheck, ListFilter, Loader2, Link as LinkIcon, BookOpen } from 'lucide-react';
+import { Feather, Sparkles, ShieldCheck, ListFilter, Loader2, Link as LinkIcon, Save, Download, FileText } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -15,11 +15,21 @@ import { WritingAssistantOutput } from '@/ai/flows/writing-assistant-ai';
 import { AcademicIntegrityOutput } from '@/ai/flows/academic-integrity-ai';
 import { FormatBibliographyOutput } from '@/ai/flows/format-bibliography-ai';
 import { CovertReferenceOutput } from '@/ai/flows/cross-reference-ai';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel
+} from '@/components/ui/dropdown-menu';
 
 interface SynthesisViewProps {
   synthesisText: string;
   setSynthesisText: (text: string) => void;
   handleSynthesisAction: (action: 'refine' | 'integrity' | 'bib' | 'cross-ref') => void;
+  handleSaveDraftToLibrary: (name: string, content: string) => void;
+  handleExportText: (format: 'pdf' | 'docx' | 'markdown' | 'txt', title: string, text: string) => void;
   isLoading: boolean;
   synthesisResult: WritingAssistantOutput | null;
   integrityResult: AcademicIntegrityOutput | null;
@@ -31,6 +41,8 @@ export const SynthesisView = memo(({
   synthesisText, 
   setSynthesisText, 
   handleSynthesisAction, 
+  handleSaveDraftToLibrary,
+  handleExportText,
   isLoading, 
   synthesisResult, 
   integrityResult, 
@@ -38,11 +50,43 @@ export const SynthesisView = memo(({
   crossRefResult
 }: SynthesisViewProps) => (
   <div className="space-y-8 animate-in fade-in duration-500">
-    <header>
-      <h1 className="text-3xl font-bold font-headline flex items-center gap-3">
-        <Feather className="h-8 w-8 text-primary" /> Academic Synthesis Hub
-      </h1>
-      <p className="text-muted-foreground">Refine your research, check integrity, and identify semantic cross-references.</p>
+    <header className="flex justify-between items-end">
+      <div>
+        <h1 className="text-3xl font-bold font-headline flex items-center gap-3">
+          <Feather className="h-8 w-8 text-primary" /> Academic Synthesis Hub
+        </h1>
+        <p className="text-muted-foreground">Refine your research, check integrity, and identify semantic cross-references.</p>
+      </div>
+      <div className="flex gap-2">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => handleSaveDraftToLibrary('Refined Research Draft', synthesisResult?.improvedText || synthesisText)}
+          className="h-9"
+        >
+          <Save className="h-4 w-4 mr-2" /> Save to Library
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" className="h-9">
+              <Download className="h-4 w-4 mr-2" /> Export Draft
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Format</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => handleExportText('pdf', 'Research Draft', synthesisResult?.improvedText || synthesisText)}>
+              PDF Document
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExportText('docx', 'Research Draft', synthesisResult?.improvedText || synthesisText)}>
+              MS Word
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExportText('markdown', 'Research Draft', synthesisResult?.improvedText || synthesisText)}>
+              Markdown
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </header>
 
     <div className="grid gap-8 lg:grid-cols-2">
@@ -83,7 +127,7 @@ export const SynthesisView = memo(({
               <CardContent className="pt-6">
                 {synthesisResult ? (
                   <div className="space-y-6">
-                    <p className="whitespace-pre-wrap leading-relaxed text-sm">{synthesisResult.improvedText}</p>
+                    <p className="whitespace-pre-wrap leading-relaxed text-sm font-serif">{synthesisResult.improvedText}</p>
                     <Separator />
                     <div className="space-y-2">
                       <h4 className="font-bold text-xs uppercase text-primary">Corrections Made</h4>
