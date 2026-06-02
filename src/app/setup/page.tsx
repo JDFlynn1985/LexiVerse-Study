@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -88,7 +87,7 @@ export default function SetupWizard() {
                          mod.id === 'manuscripts' ? 'file-search' :
                          mod.id === 'lexicon' ? 'book-open' :
                          mod.id === 'synthesis' ? 'feather' :
-                         mod.id === 'boilerplate' ? 'puzzle' :
+                         mod.id === 'verse-explorer' ? 'quill' :
                          mod.id === 'profile' ? 'key' :
                          mod.labelKey === 'nav.audit' ? 'activity' : 'globe';
 

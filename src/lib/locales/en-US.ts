@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview English (US) localization strings for LexiVerse Explorer.
  */

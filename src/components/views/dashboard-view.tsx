@@ -1,8 +1,7 @@
-
 'use client';
 
 import React, { memo } from 'react';
-import { Sparkles, GraduationCap, Clock, ArrowRight, History, FileSearch2, Feather, MessageSquare, Puzzle, Loader2, Cpu, Globe, Server, Brain } from 'lucide-react';
+import { Sparkles, GraduationCap, Clock, ArrowRight, History, FileSearch2, Feather, MessageSquare, Puzzle, Loader2, Cpu, Globe, Server, Brain, Activity, TrendingUp } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { QuickToolCard } from './quick-tool-card';
 import { ViewMode, AIProvider } from '@/types/scholarly';
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip as RechartsTooltip, 
+  ResponsiveContainer, 
+  AreaChart, 
+  Area 
+} from 'recharts';
 
 interface DashboardViewProps {
   t: any;
@@ -35,6 +45,17 @@ const PROVIDERS: { id: AIProvider; label: string; icon: any }[] = [
   { id: 'deepseek', label: 'DEEPSEEK', icon: Cpu },
   { id: 'xai', label: 'XAI (ZAI)', icon: Cpu },
   { id: 'local', label: 'LOCAL OLLAMA', icon: Server }
+];
+
+// Mock data for scholarly momentum chart
+const MOCK_MOMENTUM_DATA = [
+  { day: 'Mon', queries: 4 },
+  { day: 'Tue', queries: 7 },
+  { day: 'Wed', queries: 5 },
+  { day: 'Thu', queries: 12 },
+  { day: 'Fri', queries: 8 },
+  { day: 'Sat', queries: 15 },
+  { day: 'Sun', queries: 9 },
 ];
 
 export const DashboardView = memo(({ 
@@ -79,13 +100,18 @@ export const DashboardView = memo(({
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <header className="space-y-4">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-primary/10 rounded-2xl">
-            <GraduationCap className="h-10 w-10 text-primary" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-primary/10 rounded-2xl">
+              <GraduationCap className="h-10 w-10 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold font-headline">{t.dashboard.title}</h1>
+              <p className="text-muted-foreground text-lg">{t.dashboard.subtitle}</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-4xl font-bold font-headline">{t.dashboard.title}</h1>
-            <p className="text-muted-foreground text-lg">{t.dashboard.subtitle}</p>
+          <div className="hidden md:flex gap-3">
+             <Badge variant="outline" className="bg-primary/5 border-primary/20 text-primary h-8 px-4 font-bold tracking-widest text-[10px]">SCHOLAR MODE ACTIVE</Badge>
           </div>
         </div>
       </header>
@@ -194,39 +220,61 @@ export const DashboardView = memo(({
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg border-accent/20 bg-accent/5 flex flex-col justify-between">
-          <CardHeader>
-            <CardTitle className="text-lg font-headline flex items-center gap-2">
-              <Clock className="h-4 w-4" /> Recent Activity
+        <Card className="shadow-lg border-accent/20 bg-accent/5 overflow-hidden">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold uppercase tracking-widest text-accent flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" /> Scholarly Momentum
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {historyItems.length > 0 ? historyItems.slice(0, 5).map((item: any) => (
-              <div key={item.id} className="flex items-center justify-between text-xs p-2 bg-background/50 rounded-lg border group cursor-pointer hover:border-primary/40" onClick={() => handleSearch(item.term, item.type as any)}>
-                <span className="font-medium truncate max-w-[120px]">{item.term}</span>
-                <span className="text-[10px] text-muted-foreground">{item.type}</span>
-              </div>
-            )) : (
-              <p className="text-xs text-muted-foreground italic text-center py-4">No recent research logged.</p>
-            )}
+          <CardContent className="h-40 p-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={MOCK_MOMENTUM_DATA} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorQueries" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="hsl(var(--accent))" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <Area 
+                  type="monotone" 
+                  dataKey="queries" 
+                  stroke="hsl(var(--accent))" 
+                  fillOpacity={1} 
+                  fill="url(#colorQueries)" 
+                  strokeWidth={2}
+                />
+                <RechartsTooltip 
+                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))', fontSize: '10px' }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </CardContent>
-          <CardFooter>
-            <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => setActiveTab('profile')}>View All History</Button>
+          <CardFooter className="pt-2 border-t bg-muted/20">
+             <div className="flex justify-between items-center w-full text-[10px] font-bold text-muted-foreground">
+               <span>TOTAL SESSIONS: 42</span>
+               <span className="text-accent flex items-center gap-1"><Activity className="h-3 w-3" /> +12% THIS WEEK</span>
+             </div>
           </CardFooter>
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {quickTools.map((mod) => (
-          <QuickToolCard 
-            key={mod.id}
-            title={getTranslatedLabel(mod.labelKey)} 
-            desc={`Access the ${mod.id} research module`}
-            icon={<mod.icon className="h-6 w-6" />} 
-            asLink={mod.path}
-            onClick={mod.path ? undefined : () => setActiveTab(mod.id)}
-          />
-        ))}
+      <div className="space-y-6">
+        <h2 className="text-xl font-bold font-headline flex items-center gap-2">
+           <div className="h-1 w-8 bg-primary rounded-full" />
+           Academic Toolbox
+        </h2>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {quickTools.map((mod) => (
+            <QuickToolCard 
+              key={mod.id}
+              title={getTranslatedLabel(mod.labelKey)} 
+              desc={`Access the ${mod.id} research module`}
+              icon={<mod.icon className="h-6 w-6" />} 
+              asLink={mod.path}
+              onClick={mod.path ? undefined : () => setActiveTab(mod.id)}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

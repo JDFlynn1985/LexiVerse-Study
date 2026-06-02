@@ -1,4 +1,3 @@
-
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
@@ -9,7 +8,7 @@
 
 /**
  * @fileOverview Primary Research Dashboard Orchestrator.
- * Enhanced with Research Persistence and Universal Export Hub.
+ * Enhanced with Research Persistence, Universal Export Hub, and Verse Explorer.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -77,6 +76,7 @@ import { LibraryView } from '@/components/views/library-view';
 import { ArchaeologyView } from '@/components/views/archaeology-view';
 import { TimelineView } from '@/components/views/timeline-view';
 import { TranslationCompareView } from '@/components/views/translation-compare-view';
+import { VerseExplorerView } from '@/components/views/verse-explorer-view';
 
 // AI & API Imports
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
@@ -259,7 +259,7 @@ export default function Home() {
     const effectiveKey = getEffectiveKey();
     const isLocal = aiPrefs.modelProvider === 'local';
 
-    if (type !== 'chat' && !effectiveKey && !isLocal) {
+    if (type !== 'chat' && type !== 'verse-explorer' && !effectiveKey && !isLocal) {
       toast({ variant: "destructive", title: "AI Hub Configuration Required", description: "Please supply an API key for the selected provider in your profile." });
       return;
     }
@@ -440,6 +440,7 @@ export default function Home() {
       case 'theology': return <TheologyView theologyTerm={theologyTerm} setTheologyTerm={setTheologyTerm} handleSearch={handleSearch} isLoading={isLoading} theologyResult={theologyResult} />;
       case 'lexicon': return <LexiconView handleSearch={handleSearch} handleSaveSession={handleSaveSession} handleExport={handleExport} isLoading={isLoading} lexiconResult={lexiconResult} isUserSignedIn={!!user} />;
       case 'ai-assistant': return <AssistantView assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} handleSaveSession={handleSaveSession} handleExport={handleExport} isLoading={isLoading} assistantResult={assistantResult} isUserSignedIn={!!user} />;
+      case 'verse-explorer': return <VerseExplorerView isLoading={isLoading} />;
       case 'translation-compare': return <TranslationCompareView isLoading={isLoading} result={translationResult} availableVersions={availableVersions} onCompare={async (w, l, v) => {
         setIsLoading(true);
         try { setTranslationResult(await compareTranslations({ word: w, language: l, versions: v })); }

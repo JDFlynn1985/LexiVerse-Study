@@ -1,4 +1,3 @@
-
 # LexiVerse Explorer: Technical Roadmap & Pending Functionalities
 
 This document outlines the features and components that currently use placeholders, mocks, or simulations and require further development to reach full scholarly production standards.
@@ -14,6 +13,8 @@ This document outlines the features and components that currently use placeholde
 - [x] **Historical Timeline Module**: Implemented a dedicated UI for the timeline flow.
 - [x] **Real-Time Discourse Logic**: Implemented functional chat persistence and institutional channels in the Chat Hub.
 - [x] **Covert Cross-Reference AI**: Integrated semantic scripture detection in the Writing Hub.
+- [x] **Interactive Verse Explorer**: Created a dedicated exegesis view with passage-grounded AI dialogue.
+- [x] **Research Analytics**: Integrated Recharts for visual scholarly momentum tracking.
 
 ## 📚 Data Integration & API Strategy
 - [ ] **Structured Lexicon Fetching**: Replace AI "simulation" of Strong's data with a direct API connector to a verified Greek/Hebrew database (e.g. STEPBible or OpenBible API).
