@@ -42,4 +42,4 @@ npm run dev
 LexiVerse is committed to WCAG 2.1 AAA standards. Users maintain full control over their data, with granular cookie consent and local-only storage options for sensitive API credentials.
 
 ## 📄 License
-This project is licensed under the MIT License.
+This project is licensed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)** license.

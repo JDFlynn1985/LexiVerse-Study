@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Scale, Megaphone } from 'lucide-react';
+import { ArrowLeft, Scale, Megaphone, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { trackAdClick } from '@/components/analytics';
 
@@ -73,10 +73,26 @@ export default function TermsOfUse() {
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
             <p>
-              To foster a collaborative and open scholarly environment, all user-generated content (UGC)—including but not limited to wiki articles, research annotations, and community discourse—is automatically licensed under the <strong>Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)</strong> license.
+              To foster a collaborative and open scholarly environment, all user-generated content (UGC)—including wiki articles, research annotations, and community discourse—is automatically licensed under the <strong>Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)</strong> license.
             </p>
-            <p>
-              By contributing content to the App, you grant other researchers the right to share and adapt your work, provided they give appropriate credit and distribute their contributions under the same license.
+            
+            <div className="grid gap-6 md:grid-cols-2 mt-4">
+              <div className="space-y-2 p-4 bg-muted/30 rounded-lg border">
+                <h4 className="font-bold text-sm uppercase text-primary">Rights You Grant</h4>
+                <p className="text-xs leading-relaxed">
+                  You grant LexiVerse and its community a non-exclusive, worldwide, royalty-free license to copy, redistribute, remix, transform, and build upon your content for <strong>non-commercial</strong> research purposes, provided appropriate credit is given.
+                </p>
+              </div>
+              <div className="space-y-2 p-4 bg-muted/30 rounded-lg border">
+                <h4 className="font-bold text-sm uppercase text-accent">Rights You Retain</h4>
+                <p className="text-xs leading-relaxed">
+                  You retain full ownership of your original research. You maintain your moral rights, including the right to be identified as the author. As this license is non-exclusive, you may also choose to license your original work under different terms elsewhere.
+                </p>
+              </div>
+            </div>
+
+            <p className="mt-4 pt-4 border-t italic text-xs">
+              For more information, please review the <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode" target="_blank" rel="noopener noreferrer" className="text-primary font-bold underline inline-flex items-center gap-1">Full Official License Text <ExternalLink className="h-3 w-3" /></a>.
             </p>
           </CardContent>
         </Card>
