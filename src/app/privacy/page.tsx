@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { ArrowLeft, ShieldCheck, Megaphone, Database, Lock, EyeOff, Info } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Megaphone, Database, Lock, EyeOff, Info, Scale } from 'lucide-react';
 import Link from 'next/link';
 import { trackAdClick } from '@/components/analytics';
 
@@ -35,7 +35,26 @@ export default function PrivacyPolicy() {
           <div className="h-1.5 bg-primary w-full" />
           <CardHeader>
             <CardTitle className="font-headline text-2xl flex items-center gap-2">
-              <Lock className="h-6 w-6 text-primary" /> 1. Scholarly Data Minimization
+              <Scale className="h-6 w-6 text-primary" /> 1. Age Restriction & Eligibility
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
+            <p>
+              In accordance with international data safety standards (including GDPR and COPPA) and our commitment to a professional research environment, LexiVerse Explorer enforces a strict <strong>15+ age requirement</strong>.
+            </p>
+            <div className="p-4 bg-primary/5 rounded-lg border border-primary/10">
+              <p className="text-sm font-bold text-primary mb-1">Clause 1.1 Verification</p>
+              <p className="text-xs text-muted-foreground italic">
+                We collect and store your date of birth during registration solely for the purpose of age verification. Accounts created with birth dates indicating the user is under 15 will be blocked from creation or terminated upon discovery to safeguard minors and preserve the scholarly nature of the platform.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg border-primary/10 overflow-hidden">
+          <CardHeader>
+            <CardTitle className="font-headline text-2xl flex items-center gap-2">
+              <Lock className="h-6 w-6 text-primary" /> 2. Scholarly Data Minimization
             </CardTitle>
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
@@ -53,7 +72,7 @@ export default function PrivacyPolicy() {
         <Card className="shadow-lg border-primary/10">
           <CardHeader>
             <CardTitle className="font-headline text-2xl flex items-center gap-2">
-               <EyeOff className="h-6 w-6 text-primary" /> 2. Local-First Research (RAG Isolation)
+               <EyeOff className="h-6 w-6 text-primary" /> 3. Local-First Research (RAG Isolation)
             </CardTitle>
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
@@ -72,7 +91,7 @@ export default function PrivacyPolicy() {
         <Card className="shadow-lg border-primary/10">
           <CardHeader>
             <CardTitle className="font-headline text-2xl flex items-center gap-2">
-              <Database className="h-6 w-6 text-primary" /> 3. AI Providers & API Keys
+              <Database className="h-6 w-6 text-primary" /> 4. AI Providers & API Keys
             </CardTitle>
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
@@ -88,7 +107,7 @@ export default function PrivacyPolicy() {
 
         <Card className="shadow-lg border-primary/10">
           <CardHeader>
-            <CardTitle className="font-headline text-2xl">4. Communication & Peer Interaction</CardTitle>
+            <CardTitle className="font-headline text-2xl">5. Communication & Peer Interaction</CardTitle>
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
             <p>
@@ -99,7 +118,7 @@ export default function PrivacyPolicy() {
 
         <Card className="shadow-lg border-primary/10">
           <CardHeader>
-            <CardTitle className="font-headline text-2xl">5. Erasure & Retention</CardTitle>
+            <CardTitle className="font-headline text-2xl">6. Erasure & Retention</CardTitle>
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
             <p>

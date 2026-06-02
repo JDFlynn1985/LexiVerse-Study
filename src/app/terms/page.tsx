@@ -44,8 +44,8 @@ export default function TermsOfUse() {
               LexiVerse Explorer ("the Platform") is a professional research environment designed for biblical scholars, seminary students, and theological institutions. 
             </p>
             <div className="p-4 bg-muted/50 rounded-lg border-l-4 border-primary">
-              <p className="font-bold text-primary mb-1">Minimum Age Requirement</p>
-              <p className="text-sm">You must be at least <strong>15 years of age</strong> to register for a scholar account. Accounts created by individuals under this age will be terminated to ensure compliance with international data safety standards.</p>
+              <p className="font-bold text-primary mb-1 uppercase text-[10px] tracking-widest">Clause 1.1: Minimum Age Requirement</p>
+              <p className="text-sm">By using this Platform, you represent and warrant that you are at least <strong>15 years of age</strong>. Access to scholarly resources and profile creation is strictly prohibited for individuals under this age. Accounts found to be in violation of this clause will be terminated immediately without notice to ensure compliance with international data protection regulations.</p>
             </div>
           </CardContent>
         </Card>
