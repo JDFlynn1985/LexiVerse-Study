@@ -32,22 +32,11 @@ import {
 } from '@/components/ui/sidebar';
 import { 
   Globe, 
-  LayoutDashboard, 
-  MessageSquare, 
-  GraduationCap, 
-  Sparkles, 
-  History, 
-  FileSearch2, 
-  BookOpen, 
-  Feather, 
-  Key, 
-  School, 
-  Settings, 
   LogOut, 
   Moon, 
   Sun, 
   User,
-  Puzzle
+  ChevronRight
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -60,10 +49,10 @@ import {
   DropdownMenuLabel
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 
-// Types & Constants
+// Config & Types
 import { ViewMode, UserProfile } from '@/types/scholarly';
+import { SCHOLARLY_MODULES, GOVERNANCE_MODULES } from '@/config/modules';
 
 // Modular View Components
 import { DashboardView } from '@/components/views/dashboard-view';
@@ -388,6 +377,15 @@ export default function Home() {
   const effectiveAvatar = userProfile?.photoURL || (user?.email ? getGravatarUrl(user.email) : '');
   const userInstitutionName = institutions.find(i => i.id === userProfile?.institutionId)?.name || 'Independent Scholar';
 
+  const getTranslatedLabel = (key: string) => {
+    const parts = key.split('.');
+    let result = t;
+    for (const part of parts) {
+      result = result?.[part];
+    }
+    return result || key;
+  };
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
@@ -404,99 +402,68 @@ export default function Home() {
             <SidebarGroup>
               <SidebarGroupLabel>General</SidebarGroupLabel>
               <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} tooltip={t.nav.dashboard}>
-                    <LayoutDashboard className="h-5 w-5" /> <span>{t.nav.dashboard}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'chat'} onClick={() => setActiveTab('chat')} tooltip={t.nav.chat_hub || "Chat Hub"}>
-                    <MessageSquare className="h-5 w-5" /> <span>{t.nav.chat_hub || "Chat Hub"}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip={t.nav.wiki} isActive={activeTab === 'wiki'}>
-                    <Link href="/wiki">
-                        <GraduationCap className="h-5 w-5" /> <span>{t.nav.wiki}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                {SCHOLARLY_MODULES.filter(m => m.group === 'general').map(m => (
+                  <SidebarMenuItem key={m.id}>
+                    {m.path ? (
+                      <SidebarMenuButton asChild tooltip={getTranslatedLabel(m.labelKey)}>
+                        <Link href={m.path}>
+                          <m.icon className="h-5 w-5" /> <span>{getTranslatedLabel(m.labelKey)}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    ) : (
+                      <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)} tooltip={getTranslatedLabel(m.labelKey)}>
+                        <m.icon className="h-5 w-5" /> <span>{getTranslatedLabel(m.labelKey)}</span>
+                      </SidebarMenuButton>
+                    )}
+                  </SidebarMenuItem>
+                ))}
               </SidebarMenu>
             </SidebarGroup>
 
             <SidebarGroup>
               <SidebarGroupLabel>{t.nav.ai_hub}</SidebarGroupLabel>
               <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'ai-assistant'} onClick={() => setActiveTab('ai-assistant')} tooltip={t.nav.study_assistant}>
-                    <Sparkles className="h-5 w-5" /> <span>{t.nav.study_assistant}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'theology'} onClick={() => setActiveTab('theology')} tooltip={t.nav.theology_map}>
-                    <History className="h-5 w-5" /> <span>{t.nav.theology_map}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="Manuscript Hub" isActive={activeTab === 'manuscripts'}>
-                    <Link href="/manuscripts">
-                        <FileSearch2 className="h-5 w-5" /> <span>Manuscript Hub</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'lexicon'} onClick={() => setActiveTab('lexicon')} tooltip={t.nav.lexicon}>
-                    <BookOpen className="h-5 w-5" /> <span>{t.nav.lexicon}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'synthesis'} onClick={() => setActiveTab('synthesis')} tooltip={t.nav.synthesis}>
-                    <Feather className="h-5 w-5" /> <span>{t.nav.synthesis}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'boilerplate'} onClick={() => setActiveTab('boilerplate')} tooltip={t.nav.boilerplate}>
-                    <Puzzle className="h-5 w-5" /> <span>{t.nav.boilerplate}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild tooltip="API Portal">
-                    <Link href="/api-keys">
-                        <Key className="h-5 w-5" /> <span>API Portal</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                {SCHOLARLY_MODULES.filter(m => m.group === 'ai_hub').map(m => (
+                  <SidebarMenuItem key={m.id}>
+                    {m.path ? (
+                      <SidebarMenuButton asChild tooltip={getTranslatedLabel(m.labelKey)}>
+                        <Link href={m.path}>
+                          <m.icon className="h-5 w-5" /> <span>{getTranslatedLabel(m.labelKey)}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    ) : (
+                      <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)} tooltip={getTranslatedLabel(m.labelKey)}>
+                        <m.icon className="h-5 w-5" /> <span>{getTranslatedLabel(m.labelKey)}</span>
+                      </SidebarMenuButton>
+                    )}
+                  </SidebarMenuItem>
+                ))}
               </SidebarMenu>
             </SidebarGroup>
 
-            {userProfile?.isAdmin && (
-              <SidebarGroup>
-                <SidebarGroupLabel>Governance</SidebarGroupLabel>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild tooltip="Admin API Management">
-                      <Link href="/admin/api">
-                          <Key className="h-5 w-5" /> <span>Admin API Mgmt</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild tooltip="Institution Directory">
-                      <Link href="/admin/institutions">
-                          <School className="h-5 w-5" /> <span>Institutions</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild tooltip="System Control Panel">
-                      <Link href="/admin/settings">
-                          <Settings className="h-5 w-5" /> <span>System Control</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroup>
-            )}
+            <SidebarGroup>
+              <SidebarGroupLabel>Governance</SidebarGroupLabel>
+              <SidebarMenu>
+                {GOVERNANCE_MODULES.map((m, idx) => {
+                  if (m.adminOnly && !userProfile?.isAdmin) return null;
+                  return (
+                    <SidebarMenuItem key={idx}>
+                      {m.path ? (
+                        <SidebarMenuButton asChild tooltip={getTranslatedLabel(m.labelKey)}>
+                          <Link href={m.path}>
+                            <m.icon className="h-5 w-5" /> <span>{getTranslatedLabel(m.labelKey)}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      ) : (
+                        <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)} tooltip={getTranslatedLabel(m.labelKey)}>
+                          <m.icon className="h-5 w-5" /> <span>{getTranslatedLabel(m.labelKey)}</span>
+                        </SidebarMenuButton>
+                      )}
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroup>
           </SidebarContent>
           <SidebarFooter className="p-4 border-t">
             {systemConfig?.networkMode === 'local-only' && (
