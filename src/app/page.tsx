@@ -1,3 +1,4 @@
+
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
@@ -9,6 +10,7 @@
 /**
  * @fileOverview Primary Research Dashboard Orchestrator.
  * Updated with real-time research momentum fetching and Google Auth integration.
+ * Finalized Archive Hub and DM User discovery.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -82,6 +84,7 @@ import { TimelineView } from '@/components/views/timeline-view';
 import { TranslationCompareView } from '@/components/views/translation-compare-view';
 import { VerseExplorerView } from '@/components/views/verse-explorer-view';
 import { GeographyView } from '@/components/views/geography-view';
+import { ArchiveView } from '@/components/views/archive-view';
 
 // AI & API Imports
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
@@ -208,7 +211,6 @@ export default function Home() {
       setModulesLoading(false);
     });
 
-    // Real Research Momentum Aggregation
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const momentumQ = query(
@@ -299,7 +301,7 @@ export default function Home() {
     const effectiveKey = getEffectiveKey();
     const isLocal = aiPrefs.modelProvider === 'local';
     
-    if (type !== 'chat' && type !== 'direct-messages' && type !== 'verse-explorer' && !effectiveKey && !isLocal) {
+    if (type !== 'chat' && type !== 'direct-messages' && type !== 'verse-explorer' && type !== 'archive' && !effectiveKey && !isLocal) {
       toast({ variant: "destructive", title: "AI Hub Configuration Required", description: "Please supply an API key for the selected provider in your profile." });
       return;
     }
@@ -307,7 +309,7 @@ export default function Home() {
     setIsLoading(true);
     setActiveTab(type);
     
-    if (type !== 'chat' && type !== 'direct-messages') logSearch(db, sanitizedTerm, type, user?.uid);
+    if (type !== 'chat' && type !== 'direct-messages' && type !== 'archive') logSearch(db, sanitizedTerm, type, user?.uid);
     
     try {
       const modelString = aiPrefs.selectedModel;
@@ -323,7 +325,7 @@ export default function Home() {
       else if (type === 'geography') setGeographyResult(await runGeographyAnalysis({ query: sanitizedTerm }));
       else if (type === 'timeline') setTimelineResult(await generateHistoricalTimeline({ topic: sanitizedTerm }));
       
-      if (type !== 'chat' && type !== 'direct-messages') {
+      if (type !== 'chat' && type !== 'direct-messages' && type !== 'archive') {
         const newHistory = [{id: Date.now().toString(), type, term: sanitizedTerm, date: new Date().toLocaleString()}, ...historyItems];
         setHistoryItems(newHistory.slice(0, 10));
         localStorage.setItem('lexiverse_history', JSON.stringify(newHistory.slice(0, 10)));
@@ -450,6 +452,13 @@ export default function Home() {
       case 'chat': return <ChatView chatMode={chatMode} setChatMode={setChatMode} userProfile={userProfile} userInstitutionName={userInstitutionName} messages={chatMessages} user={user} newMessage={newMessage} setNewMessage={setNewMessage} chatAgreed={chatAgreed} setChatAgreed={setChatAgreed} handleSendMessage={handleSendMessage} chatEndRef={chatEndRef} onInitiateDM={(peer) => { setDmRecipient(peer); setActiveTab('direct-messages'); }} />;
       case 'direct-messages': return <DirectMessageView initialRecipient={dmRecipient} />;
       case 'library': return <LibraryView documents={localDocuments} onRefresh={refreshLocalDocs} isLoading={isLoading} />;
+      case 'archive': return <ArchiveView onRestore={(type, data) => {
+        if (type === 'assistant') setAssistantResult(data);
+        if (type === 'lexicon') setLexiconResult(data);
+        if (type === 'theology') setTheologyResult(data);
+        setActiveTab(type as any);
+        toast({ title: "Research Restored", description: "Historical session has been loaded into the tool." });
+      }} />;
       case 'synthesis': return <SynthesisView synthesisText={synthesisText} setSynthesisText={setSynthesisText} handleSynthesisAction={async (a) => {
         setIsLoading(true);
         try {

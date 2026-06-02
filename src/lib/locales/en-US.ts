@@ -37,7 +37,8 @@ export const enUS = {
     system_control: "System Control",
     module_governance: "Modules",
     chat_hub: "Social Chat",
-    direct_messages: "Direct Messages"
+    direct_messages: "Direct Messages",
+    archive: "Research Archive"
   },
   dashboard: {
     title: "Research Workspace",

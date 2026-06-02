@@ -27,7 +27,8 @@ import {
   Clock,
   NotebookPen,
   Globe,
-  UserCheck
+  UserCheck,
+  Archive
 } from 'lucide-react';
 import { ViewMode } from '@/types/scholarly';
 
@@ -56,6 +57,7 @@ export const DEFAULT_MODULES: ModuleDefinition[] = [
   { id: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard, group: 'general' },
   { id: 'chat', labelKey: 'nav.chat_hub', icon: MessageSquare, group: 'general' },
   { id: 'direct-messages', labelKey: 'nav.direct_messages', icon: MessageCircle, group: 'general' },
+  { id: 'archive', labelKey: 'nav.archive', icon: Archive, group: 'general' },
   { id: 'library', labelKey: 'nav.library', icon: Library, group: 'general' },
   { id: 'wiki', labelKey: 'nav.wiki', icon: GraduationCap, group: 'general', path: '/wiki' },
   

@@ -4,20 +4,22 @@
 /**
  * @fileOverview Direct Messaging View.
  * Enables private peer-to-peer scholarly discourse.
+ * Enhanced with Colleague Search for discovering other scholars.
  */
 
 import React, { memo, useState, useEffect, useRef } from 'react';
-import { MessageCircle, Send, User, Search, Loader2, ArrowLeft } from 'lucide-react';
+import { MessageCircle, Send, User, Search, Loader2, ArrowLeft, Users, Plus } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, getDocs, limit } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/firebase';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { sanitizeHtml } from '@/lib/sanitization';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 interface DirectMessageViewProps {
   initialRecipient?: { uid: string; displayName: string; photoURL: string } | null;
@@ -31,6 +33,9 @@ export const DirectMessageView = memo(({ initialRecipient }: DirectMessageViewPr
   const [selectedUser, setSelectedUser] = useState<any>(initialRecipient || null);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch unique conversations for the current user
@@ -46,7 +51,6 @@ export const DirectMessageView = memo(({ initialRecipient }: DirectMessageViewPr
     const unsub = onSnapshot(q, (snap) => {
       const allMsgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       
-      // Extract unique peer users from messages
       const peers: Record<string, any> = {};
       allMsgs.forEach((m: any) => {
         const peerUid = m.senderUid === user.uid ? m.receiverUid : m.senderUid;
@@ -92,6 +96,31 @@ export const DirectMessageView = memo(({ initialRecipient }: DirectMessageViewPr
     return () => unsub();
   }, [db, user, selectedUser]);
 
+  const handleUserSearch = async (val: string) => {
+    setUserSearchTerm(val);
+    if (val.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      // Basic search on displayName
+      const q = query(
+        collection(db, 'users'),
+        where('displayName', '>=', val),
+        where('displayName', '<=', val + '\uf8ff'),
+        limit(5)
+      );
+      const snap = await getDocs(q);
+      setSearchResults(snap.docs.map(d => ({ uid: d.id, ...d.data() })).filter(u => u.uid !== user?.uid));
+    } catch (e) {
+      console.error("User search failed", e);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const sanitized = sanitizeHtml(newMessage);
@@ -124,9 +153,61 @@ export const DirectMessageView = memo(({ initialRecipient }: DirectMessageViewPr
       {/* Sidebar: Conversations */}
       <Card className="w-80 flex flex-col shadow-lg border-primary/10 overflow-hidden">
         <CardHeader className="bg-primary/5 py-4 border-b">
-          <CardTitle className="text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
-            <MessageCircle className="h-4 w-4" /> Peer Conversations
-          </CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
+              <MessageCircle className="h-4 w-4" /> Conversations
+            </CardTitle>
+            
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-primary">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[400px]">
+                <DialogHeader>
+                  <DialogTitle className="font-headline">Discover Colleagues</DialogTitle>
+                  <DialogDescription>Search the registry to initiate a new discourse.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      placeholder="Search by name..." 
+                      className="pl-8" 
+                      value={userSearchTerm}
+                      onChange={(e) => handleUserSearch(e.target.value)}
+                    />
+                  </div>
+                  <ScrollArea className="max-h-[300px]">
+                    <div className="space-y-2">
+                      {isSearching ? (
+                        <div className="flex justify-center py-4"><Loader2 className="animate-spin h-5 w-5 opacity-30" /></div>
+                      ) : searchResults.map((u) => (
+                        <div 
+                          key={u.uid} 
+                          className="p-3 flex items-center gap-3 rounded-lg hover:bg-muted cursor-pointer transition-colors"
+                          onClick={() => { setSelectedUser(u); setUserSearchTerm(''); setSearchResults([]); }}
+                        >
+                          <Avatar className="h-8 w-8 border">
+                            <AvatarImage src={u.photoURL} />
+                            <AvatarFallback>{u.displayName?.[0]}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="text-sm font-bold">{u.displayName}</p>
+                            <p className="text-[10px] text-muted-foreground">{u.designation || 'Scholar'}</p>
+                          </div>
+                        </div>
+                      ))}
+                      {userSearchTerm && !isSearching && searchResults.length === 0 && (
+                        <p className="text-center text-xs text-muted-foreground py-10 italic">No scholars found matching "{userSearchTerm}".</p>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         </CardHeader>
         <CardContent className="flex-1 p-0 overflow-hidden">
           <ScrollArea className="h-full">
@@ -151,7 +232,10 @@ export const DirectMessageView = memo(({ initialRecipient }: DirectMessageViewPr
                 </div>
               ))}
               {conversations.length === 0 && (
-                <div className="p-10 text-center opacity-30 italic text-xs">No private threads yet.</div>
+                <div className="p-10 text-center opacity-30 italic text-xs space-y-2">
+                   <Users className="h-8 w-8 mx-auto" />
+                   <p>No active threads.</p>
+                </div>
               )}
             </div>
           </ScrollArea>

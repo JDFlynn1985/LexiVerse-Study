@@ -21,7 +21,8 @@ export type ViewMode =
   | 'timeline'
   | 'geography'
   | 'direct-messages'
-  | 'wiki-moderation';
+  | 'wiki-moderation'
+  | 'archive';
 
 export interface UserProfile {
   uid: string;
