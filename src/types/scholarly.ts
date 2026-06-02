@@ -28,6 +28,7 @@ export interface UserProfile {
   email: string;
   photoURL: string;
   credentials?: string;
+  denomination?: string;
   designation?: string;
   degreeSubject?: string;
   academicLevel?: string;
@@ -58,4 +59,34 @@ export const DESIGNATIONS = [
   'Master\'s Degree Candidate',
   'Doctoral Candidate',
   'Non-Seminary Student'
+] as const;
+
+export const DENOMINATIONS = [
+  'Roman Catholic',
+  'Eastern Orthodox',
+  'Oriental Orthodox',
+  'Anglican / Episcopal',
+  'Lutheran',
+  'Presbyterian / Reformed',
+  'Baptist',
+  'Methodist',
+  'Pentecostal',
+  'Charismatic',
+  'Seventh-day Adventist',
+  'Church of Christ',
+  'Disciples of Christ',
+  'Mennonite',
+  'Quaker (Religious Society of Friends)',
+  'Nondenominational / Independent',
+  'Assemblies of God',
+  'Church of God',
+  'Calvary Chapel',
+  'Vineyard',
+  'Messianic Judaism',
+  'Evangelical Free',
+  'Salvation Army',
+  'United Church of Christ',
+  'Congregational',
+  'Moravian',
+  'Other Christian Tradition'
 ] as const;

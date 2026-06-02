@@ -146,7 +146,7 @@ export default function Home() {
   const [geographyResult, setGeographyResult] = useState<GeographyOutput | null>(null);
   const [timelineResult, setTimelineResult] = useState<HistoricalTimelineOutput | null>(null);
   const [translationResult, setTranslationResult] = useState<CompareTranslationsOutput | null>(null);
-  const [profileDraft, setProfileDraft] = useState({ displayName: '', credentials: '', designation: '', degreeSubject: '', academicLevel: '', institutionId: '', bio: '', photoURL: '' });
+  const [profileDraft, setProfileDraft] = useState({ displayName: '', credentials: '', denomination: '', designation: '', degreeSubject: '', academicLevel: '', institutionId: '', bio: '', photoURL: '' });
   
   const [synthesisText, setSynthesisText] = useState('');
   const [synthesisResult, setSynthesisResult] = useState<WritingAssistantOutput | null>(null);
@@ -236,6 +236,7 @@ export default function Home() {
       setProfileDraft({
         displayName: userProfile.displayName || '',
         credentials: userProfile.credentials || '',
+        denomination: userProfile.denomination || '',
         designation: userProfile.designation || '',
         degreeSubject: userProfile.degreeSubject || '',
         academicLevel: userProfile.academicLevel || '',

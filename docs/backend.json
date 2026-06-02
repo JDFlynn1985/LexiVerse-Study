@@ -11,6 +11,7 @@
         "email": { "type": "string" },
         "photoURL": { "type": "string" },
         "credentials": { "type": "string", "description": "Academic or professional titles (e.g. PhD, MDiv, Seminary Student)." },
+        "denomination": { "type": "string", "description": "The user's Christian denominational affiliation." },
         "designation": {
           "type": "string",
           "enum": [

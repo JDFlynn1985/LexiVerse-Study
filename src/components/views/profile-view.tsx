@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { UserProfile, DESIGNATIONS, ViewMode, AIProvider } from '@/types/scholarly';
+import { UserProfile, DESIGNATIONS, DENOMINATIONS, ViewMode, AIProvider } from '@/types/scholarly';
 import { Separator } from '@/components/ui/separator';
 
 interface ProfileViewProps {
@@ -80,6 +80,17 @@ export const ProfileView = memo(({
                 <SelectTrigger><SelectValue placeholder="Select designation" /></SelectTrigger>
                 <SelectContent>
                   {DESIGNATIONS.map((d) => (
+                    <SelectItem key={d} value={d}>{d}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Theological Tradition (Denomination)</Label>
+              <Select value={profileDraft.denomination} onValueChange={(val: any) => setProfileDraft({...profileDraft, denomination: val})}>
+                <SelectTrigger><SelectValue placeholder="Select tradition" /></SelectTrigger>
+                <SelectContent>
+                  {DENOMINATIONS.map((d) => (
                     <SelectItem key={d} value={d}>{d}</SelectItem>
                   ))}
                 </SelectContent>
