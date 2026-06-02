@@ -1,0 +1,73 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDK Documentation | LexiVerse Explorer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Literata:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/docs.css">
+</head>
+<body>
+    <header class="navbar">
+        <div class="container">
+            <a href="../index.html" class="logo" style="color: inherit; text-decoration: none;">
+                <span class="logo-icon">Ω</span>
+                <span class="logo-text">LexiVerse Docs</span>
+            </a>
+        </div>
+    </header>
+
+    <main class="container docs-layout">
+        <aside class="docs-sidebar">
+            <div class="docs-nav-group">
+                <div class="docs-nav-title">Fundamentals</div>
+                <ul class="docs-nav-list">
+                    <li><a href="index.html" class="docs-nav-link">Introduction</a></li>
+                    <li><a href="style.html" class="docs-nav-link">Scholarly Style Guide</a></li>
+                </ul>
+            </div>
+            <div class="docs-nav-group">
+                <div class="docs-nav-title">Engineering</div>
+                <ul class="docs-nav-list">
+                    <li><a href="sdk.html" class="docs-nav-link active">SDK Documentation</a></li>
+                    <li><a href="ai.html" class="docs-nav-link">AI Architecture</a></li>
+                    <li><a href="schema.html" class="docs-nav-link">Database Schema</a></li>
+                </ul>
+            </div>
+        </aside>
+
+        <section class="prose">
+            <h1>Developer SDK Manual</h1>
+            <p>LexiVerse follows a <strong>Unified Native Architecture</strong>. Research modules are not isolated sub-apps but integrated components of the core engine.</p>
+            
+            <h2>Core Directories</h2>
+            <p>The project is structured to separate intelligence from interface while maintaining high-performance reactivity.</p>
+            <pre><code>src/ai/flows/    // The intelligence layer
+src/components/views/ // The UI layer (Memoized)
+src/firebase/    // The data layer (RBAC)
+src/lib/         // Utilities (RAG, Sanitization)</code></pre>
+
+            <h2>Developing AI Flows</h2>
+            <p>All AI logic MUST use the global <code>ai</code> instance from <code>@/ai/genkit</code>.</p>
+            <ul>
+                <li><strong>Pattern</strong>: Define a Prompt, wrap it in a Flow, and export a server wrapper.</li>
+                <li><strong>Grounding</strong>: Always prefer the <code>searchBibleVerse</code> tool for scripture analysis.</li>
+            </ul>
+
+            <h2>Sanitization Policy</h2>
+            <p>Security is paramount in scholarly environments. Every user-controllable text field MUST be sanitized.</p>
+            <pre><code>import { sanitizeHtml } from '@/lib/sanitization';
+const cleanInput = sanitizeHtml(userInput);</code></pre>
+
+            <div class="docs-footer">
+                <span>Last Updated: February 2026</span>
+                <a href="index.html" style="color: inherit;">Back to Index</a>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

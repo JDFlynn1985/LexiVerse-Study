@@ -1,0 +1,118 @@
+
+/* LexiVerse Documentation Specific Styles */
+.docs-layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 3rem;
+    padding-top: 3rem;
+    padding-bottom: 5rem;
+}
+
+.docs-sidebar {
+    position: sticky;
+    top: 6rem;
+    height: fit-content;
+}
+
+.docs-nav-group {
+    margin-bottom: 2rem;
+}
+
+.docs-nav-title {
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--primary);
+    opacity: 0.6;
+    margin-bottom: 1rem;
+}
+
+.docs-nav-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.docs-nav-link {
+    font-size: 0.9rem;
+    color: var(--foreground);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.docs-nav-link:hover, .docs-nav-link.active {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.prose {
+    max-width: 800px;
+    font-family: 'Inter', sans-serif;
+    line-height: 1.8;
+}
+
+.prose h1, .prose h2, .prose h3 {
+    font-family: 'Literata', serif;
+    color: var(--primary);
+    margin-top: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.prose h1 { font-size: 2.5rem; margin-top: 0; }
+.prose h2 { font-size: 1.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+
+.prose p { margin-bottom: 1.5rem; }
+
+.prose ul, .prose ol {
+    margin-bottom: 1.5rem;
+    padding-left: 1.5rem;
+}
+
+.prose li { margin-bottom: 0.5rem; }
+
+.prose code {
+    background-color: var(--card);
+    border: 1px solid var(--border);
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.3rem;
+    font-family: monospace;
+    font-size: 0.9em;
+}
+
+.prose pre {
+    background-color: var(--primary);
+    color: #fff;
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    overflow-x: auto;
+    margin-bottom: 1.5rem;
+}
+
+.prose pre code {
+    background: transparent;
+    border: none;
+    color: inherit;
+    padding: 0;
+}
+
+.docs-footer {
+    border-top: 1px solid var(--border);
+    padding-top: 3rem;
+    margin-top: 5rem;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--muted-foreground);
+}
+
+@media (max-width: 900px) {
+    .docs-layout {
+        grid-template-columns: 1fr;
+    }
+    .docs-sidebar {
+        position: static;
+        margin-bottom: 3rem;
+    }
+}

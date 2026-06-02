@@ -1,0 +1,66 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Architecture | LexiVerse Explorer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Literata:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/docs.css">
+</head>
+<body>
+    <header class="navbar">
+        <div class="container">
+            <a href="../index.html" class="logo" style="color: inherit; text-decoration: none;">
+                <span class="logo-icon">Ω</span>
+                <span class="logo-text">LexiVerse Docs</span>
+            </a>
+        </div>
+    </header>
+
+    <main class="container docs-layout">
+        <aside class="docs-sidebar">
+            <div class="docs-nav-group">
+                <div class="docs-nav-title">Fundamentals</div>
+                <ul class="docs-nav-list">
+                    <li><a href="index.html" class="docs-nav-link">Introduction</a></li>
+                    <li><a href="style.html" class="docs-nav-link">Scholarly Style Guide</a></li>
+                </ul>
+            </div>
+            <div class="docs-nav-group">
+                <div class="docs-nav-title">Engineering</div>
+                <ul class="docs-nav-list">
+                    <li><a href="sdk.html" class="docs-nav-link">SDK Documentation</a></li>
+                    <li><a href="ai.html" class="docs-nav-link active">AI Architecture</a></li>
+                    <li><a href="schema.html" class="docs-nav-link">Database Schema</a></li>
+                </ul>
+            </div>
+        </aside>
+
+        <section class="prose">
+            <h1>The Research Brain</h1>
+            <p>LexiVerse Explorer utilizes <strong>Firebase Genkit (1.x)</strong> as its primary orchestration layer, providing a unified interface for cloud-based synthesis and local-network inference.</p>
+            
+            <h2>Local RAG (Retrieval-Augmented Generation)</h2>
+            <p>The Digital Library enables researchers to ground the AI in their personal research papers without data leaving the client.</p>
+            <ol>
+                <li><strong>Local Indexing</strong>: Documents are parsed in the browser and stored in <strong>IndexedDB</strong>.</li>
+                <li><strong>Semantic Chunking</strong>: Text is split into fragments with overlap to preserve context.</li>
+                <li><strong>TF-IDF Ranking</strong>: Chunks are ranked locally based on weighted keyword frequency.</li>
+                <li><strong>Attributed Synthesis</strong>: AI is instructed to cite these fragments using the filename.</li>
+            </ol>
+
+            <h2>Multimodal Integration</h2>
+            <p>The platform supports <strong>Voice transcription</strong> via Gemini Multimodal and <strong>Manuscript OCR</strong> via Gemini Vision, preserving Greek and Hebrew terms with high precision.</p>
+
+            <div class="docs-footer">
+                <span>Arch: Genkit 1.x / Gemini 2.5</span>
+                <a href="index.html" style="color: inherit;">Back to Index</a>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
