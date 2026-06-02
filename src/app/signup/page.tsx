@@ -2,16 +2,19 @@
 
 /**
  * @fileOverview Dedicated Signup Portal for LexiVerse Explorer.
+ * Supports Email/Password registration and Social Providers.
  */
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithPopup, GoogleAuthProvider, SAMLAuthProvider, OAuthProvider } from 'firebase/auth';
+import { signInWithPopup, GoogleAuthProvider, SAMLAuthProvider, OAuthProvider, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useAuth, useFirestore, useUser } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Globe, Building2, Loader2, ArrowLeft, ShieldCheck, Sparkles } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Globe, Building2, Loader2, ArrowLeft, ShieldCheck, Sparkles, Mail, User, Key } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 
@@ -21,8 +24,13 @@ export default function SignupPage() {
   const db = useFirestore();
   const { user, loading: authLoading } = useUser();
   const { toast } = useToast();
+  
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [systemConfig, setSystemConfig] = useState<any>(null);
+  
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
 
   useEffect(() => {
     if (user && !authLoading) {
@@ -37,7 +45,7 @@ export default function SignupPage() {
     });
   }, [db]);
 
-  const handleSignup = async (providerType: 'google' | 'institutional' = 'google') => {
+  const handleSocialSignup = async (providerType: 'google' | 'institutional' = 'google') => {
     setIsAuthLoading(true);
     try {
       let provider;
@@ -51,6 +59,23 @@ export default function SignupPage() {
       
       const result = await signInWithPopup(auth, provider);
       toast({ title: "Account Initialized", description: `Welcome to the community, ${result.user.displayName || 'Scholar'}.` });
+      router.push('/');
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Signup Failed", description: error.message });
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const handleEmailSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password || !displayName) return;
+
+    setIsAuthLoading(true);
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(userCredential.user, { displayName });
+      toast({ title: "Account Created", description: `Welcome, ${displayName}. Your research workstation is ready.` });
       router.push('/');
     } catch (error: any) {
       toast({ variant: "destructive", title: "Signup Failed", description: error.message });
@@ -77,27 +102,89 @@ export default function SignupPage() {
             <CardTitle className="text-2xl font-headline">Create Scholar Account</CardTitle>
             <CardDescription>Link your identity to start syncing your research library.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Button 
-              className="w-full h-12 gap-3 text-sm font-bold uppercase tracking-widest shadow-lg" 
-              onClick={() => handleSignup('google')} 
-              disabled={isAuthLoading}
-            >
-              {isAuthLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Globe className="h-5 w-5" />}
-              Signup with Google
-            </Button>
+          <CardContent className="space-y-6">
+            <form onSubmit={handleEmailSignup} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    id="name" 
+                    placeholder="e.g. Dr. Jane Scholar" 
+                    className="pl-10" 
+                    value={displayName} 
+                    onChange={e => setDisplayName(e.target.value)} 
+                    required 
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    placeholder="scholar@example.edu" 
+                    className="pl-10" 
+                    value={email} 
+                    onChange={e => setEmail(e.target.value)} 
+                    required 
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Key className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    id="password" 
+                    type="password" 
+                    className="pl-10" 
+                    value={password} 
+                    onChange={e => setPassword(e.target.value)} 
+                    required 
+                  />
+                </div>
+              </div>
+              <Button type="submit" className="w-full h-11 shadow-lg" disabled={isAuthLoading}>
+                {isAuthLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Join Community
+              </Button>
+            </form>
 
-            {systemConfig?.ssoConfig?.enabled && (
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">Or join with</span>
+              </div>
+            </div>
+
+            <div className="grid gap-3">
               <Button 
                 variant="outline" 
-                className="w-full h-12 gap-3 text-sm font-bold uppercase tracking-widest border-primary/20" 
-                onClick={() => handleSignup('institutional')} 
+                className="w-full h-11 gap-3 text-sm font-bold uppercase tracking-widest border-primary/10 shadow-sm" 
+                onClick={() => handleSocialSignup('google')} 
                 disabled={isAuthLoading}
               >
-                <Building2 className="h-5 w-5 text-primary" />
-                Institutional SSO
+                {isAuthLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Globe className="h-5 w-5" />}
+                Signup with Google
               </Button>
-            )}
+
+              {systemConfig?.ssoConfig?.enabled && (
+                <Button 
+                  variant="outline" 
+                  className="w-full h-11 gap-3 text-sm font-bold uppercase tracking-widest border-primary/20" 
+                  onClick={() => handleSocialSignup('institutional')} 
+                  disabled={isAuthLoading}
+                >
+                  <Building2 className="h-5 w-5 text-primary" />
+                  Institutional SSO
+                </Button>
+              )}
+            </div>
           </CardContent>
           <CardFooter className="bg-muted/30 border-t p-6 flex flex-col gap-4">
             <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
