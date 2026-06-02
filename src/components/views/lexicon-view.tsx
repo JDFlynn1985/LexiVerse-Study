@@ -23,7 +23,7 @@ import { searchCommentariesForContext, type SearchCommentariesOutput } from '@/a
 interface LexiconViewProps {
   handleSearch: (term: string, type: ViewMode) => void;
   handleSaveSession: (title: string, type: string, data: any) => void;
-  handleExport: (format: 'pdf' | 'docx' | 'markdown' | 'txt', data: any) => void;
+  handleExport: (format: 'pdf' | 'docx' | 'markdown' | 'txt' | 'bibtex', data: any) => void;
   isLoading: boolean;
   lexiconResult: DefineAndAnalyzeTermOutput | null;
   isUserSignedIn: boolean;
@@ -51,11 +51,8 @@ export const LexiconView = memo(({
         rootWord: lexiconResult.roots?.[0]?.root
       });
       setCommentaryResult(res);
-    } catch (e) {
-      console.error("Commentary analysis failed");
-    } finally {
-      setIsCommentaryLoading(false);
-    }
+    } catch (e) { console.error("Commentary analysis failed"); }
+    finally { setIsCommentaryLoading(false); }
   };
 
   return (
@@ -92,6 +89,9 @@ export const LexiconView = memo(({
                 <DropdownMenuItem onClick={() => handleExport('docx', lexiconResult)}>
                   <FileText className="h-4 w-4 mr-2" /> DOCX
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('bibtex', lexiconResult)}>
+                  <FileText className="h-4 w-4 mr-2" /> BibTeX (Zotero)
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleExport('markdown', lexiconResult)}>
                   <FileText className="h-4 w-4 mr-2" /> Markdown
                 </DropdownMenuItem>
@@ -100,7 +100,6 @@ export const LexiconView = memo(({
           </div>
         )}
       </header>
-
       <div className="flex gap-4">
         <Input 
           placeholder="Enter Strong's Number (e.g. G3056)..." 
@@ -109,15 +108,10 @@ export const LexiconView = memo(({
           onChange={e => setSearchTerm(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleSearch(searchTerm, 'lexicon')} 
         />
-        <Button 
-          size="lg" 
-          onClick={() => handleSearch(searchTerm, 'lexicon')} 
-          disabled={isLoading || !searchTerm.trim()}
-        >
+        <Button size="lg" onClick={() => handleSearch(searchTerm, 'lexicon')} disabled={isLoading || !searchTerm.trim()}>
           {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
         </Button>
       </div>
-
       {lexiconResult && (
         <div className="grid gap-8 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-6">
@@ -148,27 +142,16 @@ export const LexiconView = memo(({
                 </div>
               </CardContent>
               <CardFooter className="bg-muted/30 p-4 border-t flex justify-between">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="gap-2 bg-background border-accent/20 text-accent hover:bg-accent hover:text-accent-foreground"
-                  onClick={handleDeepCommentary}
-                  disabled={isCommentaryLoading}
-                >
+                <Button variant="outline" size="sm" className="gap-2 bg-background border-accent/20 text-accent hover:bg-accent hover:text-accent-foreground" onClick={handleDeepCommentary} disabled={isCommentaryLoading}>
                   {isCommentaryLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                   Deep Commentary Analysis
                 </Button>
-                <div className="text-[10px] font-mono text-muted-foreground">SBL BIBLIOGRAPHY READY</div>
+                <div className="text-[10px] font-mono text-muted-foreground uppercase">SBL Citation Ready</div>
               </CardFooter>
             </Card>
-
             {commentaryResult && (
               <Card className="shadow-lg border-accent/20 bg-accent/5 animate-in slide-in-from-bottom-4">
-                <CardHeader>
-                  <CardTitle className="text-lg font-headline flex items-center gap-2">
-                    <Languages className="h-5 w-5 text-accent" /> Synthesized Historical Context
-                  </CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle className="text-lg font-headline flex items-center gap-2"><Languages className="h-5 w-5 text-accent" /> Synthesized Historical Context</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
                   <p className="text-sm italic leading-relaxed text-foreground/80">{commentaryResult.commentarySummary}</p>
                   <div className="grid gap-3">
@@ -181,41 +164,26 @@ export const LexiconView = memo(({
                 </CardContent>
               </Card>
             )}
-            
             <div className="grid gap-4 md:grid-cols-2">
               {lexiconResult.verseOccurrences.map((v, i) => (
                 <Card key={i} className="bg-muted/30 border-primary/5 hover:border-primary/20 transition-all group">
-                  <CardHeader className="py-3">
-                    <CardTitle className="text-sm font-bold text-primary">{v.reference}</CardTitle>
-                  </CardHeader>
+                  <CardHeader className="py-3"><CardTitle className="text-sm font-bold text-primary">{v.reference}</CardTitle></CardHeader>
                   <CardContent className="py-0 pb-3">
                     <p className="text-xs italic leading-relaxed mb-2">"{v.text}"</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      <strong>Nuance:</strong> {v.contextualMeaning}
-                    </p>
+                    <p className="text-[10px] text-muted-foreground"><strong>Nuance:</strong> {v.contextualMeaning}</p>
                   </CardContent>
                 </Card>
               ))}
             </div>
           </div>
-          
           <div className="space-y-6">
             <Card className="bg-accent/5 border-accent/20">
-              <CardHeader>
-                <CardTitle className="text-sm font-bold uppercase tracking-widest text-accent">Historical Connotations</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs leading-relaxed italic text-muted-foreground">
-                  {lexiconResult.historicalConnotations}
-                </p>
-              </CardContent>
+              <CardHeader><CardTitle className="text-sm font-bold uppercase tracking-widest text-accent">Historical Connotations</CardTitle></CardHeader>
+              <CardContent><p className="text-xs leading-relaxed italic text-muted-foreground">{lexiconResult.historicalConnotations}</p></CardContent>
             </Card>
-
             <Card className="bg-primary text-primary-foreground shadow-xl">
               <CardHeader><CardTitle className="text-lg font-headline">Scholarly Sources</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-[11px] font-mono leading-relaxed whitespace-pre-wrap opacity-80">{lexiconResult.bibliography}</p>
-              </CardContent>
+              <CardContent><p className="text-[11px] font-mono leading-relaxed whitespace-pre-wrap opacity-80">{lexiconResult.bibliography}</p></CardContent>
             </Card>
           </div>
         </div>

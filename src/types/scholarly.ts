@@ -54,6 +54,17 @@ export interface UserProfile {
   };
 }
 
+export interface ScholarlyNotification {
+  id?: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'wiki_status' | 'peer_interaction' | 'system';
+  read: boolean;
+  link?: string;
+  createdAt: any;
+}
+
 export const DESIGNATIONS = [
   'Professor',
   'Undergraduate Seminary Student',

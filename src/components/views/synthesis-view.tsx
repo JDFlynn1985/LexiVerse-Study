@@ -10,7 +10,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { cn } from '@/lib/utils';
 import { WritingAssistantOutput } from '@/ai/flows/writing-assistant-ai';
 import { AcademicIntegrityOutput } from '@/ai/flows/academic-integrity-ai';
 import { FormatBibliographyOutput } from '@/ai/flows/format-bibliography-ai';
@@ -29,7 +28,7 @@ interface SynthesisViewProps {
   setSynthesisText: (text: string) => void;
   handleSynthesisAction: (action: 'refine' | 'integrity' | 'bib' | 'cross-ref') => void;
   handleSaveDraftToLibrary: (name: string, content: string) => void;
-  handleExportText: (format: 'pdf' | 'docx' | 'markdown' | 'txt', title: string, text: string) => void;
+  handleExportText: (format: 'pdf' | 'docx' | 'markdown' | 'txt' | 'bibtex', title: string, text: string) => void;
   isLoading: boolean;
   synthesisResult: WritingAssistantOutput | null;
   integrityResult: AcademicIntegrityOutput | null;
@@ -81,6 +80,9 @@ export const SynthesisView = memo(({
             <DropdownMenuItem onClick={() => handleExportText('docx', 'Research Draft', synthesisResult?.improvedText || synthesisText)}>
               MS Word
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleExportText('bibtex', 'Research Draft', bibResult?.formattedOutput || synthesisText)}>
+              BibTeX (Zotero)
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handleExportText('markdown', 'Research Draft', synthesisResult?.improvedText || synthesisText)}>
               Markdown
             </DropdownMenuItem>
@@ -88,7 +90,6 @@ export const SynthesisView = memo(({
         </DropdownMenu>
       </div>
     </header>
-
     <div className="grid gap-8 lg:grid-cols-2">
       <div className="space-y-4">
         <Label className="text-lg font-bold">Research Draft</Label>
@@ -113,7 +114,6 @@ export const SynthesisView = memo(({
           </Button>
         </div>
       </div>
-
       <div className="space-y-6">
         <Tabs defaultValue="results" className="w-full">
           <TabsList className="w-full grid grid-cols-4">
@@ -185,9 +185,7 @@ export const SynthesisView = memo(({
               <CardContent className="pt-6">
                 {crossRefResult ? (
                   <div className="space-y-6">
-                    <h3 className="font-headline text-lg flex items-center gap-2">
-                       <LinkIcon className="h-4 w-4" /> Semantic Links Detected
-                    </h3>
+                    <h3 className="font-headline text-lg flex items-center gap-2"><LinkIcon className="h-4 w-4" /> Semantic Links Detected</h3>
                     <div className="space-y-4">
                       {crossRefResult.covertLinks.map((link, i) => (
                         <div key={i} className="p-4 bg-muted/30 rounded-lg border border-primary/10 space-y-2">
@@ -195,9 +193,7 @@ export const SynthesisView = memo(({
                              <p className="text-xs italic text-muted-foreground">"...{link.sourceFragment}..."</p>
                              <Badge variant="secondary" className="text-[10px] shrink-0">{link.suggestedScripture}</Badge>
                            </div>
-                           <p className="text-[11px] leading-relaxed">
-                              <strong>Theological Basis:</strong> {link.theologicalBasis}
-                           </p>
+                           <p className="text-[11px] leading-relaxed"><strong>Theological Basis:</strong> {link.theologicalBasis}</p>
                         </div>
                       ))}
                     </div>

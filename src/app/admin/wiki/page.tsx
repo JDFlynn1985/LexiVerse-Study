@@ -3,11 +3,11 @@
 
 /**
  * @fileOverview Wiki Moderation Portal.
- * Allows administrators to peer-review, approve, or reject proposed scholarly articles.
+ * Enhanced with automated notification triggers for authors.
  */
 
 import { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, addDoc } from 'firebase/firestore';
 import { useFirestore, useUser, useDoc } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 export default function WikiModeration() {
   const db = useFirestore();
@@ -43,31 +44,37 @@ export default function WikiModeration() {
   const [selectedEntry, setSelectedEntry] = useState<any | null>(null);
 
   useEffect(() => {
-    if (!isAdmin) return;
-
-    const q = query(
-      collection(db, 'wiki_entries'), 
-      where('status', '==', 'pending'),
-      orderBy('createdAt', 'desc')
-    );
-
+    if (!isAdmin || !db) return;
+    const q = query(collection(db, 'wiki_entries'), where('status', '==', 'pending'), orderBy('createdAt', 'desc'));
     const unsub = onSnapshot(q, (snap) => {
       setEntries(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
     });
-
     return () => unsub();
   }, [db, isAdmin]);
 
-  const handleAction = async (id: string, action: 'approved' | 'rejected') => {
+  const handleAction = async (entry: any, action: 'approved' | 'rejected') => {
+    if (!db || !user) return;
     try {
-      await updateDoc(doc(db, 'wiki_entries', id), {
+      // 1. Update Entry
+      await updateDoc(doc(db, 'wiki_entries', entry.id), {
         status: action,
-        moderatedBy: user?.uid,
+        moderatedBy: user.uid,
         moderatedAt: serverTimestamp()
       });
+
+      // 2. Notify Author
+      await addDoc(collection(db, 'users', entry.authorUid, 'notifications'), {
+        userId: entry.authorUid,
+        title: `Article ${action === 'approved' ? 'Approved' : 'Revision Required'}`,
+        message: `Your article "${entry.title}" has been ${action === 'approved' ? 'published to the Scholarly Wiki' : 'rejected by the moderation committee'}.`,
+        type: 'wiki_status',
+        read: false,
+        createdAt: serverTimestamp()
+      });
+
       toast({ title: `Article ${action === 'approved' ? 'Approved' : 'Rejected'}` });
-      if (selectedEntry?.id === id) setSelectedEntry(null);
+      if (selectedEntry?.id === entry.id) setSelectedEntry(null);
     } catch (e: any) {
       toast({ variant: 'destructive', title: "Action Failed", description: e.message });
     }
@@ -102,7 +109,6 @@ export default function WikiModeration() {
         </div>
         <p className="text-muted-foreground ml-12">Moderation portal for pending scholarly contributions.</p>
       </header>
-
       <div className="grid gap-8 md:grid-cols-3">
         <div className="md:col-span-1 space-y-4">
           <Card>
@@ -127,15 +133,12 @@ export default function WikiModeration() {
                    </div>
                  ))}
                  {entries.length === 0 && (
-                   <div className="p-10 text-center opacity-30 italic text-sm">
-                      No pending proposals requiring review.
-                   </div>
+                   <div className="p-10 text-center opacity-30 italic text-sm">No pending proposals requiring review.</div>
                  )}
                </div>
             </CardContent>
           </Card>
         </div>
-
         <div className="md:col-span-2">
           {selectedEntry ? (
             <Card className="shadow-xl border-primary/10 overflow-hidden animate-in slide-in-from-right-4">
@@ -155,16 +158,10 @@ export default function WikiModeration() {
                 <div className="prose prose-sm dark:prose-invert max-w-none leading-relaxed text-foreground/80 whitespace-pre-wrap bg-muted/10 p-6 rounded-xl border">
                   {selectedEntry.content}
                 </div>
-                
                 <Separator />
-
                 <div>
-                  <h4 className="font-bold text-xs uppercase text-primary mb-2 flex items-center gap-2">
-                    <BookOpen className="h-4 w-4" /> Works Cited
-                  </h4>
-                  <p className="text-xs font-mono text-muted-foreground bg-muted/30 p-4 rounded-lg border italic">
-                    {selectedEntry.worksCited || "No sources cited in proposal."}
-                  </p>
+                  <h4 className="font-bold text-xs uppercase text-primary mb-2 flex items-center gap-2"><BookOpen className="h-4 w-4" /> Works Cited</h4>
+                  <p className="text-xs font-mono text-muted-foreground bg-muted/30 p-4 rounded-lg border italic">{selectedEntry.worksCited || "No sources cited in proposal."}</p>
                 </div>
               </CardContent>
               <CardFooter className="bg-muted/30 p-6 border-t flex justify-between">
@@ -172,10 +169,10 @@ export default function WikiModeration() {
                    <Trash2 className="h-4 w-4 mr-2" /> Delete Proposal
                 </Button>
                 <div className="flex gap-2">
-                  <Button variant="outline" className="text-destructive hover:bg-destructive/10" onClick={() => handleAction(selectedEntry.id, 'rejected')}>
+                  <Button variant="outline" className="text-destructive hover:bg-destructive/10" onClick={() => handleAction(selectedEntry, 'rejected')}>
                     <XCircle className="h-4 w-4 mr-2" /> Reject
                   </Button>
-                  <Button className="bg-green-600 hover:bg-green-700" onClick={() => handleAction(selectedEntry.id, 'approved')}>
+                  <Button className="bg-green-600 hover:bg-green-700" onClick={() => handleAction(selectedEntry, 'approved')}>
                     <CheckCircle2 className="h-4 w-4 mr-2" /> Approve & Publish
                   </Button>
                 </div>

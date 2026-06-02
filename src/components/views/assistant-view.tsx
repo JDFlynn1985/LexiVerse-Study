@@ -24,7 +24,7 @@ interface AssistantViewProps {
   setAssistantTerm: (term: string) => void;
   handleSearch: (term: string, type: ViewMode) => void;
   handleSaveSession: (title: string, type: string, data: any) => void;
-  handleExport: (format: 'pdf' | 'docx' | 'markdown' | 'txt', data: any) => void;
+  handleExport: (format: 'pdf' | 'docx' | 'markdown' | 'txt' | 'bibtex', data: any) => void;
   isLoading: boolean;
   assistantResult: AiStudyAssistantOutput | null;
   isUserSignedIn: boolean;
@@ -76,6 +76,9 @@ export const AssistantView = memo(({
                 <DropdownMenuItem onClick={() => handleExport('docx', assistantResult)}>
                   <FileText className="h-4 w-4 mr-2" /> MS Word (DOCX)
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport('bibtex', assistantResult)}>
+                  <FileText className="h-4 w-4 mr-2" /> Citation Manager (BibTeX)
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleExport('markdown', assistantResult)}>
                   <FileText className="h-4 w-4 mr-2" /> Markdown (MD)
                 </DropdownMenuItem>
@@ -123,18 +126,14 @@ export const AssistantView = memo(({
                     ))}
                   </div>
                 </div>
-
                 <Separator />
-
                 <div>
                   <h4 className="font-bold text-sm uppercase text-primary mb-4">Scholarly Synthesis</h4>
                   <p className="text-lg leading-relaxed text-foreground/90 whitespace-pre-wrap font-serif">
                     {assistantResult.aiInsights}
                   </p>
                 </div>
-
                 <Separator />
-
                 <div>
                   <h4 className="font-bold text-sm uppercase text-primary mb-4">Historical Commentary</h4>
                   <p className="text-sm leading-relaxed text-muted-foreground italic bg-muted/10 p-4 rounded-xl border border-dashed">
@@ -176,7 +175,6 @@ export const AssistantView = memo(({
                 ))}
               </CardContent>
             </Card>
-
             <Card className="border-accent/20 bg-accent/5">
               <CardHeader>
                 <CardTitle className="text-sm font-bold uppercase tracking-widest text-accent">Translational Variations</CardTitle>

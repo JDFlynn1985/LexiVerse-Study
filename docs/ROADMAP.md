@@ -1,34 +1,31 @@
+
 # LexiVerse Explorer: Technical Roadmap & Pending Functionalities
 
-This document outlines the features and components that currently use placeholders, mocks, or simulations and require further development to reach full scholarly production standards.
+This document outlines the features and components that require further development to reach full scholarly production standards.
 
 ## ✅ Completed (Recent Build)
-- [x] **Real STT (Speech-to-Text)**: Replaced mock with Gemini Multimodal processing in `interact-with-ai.ts`.
-- [x] **Audit Dashboard**: Created UI views for `error_logs`, `search_logs`, and `dmca_complaints` in the `/admin/audit` portal.
-- [x] **Native Document Parsing**: Implemented local `pdf-parse` and `mammoth` (Docx) logic for scholarly papers.
-- [x] **Advanced RAG Engine**: Implemented semantic chunking and relevance ranking for local library documents.
-- [x] **Research Workspace Persistence**: Implemented Firestore-backed research session saving for scholars.
-- [x] **Universal Export Hub**: Integrated jsPDF and docx for formal scholarly report generation.
-- [x] **Translation Comparison Hub**: Fully implemented the AI-driven translation analysis module.
-- [x] **Historical Timeline Module**: Implemented a dedicated UI for the timeline flow.
-- [x] **Real-Time Discourse Logic**: Implemented functional chat persistence and institutional channels in the Chat Hub.
-- [x] **Covert Cross-Reference AI**: Integrated semantic scripture detection in the Writing Hub.
-- [x] **Interactive Verse Explorer**: Created a dedicated exegesis view with passage-grounded AI dialogue.
-- [x] **Research Analytics**: Integrated Recharts for visual scholarly momentum tracking.
+- [x] **Notification Engine**: Implemented an in-app Notification Center for status changes and peer review alerts.
+- [x] **BibTeX Export**: Integrated BibTeX support in the Export Hub for Zotero and EndNote compatibility.
+- [x] **Wiki Moderation Flow**: Automated triggers for author alerts upon article approval/rejection.
+- [x] **Real STT (Speech-to-Text)**: Replaced mock with Gemini Multimodal processing.
+- [x] **Audit Dashboard**: Created UI views for system governance monitoring.
+- [x] **Native Document Parsing**: Local `pdf-parse` and `mammoth` integration.
+- [x] **Advanced RAG Engine**: Semantic chunking and local relevance ranking.
+- [x] **Universal Export Hub**: Integrated jsPDF and docx for scholarly reports.
 
 ## 📚 Data Integration & API Strategy
 - [ ] **Structured Lexicon Fetching**: Replace AI "simulation" of Strong's data with a direct API connector to a verified Greek/Hebrew database (e.g. STEPBible or OpenBible API).
-- [ ] **Commentary Aggregator**: Implement a web-scraper or API client for public domain commentaries (JFB, Matthew Henry, etc.) to ground AI synthesis in specific historical texts.
-- [ ] **Bible Version Sync**: Expand `bible-api.ts` to support authenticated access to modern translations (NIV, ESV, NASB).
+- [ ] **Commentary Aggregator**: Ground AI synthesis in specific historical commentary texts (JFB, Henry) via direct API.
+- [ ] **Bible Version Sync**: Expand `bible-api.ts` to support modern translation auth (NIV, ESV).
 
 ## 🎙️ AI & Multimodal Research
-- [ ] **Advanced Vector Search**: Transition from local keyword ranking to Firestore Vector Search for higher semantic accuracy in the Library Hub.
-- [ ] **Real-Time Audio Streaming**: Implement a streaming STT interface for the AI Assistant.
+- [ ] **Advanced Vector Search**: Transition from keyword ranking to Firestore Vector Search for semantic accuracy.
+- [ ] **Real-Time Audio Streaming**: Streaming STT interface for the AI Assistant.
 
 ## 🛡️ Governance & Administration
-- [ ] **Notification Engine**: Implement Firebase Cloud Messaging (FCM) or SendGrid for peer-review and security alerts.
-- [ ] **Ollama Streaming Downloads**: Implement streaming for `pullOllamaModel` to prevent Next.js server action timeouts during model installation.
+- [ ] **Ollama Streaming Downloads**: Implement streaming for `pullOllamaModel` to prevent action timeouts.
+- [ ] **Institutional Single Sign-On (SSO)**: SAML/OIDC integration for seminaries.
 
 ## 📄 Document Management
-- [ ] **Zotero Integration**: Enable importing and exporting from standard citation managers.
-- [ ] **Google Workspace Deep Integration**: Transition from simple export to full real-time collaboration via Google Docs.
+- [ ] **Zotero Deep Sync**: Bidirectional sync with Zotero collections via API.
+- [ ] **Google Workspace Deep Integration**: Real-time collaboration via Google Docs embedding.

@@ -25,6 +25,7 @@ import { logSearch } from '@/lib/search-logging';
 import { useLanguage } from '@/components/language-provider';
 import { getGravatarUrl } from '@/lib/utils';
 import { getIconByName } from '@/lib/icons';
+import { NotificationCenter } from '@/components/notification-center';
 
 // UI Layout Components
 import { 
@@ -91,11 +92,11 @@ import { analyzeTheologicalConcept, type TheologicalConceptOutput } from '@/ai/f
 import { runArchaeologyAnalysis, type ArchaeologyOutput } from '@/ai/flows/archaeology-site-flow';
 import { generateHistoricalTimeline, type HistoricalTimelineOutput } from '@/ai/flows/historical-timeline-flow';
 import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/compare-translations-ai';
-import { runGeographyAnalysis, type GeographyOutput } from '@/ai/flows/geography-flow';
+import { runGeographyAnalysis, type ArchaeologyOutput as GeographyOutput } from '@/ai/flows/geography-flow';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 import { getAllLocalDocuments, saveLocalDocument, type IDBDocument } from '@/lib/idb';
 import { chunkText, selectRelevantChunks } from '@/lib/rag-engine';
-import { exportToPDF, exportToWord, exportToMarkdown, exportToText } from '@/lib/export-service';
+import { exportToPDF, exportToWord, exportToMarkdown, exportToText, exportToBibTeX } from '@/lib/export-service';
 
 export default function Home() {
   const { language, t } = useLanguage();
@@ -171,7 +172,6 @@ export default function Home() {
     refreshLocalDocs();
     getVersions().then(setAvailableVersions);
 
-    // Cross-module state check (e.g. from Manuscripts OCR)
     const pendingSynthesis = sessionStorage.getItem('lexiverse_pending_synthesis');
     if (pendingSynthesis) {
       setSynthesisText(pendingSynthesis);
@@ -205,10 +205,8 @@ export default function Home() {
     };
   }, [db, refreshLocalDocs]);
 
-  // Real-time Chat Subscription
   useEffect(() => {
     if (!db) return;
-    
     let chatQ;
     if (chatMode === 'global') {
       chatQ = query(collection(db, 'messages'), where('mode', '==', 'global'), orderBy('createdAt', 'desc'), limit(50));
@@ -216,13 +214,10 @@ export default function Home() {
       const instId = userProfile?.institutionId || 'independent';
       chatQ = query(collection(db, 'messages'), where('mode', '==', 'institutional'), where('institutionId', '==', instId), orderBy('createdAt', 'desc'), limit(50));
     }
-
     const unsubChat = onSnapshot(chatQ, (snap) => {
       setChatMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-      // Scroll to bottom after state update
       setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     });
-
     return () => unsubChat();
   }, [db, chatMode, userProfile?.institutionId]);
 
@@ -264,36 +259,26 @@ export default function Home() {
     if (!term.trim()) return;
     const effectiveKey = getEffectiveKey();
     const isLocal = aiPrefs.modelProvider === 'local';
-
     if (type !== 'chat' && type !== 'direct-messages' && type !== 'verse-explorer' && !effectiveKey && !isLocal) {
       toast({ variant: "destructive", title: "AI Hub Configuration Required", description: "Please supply an API key for the selected provider in your profile." });
       return;
     }
-
     setIsLoading(true);
     setActiveTab(type);
     if (type !== 'chat' && type !== 'direct-messages') logSearch(db, term, type, user?.uid);
     try {
       const modelString = aiPrefs.selectedModel;
-      
       if (type === 'lexicon') setLexiconResult(await defineAndAnalyzeTerm({ strongsNumber: term, model: modelString, apiKey: effectiveKey }));
       else if (type === 'ai-assistant') {
         const allChunks = localDocuments.flatMap(d => chunkText(d.content, d.name));
         const relevantChunks = selectRelevantChunks(term, allChunks, 8);
         const contextExcerpts = relevantChunks.map(c => `[From Paper: ${c.sourceName}]: ${c.text}`);
-
-        setAssistantResult(await aiStudyAssistant({ 
-          term, 
-          researchContext: contextExcerpts, 
-          model: modelString, 
-          apiKey: effectiveKey 
-        }));
+        setAssistantResult(await aiStudyAssistant({ term, researchContext: contextExcerpts, model: modelString, apiKey: effectiveKey }));
       }
       else if (type === 'theology') setTheologyResult(await analyzeTheologicalConcept({ concept: term }));
       else if (type === 'archaeology') setArchaeologyResult(await runArchaeologyAnalysis({ query: term }));
       else if (type === 'geography') setGeographyResult(await runGeographyAnalysis({ query: term }));
       else if (type === 'timeline') setTimelineResult(await generateHistoricalTimeline({ topic: term }));
-      
       if (type !== 'chat' && type !== 'direct-messages') {
         const newHistory = [{id: Date.now().toString(), type, term, date: new Date().toLocaleString()}, ...historyItems];
         setHistoryItems(newHistory.slice(0, 10));
@@ -307,123 +292,70 @@ export default function Home() {
     if (!user || !db) return;
     try {
       const sessionRef = doc(collection(db, 'users', user.uid, 'sessions'));
-      await setDoc(sessionRef, {
-        uid: user.uid,
-        title,
-        type,
-        data,
-        createdAt: serverTimestamp()
-      });
+      await setDoc(sessionRef, { uid: user.uid, title, type, data, createdAt: serverTimestamp() });
       toast({ title: "Research Saved", description: `Session '${title}' preserved in workspace.` });
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: "Save Failed" });
-    }
+    } catch (e: any) { toast({ variant: 'destructive', title: "Save Failed" }); }
   };
 
-  const handleExport = (format: 'pdf' | 'docx' | 'markdown' | 'txt', data: any) => {
+  const handleExport = (format: 'pdf' | 'docx' | 'markdown' | 'txt' | 'bibtex', data: any) => {
     if (!data) return;
     try {
       if (format === 'pdf') exportToPDF(data);
       else if (format === 'docx') exportToWord(data);
       else if (format === 'markdown') exportToMarkdown(data);
       else if (format === 'txt') exportToText(data);
+      else if (format === 'bibtex') exportToBibTeX(data);
       toast({ title: "Export Started", description: "Your scholarly report is being generated." });
-    } catch (e) {
-      toast({ variant: 'destructive', title: "Export Failed" });
-    }
+    } catch (e) { toast({ variant: 'destructive', title: "Export Failed" }); }
   };
 
   const handleSaveDraftToLibrary = async (name: string, content: string) => {
     try {
-      const newDoc: IDBDocument = {
-        id: crypto.randomUUID(),
-        name: `${name}-${new Date().toLocaleDateString()}.txt`,
-        type: 'text/plain',
-        content,
-        uploadDate: new Date().toISOString(),
-        synced: false
-      };
+      const newDoc: IDBDocument = { id: crypto.randomUUID(), name: `${name}-${new Date().toLocaleDateString()}.txt`, type: 'text/plain', content, uploadDate: new Date().toISOString(), synced: false };
       await saveLocalDocument(newDoc);
       await refreshLocalDocs();
       toast({ title: "Draft Saved", description: "Successfully added to your local library for future RAG context." });
-    } catch (e) {
-      toast({ variant: 'destructive', title: "Failed to save draft" });
-    }
+    } catch (e) { toast({ variant: 'destructive', title: "Failed to save draft" }); }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !newMessage.trim() || !chatAgreed) return;
-
-    const messageData = {
-      content: newMessage.trim(),
-      senderUid: user.uid,
-      senderName: userProfile?.displayName || user.displayName,
-      senderPhotoURL: userProfile?.photoURL || user.photoURL,
-      senderDesignation: userProfile?.designation || 'Scholar',
-      senderInstitutionName: userInstitutionName,
-      institutionId: userProfile?.institutionId || 'independent',
-      mode: chatMode,
-      createdAt: serverTimestamp(),
-      status: 'active'
-    };
-
+    const messageData = { content: newMessage.trim(), senderUid: user.uid, senderName: userProfile?.displayName || user.displayName, senderPhotoURL: userProfile?.photoURL || user.photoURL, senderDesignation: userProfile?.designation || 'Scholar', senderInstitutionName: userInstitutionName, institutionId: userProfile?.institutionId || 'independent', mode: chatMode, createdAt: serverTimestamp(), status: 'active' };
     setNewMessage('');
-    try {
-      await addDoc(collection(db, 'messages'), messageData);
-    } catch (e: any) {
-      toast({ variant: 'destructive', title: "Message failed to send" });
-    }
+    try { await addDoc(collection(db, 'messages'), messageData); } 
+    catch (e: any) { toast({ variant: 'destructive', title: "Message failed to send" }); }
   };
 
   const updateProfile = async () => {
     if (!user || !db) return;
     setIsLoading(true);
-    try {
-      await updateDoc(doc(db, 'users', user.uid), { ...profileDraft });
-      toast({ title: "Profile Updated" });
-    } catch (e) { toast({ variant: 'destructive', title: "Failed to update profile" }); }
+    try { await updateDoc(doc(db, 'users', user.uid), { ...profileDraft }); toast({ title: "Profile Updated" }); } 
+    catch (e) { toast({ variant: 'destructive', title: "Failed to update profile" }); }
     finally { setIsLoading(false); }
   };
 
   const saveAiPreferences = async (newPrefs: any) => {
     if (!user || !db) return;
-    try {
-      await updateDoc(doc(db, 'users', user.uid), { preferences: { ...userProfile?.preferences, ...newPrefs } });
-      setAiPrefs(prev => ({...prev, ...newPrefs}));
-      toast({ title: "Preferences Saved" });
-    } catch (e) { toast({ variant: 'destructive', title: "Failed to save preferences" }); }
+    try { await updateDoc(doc(db, 'users', user.uid), { preferences: { ...userProfile?.preferences, ...newPrefs } }); setAiPrefs(prev => ({...prev, ...newPrefs})); toast({ title: "Preferences Saved" }); } 
+    catch (e) { toast({ variant: 'destructive', title: "Failed to save preferences" }); }
   };
 
   const handleLogin = async () => {
     const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
-      toast({ title: "Welcome", description: result.user.displayName });
-    } catch (error: any) { toast({ variant: "destructive", title: "Login Failed" }); }
+    try { const result = await signInWithPopup(auth, provider); toast({ title: "Welcome", description: result.user.displayName }); } 
+    catch (error: any) { toast({ variant: "destructive", title: "Login Failed" }); }
   };
 
   if (!mounted) return null;
   const effectiveAvatar = userProfile?.photoURL || (user?.email ? getGravatarUrl(user.email) : '');
   const userInstitutionName = institutions.find(i => i.id === userProfile?.institutionId)?.name || 'Independent Scholar';
-
-  const getTranslatedLabel = (key: string) => {
-    const parts = key.split('.');
-    let res = t;
-    for (const p of parts) res = res?.[p];
-    return res || key;
-  };
-
+  const getTranslatedLabel = (key: string) => { const parts = key.split('.'); let res = t; for (const p of parts) res = res?.[p]; return res || key; };
   const getActiveModules = (group: string) => {
     const staticGroup = [...DEFAULT_MODULES, ...GOVERNANCE_MODULES].filter(m => m.group === group);
     if (modulesLoading) return staticGroup;
-    return staticGroup.filter(m => {
-      const dynamic = dynamicModules.find(dm => dm.id === m.id);
-      if (dynamic) return dynamic.enabled === true;
-      return true;
-    });
+    return staticGroup.filter(m => { const dynamic = dynamicModules.find(dm => dm.id === m.id); if (dynamic) return dynamic.enabled === true; return true; });
   };
-
   const activeModulesList = [...getActiveModules('general'), ...getActiveModules('ai_hub'), ...getActiveModules('governance')];
 
   const renderModularContent = () => {
@@ -459,7 +391,7 @@ export default function Home() {
       case 'archaeology': return <ArchaeologyView isLoading={isLoading} result={archaeologyResult} onSearch={(term) => handleSearch(term, 'archaeology')} />;
       case 'timeline': return <TimelineView isLoading={isLoading} result={timelineResult} onSearch={(term) => handleSearch(term, 'timeline')} />;
       case 'profile': return userProfile ? <ProfileView userProfile={userProfile} effectiveAvatar={effectiveAvatar} userInstitutionName={userInstitutionName} profileDraft={profileDraft} setProfileDraft={setProfileDraft} institutions={institutions} updateProfile={updateProfile} isLoading={isLoading} aiPrefs={aiPrefs} saveAiPreferences={saveAiPreferences} systemConfig={systemConfig} historyItems={historyItems} handleSearch={handleSearch} /> : null;
-      default: return <DashboardView t={t} effectiveApiKey={getEffectiveKey()} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} />;
+      default: return null;
     }
   };
 
@@ -468,11 +400,16 @@ export default function Home() {
       <div className="flex min-h-screen w-full bg-background">
         <Sidebar side="left" variant="inset" collapsible="icon">
           <SidebarHeader className="p-2 border-b">
-            <div className="flex items-center gap-2 px-2 py-4">
-              <div className="bg-primary text-primary-foreground p-1.5 rounded-lg shadow-md">
-                <Globe className="h-6 w-6" />
+            <div className="flex items-center justify-between px-2 py-4">
+              <div className="flex items-center gap-2">
+                <div className="bg-primary text-primary-foreground p-1.5 rounded-lg shadow-md">
+                  <Globe className="h-6 w-6" />
+                </div>
+                <span className="text-xl font-bold font-headline group-data-[collapsible=icon]:hidden">{t.app_title}</span>
               </div>
-              <span className="text-xl font-bold font-headline group-data-[collapsible=icon]:hidden">{t.app_title}</span>
+              <div className="group-data-[collapsible=icon]:hidden">
+                <NotificationCenter />
+              </div>
             </div>
           </SidebarHeader>
           <SidebarContent>
@@ -498,7 +435,6 @@ export default function Home() {
                 ))}
               </SidebarMenu>
             </SidebarGroup>
-
             <SidebarGroup>
               <SidebarGroupLabel>{t.nav.ai_hub}</SidebarGroupLabel>
               <SidebarMenu>
@@ -521,7 +457,6 @@ export default function Home() {
                 ))}
               </SidebarMenu>
             </SidebarGroup>
-
             <SidebarGroup>
               <SidebarGroupLabel>Governance</SidebarGroupLabel>
               <SidebarMenu>
@@ -584,7 +519,6 @@ export default function Home() {
             </div>
           </SidebarFooter>
         </Sidebar>
-
         <SidebarInset>
           <main id="main-content" className="container max-w-5xl mx-auto py-10 px-6 min-h-screen">
             {modulesLoading ? (

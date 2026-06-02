@@ -96,6 +96,20 @@
       },
       "required": ["senderUid", "receiverUid", "participants", "content"]
     },
+    "Notification": {
+      "title": "Notification",
+      "description": "In-app alert for scholarly status changes or discourse.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["wiki_status", "peer_interaction", "system"] },
+        "read": { "type": "boolean" },
+        "link": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
     "SystemSettings": {
       "title": "System Settings",
       "description": "Global configuration for AI models, API tiers, and network settings.",
@@ -138,6 +152,10 @@
     "/users/{userId}/sessions/{sessionId}": {
       "schema": "#/backend/entities/ResearchSession",
       "description": "User's saved research reports."
+    },
+    "/users/{userId}/notifications/{notifId}": {
+      "schema": "#/backend/entities/Notification",
+      "description": "User's in-app notifications."
     },
     "/system/config": {
       "schema": "#/backend/entities/SystemSettings",
