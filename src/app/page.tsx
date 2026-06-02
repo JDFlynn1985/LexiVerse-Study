@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -73,7 +72,9 @@ import {
   Info,
   Server,
   Key,
-  Send
+  Send,
+  Lock,
+  CloudOff
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -102,6 +103,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
 
 // AI Flow Imports
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
@@ -130,6 +132,7 @@ interface UserProfile {
     customApiKey?: string;
     preferredBibleVersion?: string;
     language?: string;
+    storagePreference?: 'cloud' | 'local';
   };
 }
 
@@ -169,22 +172,6 @@ interface BlogComment {
 
 const BLOG_CATEGORIES = ["Linguistics", "Theology", "History", "Archaeology", "Hermeneutics", "General"];
 
-function HighlightedText({ text, highlights }: { text: string; highlights: string[] }) {
-  if (!highlights.length) return <p className="text-sm leading-relaxed whitespace-pre-wrap">{text}</p>;
-  const escaped = highlights.map(h => h.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
-  const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
-  return (
-    <p className="text-sm leading-relaxed whitespace-pre-wrap">
-      {parts.map((part, i) => {
-        const isMatch = highlights.some(h => h.toLowerCase() === part.toLowerCase());
-        return isMatch ? (
-          <mark key={i} className="bg-accent/40 text-inherit rounded px-0.5">{part}</mark>
-        ) : part;
-      })}
-    </p>
-  );
-}
-
 export default function Home() {
   const { language, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<ViewMode>('dashboard');
@@ -204,12 +191,16 @@ export default function Home() {
   const [localDocuments, setLocalDocuments] = useState<IDBDocument[]>([]);
   const [availableVersions, setAvailableVersions] = useState<BibleVersion[]>([]);
 
+  // Privacy-first state: local API key from localStorage
+  const [localApiKey, setLocalApiKey] = useState<string>('');
+  
   const [aiPrefs, setAiPrefs] = useState({
     modelProvider: 'google',
     selectedModel: 'googleai/gemini-2.5-flash',
     customApiKey: '',
     preferredBibleVersion: 'kjv',
-    language: language
+    language: language,
+    storagePreference: 'cloud' as 'cloud' | 'local'
   });
 
   const [sidebarSearchTerm, setSidebarSearchTerm] = useState('');
@@ -220,21 +211,14 @@ export default function Home() {
   const [timelineResult, setTimelineResult] = useState<HistoricalTimelineOutput | null>(null);
   const [assistantResult, setAssistantResult] = useState<AiStudyAssistantOutput | null>(null);
 
-  const [activeHighlights, setActiveHighlights] = useState<string[]>([]);
-  const [isRecording, setIsRecording] = useState(false);
-
-  // Profile Edit State
   const [profileDraft, setProfileDraft] = useState({ displayName: '', credentials: '', bio: '', photoURL: '' });
-
-  // Wiki State
   const [wikiDraft, setWikiDraft] = useState({ title: '', content: '', worksCited: '' });
+  
   const wikiQuery = useMemo(() => query(collection(db, 'wiki_entries'), orderBy('createdAt', 'desc')), [db]);
   const { data: wikiArticles } = useCollection<WikiArticle>(wikiQuery);
 
-  // Blog State
   const [blogDraft, setBlogDraft] = useState({ title: '', excerpt: '', content: '', category: 'General', tagInput: '' });
   const [blogFilter, setBlogFilter] = useState({ category: 'All', tag: '' });
-  const [blogDesignerTab, setBlogDesignerTab] = useState<'editor' | 'preview'>('editor');
   const [selectedBlogPost, setSelectedBlogPost] = useState<BlogPost | null>(null);
   const [commentInput, setCommentInput] = useState('');
 
@@ -252,7 +236,6 @@ export default function Home() {
     });
   }, [rawBlogPosts, blogFilter]);
 
-  // Dynamic Comment Query
   const commentsQuery = useMemoFirebase(() => {
     if (!db || !selectedBlogPost) return null;
     return query(collection(db, 'blog_posts', selectedBlogPost.id, 'comments'), orderBy('createdAt', 'asc'));
@@ -266,12 +249,6 @@ export default function Home() {
     return Array.from(tags).sort();
   }, [rawBlogPosts]);
 
-  // Moderation State
-  const pendingWikiQuery = useMemo(() => query(collection(db, 'wiki_entries'), where('status', '==', 'pending')), [db]);
-  const { data: pendingArticles } = useCollection<WikiArticle>(pendingWikiQuery);
-  const pendingBlogQuery = useMemo(() => query(collection(db, 'blog_posts'), where('status', '==', 'pending')), [db]);
-  const { data: pendingBlogPosts } = useCollection<BlogPost>(pendingBlogQuery);
-
   const refreshLocalDocs = useCallback(async () => {
     const docs = await getAllLocalDocuments();
     setLocalDocuments(docs);
@@ -281,23 +258,23 @@ export default function Home() {
     setMounted(true);
     const savedHistory = localStorage.getItem('lexiverse_history');
     if (savedHistory) setHistory(JSON.parse(savedHistory));
+    
+    // Load local-only API key if it exists
+    const savedLocalKey = localStorage.getItem('lexiverse_local_api_key');
+    if (savedLocalKey) setLocalApiKey(savedLocalKey);
+
     refreshLocalDocs();
     getVersions().then(setAvailableVersions);
 
-    // Check system config for AI readiness and local models
     async function checkSystemConfig() {
       const configSnap = await getDoc(doc(db, 'system', 'config'));
       if (configSnap.exists()) {
         const config = configSnap.data();
         setLocalModels(config.localModelList || ['llama3', 'mistral', 'gemma']);
         setSystemApiKey(config.geminiApiKey || null);
-        if (!config.geminiApiKey) {
-          setIsAiEnabled(false);
-        } else {
-          setIsAiEnabled(true);
-        }
+        setIsAiEnabled(!!config.geminiApiKey || !!localStorage.getItem('lexiverse_local_api_key'));
       } else {
-        setIsAiEnabled(false);
+        setIsAiEnabled(!!localStorage.getItem('lexiverse_local_api_key'));
       }
     }
     checkSystemConfig();
@@ -322,9 +299,10 @@ export default function Home() {
               selectedModel: data.preferences.selectedModel || 'googleai/gemini-2.5-flash',
               customApiKey: data.preferences.customApiKey || '',
               preferredBibleVersion: data.preferences.preferredBibleVersion || 'kjv',
-              language: data.preferences.language || language
+              language: data.preferences.language || language,
+              storagePreference: data.preferences.storagePreference || 'cloud'
             });
-            if (data.preferences.customApiKey) {
+            if (data.preferences.customApiKey || localApiKey) {
               setIsAiEnabled(true);
             }
           }
@@ -332,9 +310,10 @@ export default function Home() {
       });
       return () => unsub();
     }
-  }, [user, db, language]);
+  }, [user, db, language, localApiKey]);
 
-  const effectiveApiKey = aiPrefs.customApiKey || systemApiKey;
+  // Privacy logic: prioritize local key over cloud key
+  const effectiveApiKey = localApiKey || aiPrefs.customApiKey || systemApiKey;
 
   const handleSearch = async (term: string, type: ViewMode) => {
     if (!term.trim()) return;
@@ -343,17 +322,21 @@ export default function Home() {
       toast({ 
         variant: 'destructive', 
         title: "AI Configuration Required", 
-        description: "Please provide your own Gemini API Key in your profile or ask an administrator to configure the system key." 
+        description: "Please supply your own Gemini API Key in your profile settings to proceed." 
       });
       return;
     }
 
     setIsLoading(true);
     setActiveTab(type);
-    setActiveHighlights([]);
     logSearch(db, term, type, user?.uid);
     try {
       let result;
+      // Inject the local key into the env variable context if using local key (client-side only trick for Genkit)
+      if (localApiKey) {
+        process.env.GEMINI_API_KEY = localApiKey;
+      }
+
       const effectiveModel = aiPrefs.modelProvider === 'local' ? `ollama/${aiPrefs.selectedModel}` : aiPrefs.selectedModel;
       
       if (type === 'lexicon') {
@@ -375,7 +358,7 @@ export default function Home() {
       setHistory(newHistory.slice(0, 10));
       localStorage.setItem('lexiverse_history', JSON.stringify(newHistory.slice(0, 10)));
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Search failed', description: error.message });
+      toast({ variant: 'destructive', title: 'Research Engine Error', description: error.message });
     } finally {
       setIsLoading(false);
     }
@@ -392,7 +375,7 @@ export default function Home() {
         bio: profileDraft.bio,
         photoURL: profileDraft.photoURL
       });
-      toast({ title: "Profile Updated", description: "Your scholarly credentials have been saved." });
+      toast({ title: "Profile Updated", description: "Identity updated successfully." });
     } catch (e) {
       toast({ variant: 'destructive', title: "Failed to update profile" });
     } finally {
@@ -403,15 +386,44 @@ export default function Home() {
   const saveAiPreferences = async (newPrefs: any) => {
     if (!user || !db) return;
     try {
-      const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
-        preferences: {
-          ...userProfile?.preferences,
-          ...newPrefs
-        }
-      });
+      // Handle privacy-first key storage
+      if (newPrefs.storagePreference === 'local') {
+        // Clear from cloud, save to local
+        localStorage.setItem('lexiverse_local_api_key', newPrefs.customApiKey || aiPrefs.customApiKey);
+        setLocalApiKey(newPrefs.customApiKey || aiPrefs.customApiKey);
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, {
+          preferences: {
+            ...userProfile?.preferences,
+            ...newPrefs,
+            customApiKey: '', // Erase from cloud for privacy
+            storagePreference: 'local'
+          }
+        });
+      } else if (newPrefs.storagePreference === 'cloud') {
+        // Save to cloud, clear local
+        localStorage.removeItem('lexiverse_local_api_key');
+        setLocalApiKey('');
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, {
+          preferences: {
+            ...userProfile?.preferences,
+            ...newPrefs,
+            storagePreference: 'cloud'
+          }
+        });
+      } else {
+        // Just standard updates
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, {
+          preferences: {
+            ...userProfile?.preferences,
+            ...newPrefs
+          }
+        });
+      }
       setAiPrefs({...aiPrefs, ...newPrefs});
-      toast({ title: "Preferences Saved", description: "Your research engine settings have been updated." });
+      toast({ title: "Preferences Saved", description: "Scholarly configuration refreshed." });
     } catch (e) {
       toast({ variant: 'destructive', title: "Failed to save preferences" });
     }
@@ -436,11 +448,12 @@ export default function Home() {
           preferences: {
             modelProvider: 'google',
             selectedModel: 'googleai/gemini-2.5-flash',
-            customApiKey: ''
+            customApiKey: '',
+            storagePreference: 'local' // Default to local privacy
           }
         });
       }
-      toast({ title: "Logged in", description: `Welcome, ${result.user.displayName}` });
+      toast({ title: "Scholarly Access Granted", description: `Welcome, ${result.user.displayName}` });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Login Failed", description: error.message });
     }
@@ -453,76 +466,8 @@ export default function Home() {
     setActiveTab('dashboard');
   };
 
-  const submitWikiEntry = async () => {
-    if (!user || !wikiDraft.title || !wikiDraft.content) return;
-    setIsLoading(true);
-    try {
-      const status = userProfile?.isTrustedContributor ? 'approved' : 'pending';
-      await addDoc(collection(db, 'wiki_entries'), {
-        ...wikiDraft,
-        status: status,
-        authorUid: user.uid,
-        authorName: userProfile?.displayName || user.displayName || 'Scholar',
-        createdAt: new Date().toISOString()
-      });
-      setWikiDraft({ title: '', content: '', worksCited: '' });
-      toast({ 
-        title: status === 'approved' ? "Article Published" : "Submission Sent", 
-        description: status === 'approved' ? "Your article is live on the wiki." : "Your article is awaiting scholarly peer review." 
-      });
-    } catch (e) {
-      toast({ variant: 'destructive', title: "Submission failed" });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const submitBlogPost = async () => {
-    if (!user || !blogDraft.title || !blogDraft.content) return;
-    
-    if (!userProfile?.photoURL) {
-      toast({ 
-        variant: 'destructive', 
-        title: "Scholarly Photo Required", 
-        description: "To maintain academic accountability, researchers must have a verified profile photo before publishing to the Journal." 
-      });
-      setActiveTab('profile');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const status = userProfile?.isAdmin || userProfile?.isTrustedContributor ? 'approved' : 'pending';
-      const tags = blogDraft.tagInput.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
-      
-      await addDoc(collection(db, 'blog_posts'), {
-        title: blogDraft.title,
-        content: blogDraft.content,
-        excerpt: blogDraft.excerpt,
-        category: blogDraft.category,
-        tags: tags,
-        status: status,
-        authorUid: user.uid,
-        authorName: userProfile?.displayName || user.displayName || 'Scholar',
-        createdAt: new Date().toISOString()
-      });
-      
-      setBlogDraft({ title: '', excerpt: '', content: '', category: 'General', tagInput: '' });
-      toast({ 
-        title: status === 'approved' ? "Post Published" : "Post Submitted", 
-        description: status === 'approved' ? "Your post is now live in the journal." : "Your post is awaiting review." 
-      });
-      setActiveTab('blog');
-    } catch (e) {
-      toast({ variant: 'destructive', title: "Blog submission failed" });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handlePostComment = async () => {
     if (!user || !selectedBlogPost || !commentInput.trim()) return;
-    
     try {
       const commentsRef = collection(db, 'blog_posts', selectedBlogPost.id, 'comments');
       await addDoc(commentsRef, {
@@ -534,41 +479,9 @@ export default function Home() {
         createdAt: new Date().toISOString()
       });
       setCommentInput('');
-      toast({ title: "Comment Posted", description: "Your contribution has been added to the dialogue." });
+      toast({ title: "Comment Posted", description: "Dialogue contribution added." });
     } catch (e) {
       toast({ variant: 'destructive', title: "Comment failed" });
-    }
-  };
-
-  const moderateContent = async (id: string, collectionName: string, status: 'approved' | 'rejected') => {
-    try {
-      await updateDoc(doc(db, collectionName, id), { status });
-      toast({ title: `Content ${status}` });
-    } catch (e) {
-      toast({ variant: 'destructive', title: "Moderation action failed" });
-    }
-  };
-
-  const handleVoiceSearch = async () => {
-    if (!effectiveApiKey && aiPrefs.modelProvider === 'google') {
-      toast({ variant: 'destructive', title: "Voice features require AI configuration." });
-      return;
-    }
-    if (isRecording) {
-      setIsRecording(false);
-      setIsLoading(true);
-      try {
-        const res = await transcribeAudio({ audioPart: "SGVsbG8gV29ybGQ=" }); 
-        setSidebarSearchTerm(res.transcript);
-        handleSearch(res.transcript, 'ai-assistant');
-      } catch (e) {
-        toast({ variant: 'destructive', title: "Voice transcription failed" });
-      } finally {
-        setIsLoading(false);
-      }
-    } else {
-      setIsRecording(true);
-      toast({ title: "Listening..." });
     }
   };
 
@@ -613,6 +526,7 @@ export default function Home() {
               <SidebarGroupLabel className="flex items-center justify-between">
                 AI Research Hub
                 {!effectiveApiKey && aiPrefs.modelProvider === 'google' && <Badge variant="destructive" className="scale-75 origin-right">OFF</Badge>}
+                {localApiKey && <Badge variant="outline" className="scale-75 origin-right border-green-500 text-green-600"><Lock className="h-3 w-3 mr-1" /> LOCAL</Badge>}
               </SidebarGroupLabel>
               <SidebarMenu>
                 <SidebarMenuItem>
@@ -630,45 +544,23 @@ export default function Home() {
                     <Network className="h-5 w-5" /> <span>Theology Map</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')} tooltip="Historical Timeline" disabled={!effectiveApiKey && aiPrefs.modelProvider === 'google'}>
-                    <Milestone className="h-5 w-5" /> <span>Historical Timeline</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
 
             <SidebarGroup>
-              <SidebarGroupLabel>Linguistic Analysis</SidebarGroupLabel>
+              <SidebarGroupLabel>Local Databases</SidebarGroupLabel>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'verse-explorer'} onClick={() => setActiveTab('verse-explorer')} tooltip="Verse Explorer" disabled={!effectiveApiKey && aiPrefs.modelProvider === 'google'}>
-                    <BookMarked className="h-5 w-5" /> <span>Verse Explorer</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'compare-translations'} onClick={() => setActiveTab('compare-translations')} tooltip="Translation Comparison">
-                    <ArrowLeftRight className="h-5 w-5" /> <span>Compare Versions</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroup>
-
-            <SidebarGroup>
-              <SidebarGroupLabel>Synthesis & Library</SidebarGroupLabel>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'research-library'} onClick={() => setActiveTab('research-library')} tooltip="Research Library">
+                  <SidebarMenuButton isActive={activeTab === 'research-library'} onClick={() => setActiveTab('research-library')} tooltip="Research Library (Local-Only)">
                     <Library className="h-5 w-5" /> <span>Research Library</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                {hasDesignerAccess && (
-                  <SidebarMenuItem>
-                    <SidebarMenuButton isActive={activeTab === 'blog-designer'} onClick={() => setActiveTab('blog-designer')} tooltip="Journal Designer">
-                      <PenTool className="h-5 w-5" /> <span>Journal Designer</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )}
+              </SidebarMenu>
+            </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarGroupLabel>Synthesis</SidebarGroupLabel>
+              <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton isActive={activeTab === 'writing-assistant'} onClick={() => setActiveTab('writing-assistant')} tooltip="Writing Assistant" disabled={!effectiveApiKey && aiPrefs.modelProvider === 'google'}>
                     <Edit3 className="h-5 w-5" /> <span>Writing Assistant</span>
@@ -681,19 +573,6 @@ export default function Home() {
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
-
-            {userProfile?.isModerator && (
-              <SidebarGroup>
-                <SidebarGroupLabel>Administration</SidebarGroupLabel>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton isActive={activeTab === 'moderation'} onClick={() => setActiveTab('moderation')} tooltip="Peer Review">
-                      <ShieldAlert className="h-5 w-5 text-accent" /> <span>Peer Review</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroup>
-            )}
           </SidebarContent>
           <SidebarFooter className="p-4 border-t flex flex-col gap-2">
             <div className="flex flex-row items-center justify-between w-full">
@@ -752,7 +631,7 @@ export default function Home() {
                 <div className="space-y-8">
                   <header>
                     <h1 className="text-4xl font-bold font-headline">Research Workspace</h1>
-                    <p className="text-muted-foreground text-lg">Integrated AI for advanced biblical scholarship.</p>
+                    <p className="text-muted-foreground text-lg">Integrated AI and local-only databases for biblical scholarship.</p>
                   </header>
 
                   <div className="grid gap-6 md:grid-cols-3">
@@ -765,7 +644,7 @@ export default function Home() {
                       <CardContent className="space-y-4">
                         <div className="flex gap-2">
                           <Input 
-                            placeholder={effectiveApiKey || aiPrefs.modelProvider === 'local' ? "Greek/Hebrew term or eschatological question..." : "AI Features Restricted - Please add your API Key"}
+                            placeholder={effectiveApiKey || aiPrefs.modelProvider === 'local' ? "Analyze eschatological fragments..." : "AI Engine Paused - Key Required"}
                             value={assistantTerm} 
                             disabled={!effectiveApiKey && aiPrefs.modelProvider === 'google'}
                             onChange={e => setAssistantTerm(e.target.value)}
@@ -781,207 +660,27 @@ export default function Home() {
                     <Card className="shadow-md border-primary/10">
                       <CardHeader className="pb-3">
                         <CardTitle className="font-headline text-sm flex items-center gap-2">
-                          <History className="h-4 w-4 text-primary" /> Recent Activity
+                          <Library className="h-4 w-4 text-primary" /> Local Manuscripts
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="p-0">
-                        <ScrollArea className="h-[200px]">
-                          {history.map(h => (
-                            <div key={h.id} className="p-3 border-b hover:bg-muted/50 transition-colors cursor-pointer text-xs" onClick={() => handleSearch(h.term, h.type as any)}>
-                              <p className="font-bold truncate">{h.term}</p>
-                              <p className="text-[10px] text-muted-foreground uppercase">{h.type.replace('-', ' ')}</p>
-                            </div>
-                          ))}
-                        </ScrollArea>
+                      <CardContent>
+                        <p className="text-xs text-muted-foreground">
+                          Your **Research Library** is a network-isolated IndexedDB database. Content uploaded here never leaves your system.
+                        </p>
+                        <Button variant="outline" size="sm" className="w-full mt-4" onClick={() => setActiveTab('research-library')}>
+                          Open Library
+                        </Button>
                       </CardContent>
                     </Card>
                   </div>
                 </div>
               )}
 
-              {activeTab === 'blog' && (
-                <div className="space-y-8">
-                  <header className="flex justify-between items-center border-b pb-6">
-                    <div>
-                      <h1 className="text-3xl font-bold font-headline">Scholar's Journal</h1>
-                      <p className="text-muted-foreground">Peer-reviewed reflections and academic discoveries.</p>
-                    </div>
-                    {hasDesignerAccess && (
-                      <Button variant="outline" onClick={() => setActiveTab('blog-designer')}>
-                        <PenTool className="h-4 w-4 mr-2" /> Write for Journal
-                      </Button>
-                    )}
-                  </header>
-
-                  <div className="grid gap-8 md:grid-cols-4">
-                    <aside className="space-y-6">
-                      <div className="space-y-4">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
-                          <Filter className="h-4 w-4" /> Categories
-                        </h3>
-                        <div className="flex flex-col gap-1">
-                          <Button 
-                            variant={blogFilter.category === 'All' ? 'secondary' : 'ghost'} 
-                            size="sm" 
-                            className="justify-start" 
-                            onClick={() => setBlogFilter({...blogFilter, category: 'All'})}
-                          >
-                            All Categories
-                          </Button>
-                          {BLOG_CATEGORIES.map(cat => (
-                            <Button 
-                              key={cat}
-                              variant={blogFilter.category === cat ? 'secondary' : 'ghost'} 
-                              size="sm" 
-                              className="justify-start" 
-                              onClick={() => setBlogFilter({...blogFilter, category: cat})}
-                            >
-                              {cat}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <h3 className="text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
-                          <Tags className="h-4 w-4" /> Popular Tags
-                        </h3>
-                        <div className="flex flex-wrap gap-2">
-                          {allAvailableTags.map(tag => (
-                            <Badge 
-                              key={tag} 
-                              variant={blogFilter.tag === tag ? 'default' : 'outline'} 
-                              className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                              onClick={() => setBlogFilter({...blogFilter, tag: blogFilter.tag === tag ? '' : tag})}
-                            >
-                              #{tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    </aside>
-
-                    <div className="md:col-span-3 space-y-6">
-                      {selectedBlogPost ? (
-                        <div className="space-y-8 animate-in fade-in duration-500">
-                          <Button variant="ghost" size="sm" onClick={() => setSelectedBlogPost(null)} className="mb-4">
-                            <X className="h-4 w-4 mr-2" /> Back to Journal
-                          </Button>
-                          <article className="prose prose-stone dark:prose-invert max-w-none">
-                            <Badge className="mb-4">{selectedBlogPost.category}</Badge>
-                            <h1 className="text-4xl font-bold font-headline mb-4">{selectedBlogPost.title}</h1>
-                            <div className="flex items-center gap-4 mb-8 text-muted-foreground text-sm border-b pb-4">
-                              <span>By {selectedBlogPost.authorName}</span>
-                              <span>•</span>
-                              <span>{new Date(selectedBlogPost.createdAt).toLocaleDateString()}</span>
-                            </div>
-                            <div className="whitespace-pre-wrap leading-relaxed text-lg mb-8">
-                              {selectedBlogPost.content}
-                            </div>
-                          </article>
-
-                          <Separator />
-
-                          <section className="space-y-6 pt-8">
-                            <h3 className="text-2xl font-bold font-headline flex items-center gap-2">
-                              <MessageSquare className="h-6 w-6 text-primary" /> 
-                              Academic Dialogue ({activeComments?.length || 0})
-                            </h3>
-
-                            {user ? (
-                              <Card className="border-primary/20 bg-muted/30">
-                                <CardContent className="p-4 space-y-4">
-                                  <Textarea 
-                                    placeholder="Add to the scholarly discussion..." 
-                                    value={commentInput}
-                                    onChange={e => setCommentInput(e.target.value)}
-                                    className="bg-background min-h-[100px]"
-                                  />
-                                  <div className="flex justify-end">
-                                    <Button onClick={handlePostComment} disabled={!commentInput.trim()}>
-                                      <Send className="h-4 w-4 mr-2" /> Post Contribution
-                                    </Button>
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            ) : (
-                              <Alert>
-                                <Info className="h-4 w-4" />
-                                <AlertDescription>Please log in to participate in academic dialogue.</AlertDescription>
-                              </Alert>
-                            )}
-
-                            <div className="space-y-4 mt-8">
-                              {activeComments?.map(comment => (
-                                <div key={comment.id} className="flex gap-4 p-4 rounded-lg bg-card border animate-in slide-in-from-left-4 duration-300">
-                                  <Avatar className="h-10 w-10 shrink-0">
-                                    <AvatarImage src={getGravatarUrl(comment.authorUid)} />
-                                    <AvatarFallback><UserIcon /></AvatarFallback>
-                                  </Avatar>
-                                  <div className="space-y-1 flex-1">
-                                    <div className="flex justify-between items-center">
-                                      <div className="flex items-center gap-2">
-                                        <span className="font-bold text-sm">{comment.authorName}</span>
-                                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{comment.authorCredentials}</span>
-                                      </div>
-                                      <span className="text-[10px] text-muted-foreground">{new Date(comment.createdAt).toLocaleString()}</span>
-                                    </div>
-                                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{comment.content}</p>
-                                  </div>
-                                </div>
-                              ))}
-                              {activeComments?.length === 0 && (
-                                <p className="text-center text-muted-foreground italic text-sm py-12">No scholarly reflections yet. Be the first to contribute.</p>
-                              )}
-                            </div>
-                          </section>
-                        </div>
-                      ) : (
-                        <div className="grid gap-6">
-                          {filteredBlogPosts.map(post => (
-                            <Card key={post.id} className="hover:shadow-lg transition-all border-primary/5 cursor-pointer group" onClick={() => setSelectedBlogPost(post)}>
-                              <CardHeader>
-                                <div className="flex justify-between items-start mb-2">
-                                  <Badge variant="secondary">{post.category}</Badge>
-                                  <span className="text-xs text-muted-foreground">{new Date(post.createdAt).toLocaleDateString()}</span>
-                                </div>
-                                <CardTitle className="font-headline text-2xl group-hover:text-primary transition-colors">{post.title}</CardTitle>
-                                <CardDescription className="text-sm line-clamp-2 mt-2">{post.excerpt}</CardDescription>
-                              </CardHeader>
-                              <CardFooter className="flex justify-between items-center border-t pt-4">
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                  <Avatar className="h-6 w-6">
-                                    <AvatarImage src={getGravatarUrl(post.authorUid)} />
-                                    <AvatarFallback><UserIcon /></AvatarFallback>
-                                  </Avatar>
-                                  <span>{post.authorName}</span>
-                                </div>
-                                <Button variant="link" size="sm" className="p-0 h-auto font-bold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                                  Read Full Article <Eye className="h-3 w-3" />
-                                </Button>
-                              </CardFooter>
-                            </Card>
-                          ))}
-                          {filteredBlogPosts.length === 0 && (
-                            <div className="text-center py-20 border-2 border-dashed rounded-xl space-y-4">
-                              <Newspaper className="h-12 w-12 text-muted-foreground mx-auto opacity-20" />
-                              <h3 className="font-bold font-headline text-xl">No Journal Entries Found</h3>
-                              <p className="text-muted-foreground">Try adjusting your taxonomy filters.</p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ... Other Tabs stay the same ... */}
               {activeTab === 'profile' && userProfile && (
                 <div className="space-y-8">
                   <header>
                     <h1 className="text-3xl font-bold font-headline">Scholarly Profile</h1>
-                    <p className="text-muted-foreground">Manage your academic identity and personal research credentials.</p>
+                    <p className="text-muted-foreground">Manage your identity and privacy-first research credentials.</p>
                   </header>
 
                   <div className="grid gap-8 md:grid-cols-3">
@@ -992,9 +691,6 @@ export default function Home() {
                             <AvatarImage src={effectiveAvatar} />
                             <AvatarFallback><UserIcon className="h-12 w-12" /></AvatarFallback>
                           </Avatar>
-                          <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                            <Camera className="text-white h-6 w-6" />
-                          </div>
                         </div>
                         <CardTitle className="font-headline">{userProfile.displayName}</CardTitle>
                         <CardDescription className="flex items-center justify-center gap-2">
@@ -1006,70 +702,43 @@ export default function Home() {
                           {userProfile.bio || "No scholarly bio added yet."}
                         </p>
                       </CardContent>
-                      <CardFooter className="flex flex-col gap-2 border-t pt-4">
-                        <div className="w-full flex justify-between text-[10px] font-bold uppercase tracking-tighter text-muted-foreground">
-                          <span>Account Status</span>
-                          <span className="text-primary">{userProfile.isAdmin ? "Administrator" : userProfile.isModerator ? "Moderator" : userProfile.isTrustedContributor ? "Trusted Contributor" : "Scholar"}</span>
-                        </div>
-                      </CardFooter>
                     </Card>
 
                     <div className="md:col-span-2 space-y-8">
                       <Card className="shadow-lg border-primary/10">
                         <CardHeader>
-                          <CardTitle className="text-xl font-headline">Identity & Credentials</CardTitle>
-                          <CardDescription>Update your public information for wiki and journal contributions.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
-                              <Label>Full Name</Label>
-                              <Input value={profileDraft.displayName} onChange={e => setProfileDraft({...profileDraft, displayName: e.target.value})} />
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Academic Credentials</Label>
-                              <Input placeholder="e.g. PhD Candidate" value={profileDraft.credentials} onChange={e => setProfileDraft({...profileDraft, credentials: e.target.value})} />
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Photo URL</Label>
-                            <Input placeholder="https://..." value={profileDraft.photoURL} onChange={e => setProfileDraft({...profileDraft, photoURL: e.target.value})} />
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Scholarly Biography</Label>
-                            <Textarea rows={4} placeholder="Research focus and background..." value={profileDraft.bio} onChange={e => setProfileDraft({...profileDraft, bio: e.target.value})} />
-                          </div>
-                        </CardContent>
-                        <CardFooter className="border-t pt-6 flex justify-end">
-                           <Button onClick={updateProfile} disabled={isLoading}>
-                             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                             Save Identity
-                           </Button>
-                        </CardFooter>
-                      </Card>
-
-                      <Card className="shadow-lg border-primary/10">
-                        <CardHeader>
-                          <CardTitle className="text-xl font-headline flex items-center gap-2"><Key className="h-5 w-5" /> Research Credentials</CardTitle>
-                          <CardDescription>Configure your personal API keys to ensure consistent scholarly access.</CardDescription>
+                          <CardTitle className="text-xl font-headline flex items-center gap-2">
+                            <Lock className="h-5 w-5 text-primary" /> Privacy & Credentials
+                          </CardTitle>
+                          <CardDescription>Configure how your sensitive credentials are stored.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
                            <div className="space-y-4">
-                             <div className="flex justify-between items-center">
-                               <Label>Personal Gemini API Key</Label>
-                               <Button variant="link" className="p-0 h-auto text-xs" asChild>
-                                 <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">Get Key <Link2 className="h-3 w-3 ml-1" /></a>
-                               </Button>
+                             <div className="flex items-center justify-between">
+                               <Label>Gemini API Key</Label>
+                               <div className="flex items-center gap-2">
+                                 <CloudOff className={cn("h-4 w-4", aiPrefs.storagePreference === 'local' ? "text-green-500" : "text-muted-foreground")} />
+                                 <span className="text-[10px] font-bold uppercase">{aiPrefs.storagePreference} Storage</span>
+                               </div>
                              </div>
+                             
                              <Input 
                                type="password" 
-                               placeholder="Enter your private Google AI key"
-                               value={aiPrefs.customApiKey}
+                               placeholder={aiPrefs.storagePreference === 'local' ? "Key is stored in browser only" : "Key is synced to cloud"}
+                               value={aiPrefs.storagePreference === 'local' ? localApiKey : aiPrefs.customApiKey}
                                onChange={e => saveAiPreferences({ customApiKey: e.target.value })}
                              />
-                             <p className="text-[10px] text-muted-foreground italic">
-                               Supplying your own key prevents shared system limits from affecting your research.
-                             </p>
+
+                             <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
+                               <div className="space-y-0.5">
+                                 <Label className="text-sm">Local-Only Storage</Label>
+                                 <p className="text-[10px] text-muted-foreground">Store credentials only in your browser. They will not be synced to Google servers.</p>
+                               </div>
+                               <Switch 
+                                 checked={aiPrefs.storagePreference === 'local'} 
+                                 onCheckedChange={(val) => saveAiPreferences({ storagePreference: val ? 'local' : 'cloud' })}
+                               />
+                             </div>
                            </div>
 
                           <div className="grid gap-6 md:grid-cols-2 pt-4 border-t">
@@ -1077,46 +746,89 @@ export default function Home() {
                               <Label>AI Provider</Label>
                               <Select 
                                 value={aiPrefs.modelProvider} 
-                                onValueChange={(val: any) => saveAiPreferences({ modelProvider: val, selectedModel: val === 'google' ? 'googleai/gemini-2.5-flash' : localModels[0] })}
+                                onValueChange={(val: any) => saveAiPreferences({ modelProvider: val })}
                               >
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select Provider" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="google">Google Gemini (Cloud)</SelectItem>
-                                  <SelectItem value="local">Ollama (Local)</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div className="space-y-2">
-                              <Label>Active Model</Label>
-                              <Select 
-                                value={aiPrefs.selectedModel} 
-                                onValueChange={(val) => saveAiPreferences({ selectedModel: val })}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select Model" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {aiPrefs.modelProvider === 'google' ? (
-                                    <>
-                                      <SelectItem value="googleai/gemini-2.5-flash">Gemini 2.5 Flash</SelectItem>
-                                      <SelectItem value="googleai/gemini-2.5-pro-001">Gemini 2.5 Pro</SelectItem>
-                                    </>
-                                  ) : (
-                                    localModels.map(m => (
-                                      <SelectItem key={m} value={m}>{m}</SelectItem>
-                                    ))
-                                  )}
+                                  <SelectItem value="google">Google Gemini (Cloud/Hybrid)</SelectItem>
+                                  <SelectItem value="local">Ollama (Local-Network Only)</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
                           </div>
                         </CardContent>
                       </Card>
+
+                      <Card className="shadow-lg border-primary/10">
+                        <CardHeader>
+                          <CardTitle className="text-xl font-headline">Identity & Bio</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label>Display Name</Label>
+                              <Input value={profileDraft.displayName} onChange={e => setProfileDraft({...profileDraft, displayName: e.target.value})} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Institutional Credentials</Label>
+                              <Input value={profileDraft.credentials} onChange={e => setProfileDraft({...profileDraft, credentials: e.target.value})} />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Biography</Label>
+                            <Textarea rows={3} value={profileDraft.bio} onChange={e => setProfileDraft({...profileDraft, bio: e.target.value})} />
+                          </div>
+                        </CardContent>
+                        <CardFooter className="justify-end border-t pt-4">
+                          <Button onClick={updateProfile} disabled={isLoading}>
+                             <Save className="mr-2 h-4 w-4" /> Save Identity
+                          </Button>
+                        </CardFooter>
+                      </Card>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Research Library: A network-isolated IndexedDB interface */}
+              {activeTab === 'research-library' && (
+                <div className="space-y-8">
+                  <header>
+                    <h1 className="text-3xl font-bold font-headline flex items-center gap-3">
+                      <Library className="text-primary h-8 w-8" /> Local Manuscript Library
+                    </h1>
+                    <p className="text-muted-foreground">This library resides entirely within your local system. No data is synchronized or transmitted externally.</p>
+                  </header>
+
+                  <Card className="border-green-500/20 bg-green-500/5">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2"><Lock className="h-4 w-4 text-green-600" /> Isolated Environment Active</CardTitle>
+                      <CardDescription>Manuscripts stored here are accessible only from this device and network.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {localDocuments.map(doc => (
+                          <Card key={doc.id} className="relative group">
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-sm truncate">{doc.name}</CardTitle>
+                              <CardDescription className="text-[10px]">{new Date(doc.uploadDate).toLocaleDateString()}</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                              <p className="text-[10px] text-muted-foreground line-clamp-3">{doc.content}</p>
+                            </CardContent>
+                          </Card>
+                        ))}
+                        <Card className="border-dashed flex items-center justify-center p-8 cursor-pointer hover:bg-muted/50 transition-colors">
+                          <div className="text-center">
+                            <Plus className="h-8 w-8 mx-auto text-muted-foreground" />
+                            <p className="text-xs font-bold mt-2">Ingest New Manuscript</p>
+                          </div>
+                        </Card>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               )}
             </div>

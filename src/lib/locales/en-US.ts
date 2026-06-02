@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview English (US) localization strings.
  */
@@ -90,6 +89,12 @@ export const enUS = {
         desc: "Anonymously tracks interactions with scholarly resource sponsors to support the platform."
       }
     }
+  },
+  privacy: {
+    local_only: "Local-Only Storage",
+    local_desc: "Your credentials will be stored only in your browser's local storage and will never be uploaded to Google servers or any external network.",
+    cloud_sync: "Cloud Synchronization",
+    cloud_desc: "Sync your preferences across devices via your authenticated scholarly account."
   },
   common: {
     search_placeholder: "Lexicon (G3056) or AI query...",
