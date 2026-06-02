@@ -8,7 +8,7 @@
 
 /**
  * @fileOverview Primary Research Dashboard Orchestrator.
- * Updated with Advanced RAG chunking logic for local documents.
+ * Updated with Advanced RAG chunking logic and mid-session AI model switching.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -187,6 +187,13 @@ export default function Home() {
 
   useEffect(() => {
     if (userProfile) {
+      const prefs = userProfile.preferences || {};
+      setAiPrefs(prev => ({
+        ...prev,
+        ...prefs,
+        modelProvider: prefs.modelProvider || 'google',
+        selectedModel: prefs.selectedModel || 'googleai/gemini-2.5-flash'
+      }));
       setProfileDraft({
         displayName: userProfile.displayName || '',
         credentials: userProfile.credentials || '',
@@ -324,7 +331,7 @@ export default function Home() {
 
   const renderModularContent = () => {
     switch (activeTab) {
-      case 'dashboard': return <DashboardView t={t} effectiveApiKey={effectiveApiKey} isLocalMode={isLocalMode} aiPrefs={aiPrefs} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} />;
+      case 'dashboard': return <DashboardView t={t} effectiveApiKey={effectiveApiKey} isLocalMode={isLocalMode} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} />;
       case 'chat': return <ChatView chatMode={chatMode} setChatMode={setChatMode} userProfile={userProfile} userInstitutionName={userInstitutionName} messages={messages} user={user} newMessage={newMessage} setNewMessage={setNewMessage} chatAgreed={chatAgreed} setChatAgreed={setChatAgreed} handleSendMessage={handleSendMessage} chatEndRef={chatEndRef} />;
       case 'library': return <LibraryView documents={localDocuments} onRefresh={refreshLocalDocs} isLoading={isLoading} />;
       case 'synthesis': return <SynthesisView synthesisText={synthesisText} setSynthesisText={setSynthesisText} handleSynthesisAction={async (a) => {
@@ -347,7 +354,7 @@ export default function Home() {
       }} />;
       case 'boilerplate': return <BoilerplateView isLoading={isLoading} result={boilerplateResult} onSearch={(term) => handleSearch(term, 'boilerplate')} />;
       case 'profile': return userProfile ? <ProfileView userProfile={userProfile} effectiveAvatar={effectiveAvatar} userInstitutionName={userInstitutionName} profileDraft={profileDraft} setProfileDraft={setProfileDraft} institutions={institutions} updateProfile={updateProfile} isLoading={isLoading} aiPrefs={aiPrefs} saveAiPreferences={saveAiPreferences} systemConfig={systemConfig} historyItems={historyItems} handleSearch={handleSearch} /> : null;
-      default: return <DashboardView t={t} effectiveApiKey={effectiveApiKey} isLocalMode={isLocalMode} aiPrefs={aiPrefs} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} />;
+      default: return <DashboardView t={t} effectiveApiKey={effectiveApiKey} isLocalMode={isLocalMode} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} />;
     }
   };
 

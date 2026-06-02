@@ -1,11 +1,12 @@
 'use client';
 
 import React, { memo } from 'react';
-import { Sparkles, GraduationCap, Clock, ArrowRight, History, FileSearch2, Feather, MessageSquare, Puzzle, Loader2 } from 'lucide-react';
+import { Sparkles, GraduationCap, Clock, ArrowRight, History, FileSearch2, Feather, MessageSquare, Puzzle, Loader2, Cpu, Globe, Server } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { QuickToolCard } from './quick-tool-card';
 import { ViewMode } from '@/types/scholarly';
@@ -15,6 +16,8 @@ interface DashboardViewProps {
   effectiveApiKey: string | undefined;
   isLocalMode: boolean;
   aiPrefs: any;
+  setAiPrefs: (prefs: any) => void;
+  systemConfig: any;
   assistantTerm: string;
   setAssistantTerm: (term: string) => void;
   handleSearch: (term: string, type: ViewMode) => void;
@@ -29,6 +32,8 @@ export const DashboardView = memo(({
   effectiveApiKey, 
   isLocalMode, 
   aiPrefs, 
+  setAiPrefs,
+  systemConfig,
   assistantTerm, 
   setAssistantTerm, 
   handleSearch, 
@@ -46,6 +51,15 @@ export const DashboardView = memo(({
     let res = t;
     for (const p of parts) res = res?.[p];
     return res || key;
+  };
+
+  const handleProviderChange = (val: 'google' | 'local') => {
+    const defaultModel = val === 'google' ? 'googleai/gemini-2.5-flash' : (systemConfig?.localModelList?.[0] || 'llama3');
+    setAiPrefs({ ...aiPrefs, modelProvider: val, selectedModel: defaultModel });
+  };
+
+  const handleModelChange = (val: string) => {
+    setAiPrefs({ ...aiPrefs, selectedModel: val });
   };
 
   return (
@@ -68,16 +82,59 @@ export const DashboardView = memo(({
             <Sparkles className="h-24 w-24 text-primary" />
           </div>
           <CardHeader>
-            <CardTitle className="font-headline flex items-center gap-2 text-2xl">
-              <Sparkles className={cn("h-6 w-6", effectiveApiKey || isLocalMode ? "text-primary" : "text-muted-foreground")} /> 
-              {isLocalMode ? `Local AI Engine (${aiPrefs.selectedModel})` : "Global AI Engine (Gemini)"}
-            </CardTitle>
-            <CardDescription>Synthesize deep theological insights from your digital library.</CardDescription>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <CardTitle className="font-headline flex items-center gap-2 text-2xl">
+                  <Sparkles className={cn("h-6 w-6", effectiveApiKey || isLocalMode ? "text-primary" : "text-muted-foreground")} /> 
+                  Research Engine
+                </CardTitle>
+                <CardDescription>Synthesize deep theological insights from your digital library.</CardDescription>
+              </div>
+              
+              <div className="flex items-center gap-2 bg-muted/50 p-1.5 rounded-lg border">
+                <Select value={aiPrefs.modelProvider} onValueChange={handleProviderChange}>
+                  <SelectTrigger className="h-8 w-[110px] text-[10px] uppercase font-bold tracking-widest border-none bg-transparent shadow-none focus:ring-0">
+                    <div className="flex items-center gap-1.5">
+                      {isLocalMode ? <Server className="h-3 w-3" /> : <Globe className="h-3 w-3" />}
+                      <SelectValue placeholder="Provider" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="google" className="text-[10px] font-bold">GOOGLE AI</SelectItem>
+                    <SelectItem value="local" className="text-[10px] font-bold">LOCAL OLLAMA</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <div className="h-4 w-px bg-border mx-1" />
+
+                <Select value={aiPrefs.selectedModel} onValueChange={handleModelChange}>
+                  <SelectTrigger className="h-8 w-[140px] text-[10px] font-mono border-none bg-transparent shadow-none focus:ring-0">
+                    <SelectValue placeholder="Model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {aiPrefs.modelProvider === 'google' ? (
+                      <>
+                        <SelectItem value="googleai/gemini-2.5-flash" className="text-[10px]">gemini-2.5-flash</SelectItem>
+                        <SelectItem value="googleai/gemini-2.5-pro" className="text-[10px]">gemini-2.5-pro</SelectItem>
+                        <SelectItem value="googleai/gemini-1.5-flash" className="text-[10px]">gemini-1.5-flash</SelectItem>
+                      </>
+                    ) : (
+                      <>
+                        {systemConfig?.localModelList?.map((m: string) => (
+                          <SelectItem key={m} value={m} className="text-[10px]">{m}</SelectItem>
+                        ))}
+                        {!systemConfig?.localModelList?.length && <SelectItem value="llama3" className="text-[10px]">llama3</SelectItem>}
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="relative">
               <Input 
-                placeholder={effectiveApiKey || isLocalMode ? "e.g. Analyze eschatological fragments in Hebrews..." : "AI Engine Configuration Needed"} 
+                placeholder={effectiveApiKey || isLocalMode ? `Analyze with ${aiPrefs.selectedModel.split('/').pop()}...` : "AI Engine Configuration Needed"} 
                 className="h-14 pl-4 pr-16 text-lg rounded-xl shadow-inner border-primary/20 focus:ring-primary/30"
                 value={assistantTerm} 
                 onChange={e => setAssistantTerm(e.target.value)} 
@@ -144,3 +201,4 @@ export const DashboardView = memo(({
     </div>
   );
 });
+
