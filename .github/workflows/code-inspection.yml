@@ -1,0 +1,38 @@
+name: Code Inspection for Modified Files
+
+on:
+  pull_request:
+    branches: [ main, master ] # Adjust to your target branches
+
+jobs:
+  inspect:
+    name: inspect
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out the repository. Fetch depth 0 is required to get history for diffs.
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Step 2: Extract the list of modified/changed files
+      - name: Get Changed Files
+        id: changed-files
+        uses: tj-actions/changed-files@v45 # Use the latest stable version
+        with:
+          # Filter files by extensions if needed (e.g., only inspect JavaScript/Python files)
+          files: |
+            **/*.js
+            **/*.py
+
+      # Step 3: Run your inspection tool ONLY if relevant files changed
+      - name: Run Inspections
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          echo "Inspecting the following modified files:"
+          echo "${{ steps.changed-files.outputs.all_changed_files }}"
+          
+          # Replace the line below with your actual linter/inspection command.
+          # Example for ESlint: npx eslint ${{ steps.changed-files.outputs.all_changed_files }}
+          # Example for Flake8: flake8 ${{ steps.changed-files.outputs.all_changed_files }}
