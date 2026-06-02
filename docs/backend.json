@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserStudyProfile": {
@@ -29,6 +30,11 @@
         "isAdmin": { "type": "boolean", "description": "System administration privilege. Can only be granted by another admin." },
         "isModerator": { "type": "boolean", "description": "Moderator privilege for peer review." },
         "isTrustedContributor": { "type": "boolean", "description": "Privilege to bypass peer review for posts." },
+        "licensedVersions": { 
+          "type": "array", 
+          "items": { "type": "string" },
+          "description": "List of modern Bible versions unlocked via license or institutional SSO."
+        },
         "preferences": {
           "type": "object",
           "properties": {

@@ -1,3 +1,4 @@
+
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
@@ -9,8 +10,8 @@
  */
 
 /**
- * @fileOverview Client library for interacting with the bible.helloao.org (Free Use Bible API).
- * Enhanced with recursive verse extraction and reference detection.
+ * @fileOverview Client library for interacting with Bible versions.
+ * Supports public domain and licensed modern translations.
  */
 
 export interface BibleVersion {
@@ -18,6 +19,7 @@ export interface BibleVersion {
   name: string;
   language: string;
   abbreviation: string;
+  isProtected?: boolean; // Requires licensing hub verification
 }
 
 export interface BibleChapter {
@@ -46,20 +48,31 @@ const BOOK_CODES: Record<string, string> = {
   "Revelation": "REV"
 };
 
+/**
+ * Modern protected versions requiring licensing.
+ */
+const PROTECTED_VERSIONS: BibleVersion[] = [
+  { id: 'niv', name: 'New International Version', language: 'English', abbreviation: 'NIV', isProtected: true },
+  { id: 'esv', name: 'English Standard Version', language: 'English', abbreviation: 'ESV', isProtected: true },
+  { id: 'nasb', name: 'New American Standard Bible', language: 'English', abbreviation: 'NASB', isProtected: true },
+  { id: 'nlt', name: 'New Living Translation', language: 'English', abbreviation: 'NLT', isProtected: true }
+];
+
 export async function getVersions(): Promise<BibleVersion[]> {
   try {
     const res = await fetch('https://bible.helloao.org/api/available_versions.json');
-    if (!res.ok) return [];
+    if (!res.ok) return PROTECTED_VERSIONS;
     const data = await res.json();
-    return data.map((v: any) => ({
+    const publicVersions = data.map((v: any) => ({
       id: v.id,
       name: v.name,
       language: v.language,
-      abbreviation: v.id.toUpperCase()
+      abbreviation: v.id.toUpperCase(),
+      isProtected: false
     }));
+    return [...publicVersions, ...PROTECTED_VERSIONS];
   } catch (e) {
-    console.error("Failed to fetch Bible versions", e);
-    return [];
+    return PROTECTED_VERSIONS;
   }
 }
 
@@ -81,14 +94,21 @@ export function parseReference(reference: string) {
 }
 
 export async function getChapterContent(version: string, bookName: string, chapter: number): Promise<BibleChapter | null> {
+  const v = version.toLowerCase();
+  const isProtected = PROTECTED_VERSIONS.some(pv => pv.id === v);
+  
+  if (isProtected) {
+    // In a real app, this would hit a secure endpoint requiring a license token
+    return null; 
+  }
+
   const bookCode = BOOK_CODES[bookName] || bookName.toUpperCase().substring(0, 3);
   try {
-    const url = `https://bible.helloao.org/api/${version}/${bookCode}/${chapter}.json`;
+    const url = `https://bible.helloao.org/api/${v}/${bookCode}/${chapter}.json`;
     const res = await fetch(url);
     if (!res.ok) return null;
     return await res.json();
   } catch (e) {
-    console.error(`Failed to fetch ${bookName} ${chapter}`, e);
     return null;
   }
 }

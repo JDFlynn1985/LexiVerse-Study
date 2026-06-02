@@ -11,6 +11,7 @@ export const enUS = {
     study_assistant: "AI Study Assistant",
     verse_explorer: "Verse Explorer",
     translation_compare: "Translation Compare",
+    licensing_hub: "Licensing Hub",
     library: "Library & Research",
     lexicon: "Lexicon",
     dictionaries: "Dictionaries",

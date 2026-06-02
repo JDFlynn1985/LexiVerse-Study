@@ -1,3 +1,4 @@
+
 /**
  * LexiVerse Explorer
  * Copyright (c) 2024. Licensed under CC BY-NC-SA 4.0.
@@ -28,12 +29,13 @@ import {
   Globe,
   UserCheck,
   Archive,
-  ListFilter
+  ListFilter,
+  ShieldCheck
 } from 'lucide-react';
 import { ViewMode } from '@/types/scholarly';
 
 export interface ModuleDefinition {
-  id: ViewMode | 'synoptic' | 'citation-scanner';
+  id: ViewMode | 'synoptic' | 'citation-scanner' | 'licensing-hub';
   labelKey: string; 
   icon: any;
   group: 'general' | 'ai_hub' | 'governance' | 'profile';
@@ -54,6 +56,7 @@ export const DEFAULT_MODULES: ModuleDefinition[] = [
   { id: 'synoptic', labelKey: 'nav.synoptic', icon: Layers, group: 'ai_hub' },
   { id: 'citation-scanner', labelKey: 'nav.citation_scanner', icon: ListFilter, group: 'ai_hub' },
   { id: 'translation-compare', labelKey: 'nav.translation_compare', icon: ArrowLeftRight, group: 'ai_hub' },
+  { id: 'licensing-hub', labelKey: 'nav.licensing_hub', icon: ShieldCheck, group: 'ai_hub' },
   { id: 'geography', labelKey: 'nav.geography', icon: Globe, group: 'ai_hub' },
   { id: 'theology', labelKey: 'nav.theology_map', icon: History, group: 'ai_hub' },
   { id: 'manuscripts', labelKey: 'nav.manuscript_hub', icon: FileSearch, group: 'ai_hub', path: '/manuscripts' },

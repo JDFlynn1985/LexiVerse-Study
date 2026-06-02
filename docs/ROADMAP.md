@@ -1,3 +1,4 @@
+
 # LexiVerse Explorer: Technical Roadmap
 
 ## ✅ Completed (Production Foundation)
@@ -10,11 +11,12 @@
 - [x] **Research Archive Hub**: Firestore-backed session recovery and management portal.
 - [x] **Governance Audit Dashboard**: Live institutional research trends and stability monitoring.
 - [x] **BibTeX / Zotero Export**: Pro-grade citation manager integration for synthesized results.
+- [x] **Bible Version Licensing Hub**: Simulated OAuth and Access Key flow for copyrighted modern translations (NIV, ESV, etc.).
 
 ## 📚 Data Integration (High Priority - Missing)
-- [ ] **Structured Lexicon Fetching**: Transition from AI-simulated Strong's data to a direct API connector (e.g., STEPBible) to ensure 100% linguistic accuracy.
-- [ ] **Commentary Aggregator**: Implement a verified commentary database (e.g., JFB) to replace LLM-generated summaries with primary scholarly works.
-- [ ] **Bible Version Licensing**: Add an authentication flow for licensed modern translations (NIV, ESV, NASB) beyond public domain versions.
+- [ ] **Structured Lexicon Fetching**: Transition from AI-simulated Strong's data to a direct API connector (e.g. STEPBible) to ensure 100% linguistic accuracy.
+- [ ] **Commentary Aggregator**: Implement a verified commentary database (e.g. JFB) to replace LLM-generated summaries with primary scholarly works.
+- [ ] **Bible Version Production Access**: Finalize real-world API handshakes for licensed modern translations beyond simulation.
 
 ## 📄 Document Management (Advanced RAG)
 - [ ] **Firestore Vector Search**: Migrate from browser-side keyword ranking to server-side vector embeddings for semantic precision.
@@ -23,8 +25,8 @@
 
 ## 🧪 Advanced Infrastructure
 - [ ] **Ollama Progress Streaming**: Implement WebSockets for real-time pull progress of local models to prevent UI timeouts.
-- [ ] **Institutional SSO**: SAML/OIDC integration for seminary-wide single sign-on, moving beyond personal Google account restrictions.
+- [ ] **Institutional SSO**: SAML integration for seminary-wide single sign-on, moving beyond personal Google account restrictions.
 - [ ] **Offline PWA Sync**: Service worker optimization for weak network environments, allowing local exegesis to buffer and sync.
 
 ---
-*Last Audit: February 2024. This roadmap defines the path forward for the 7 primary underdeveloped features.*
+*Last Audit: February 2024. This roadmap defines the path forward for the 6 primary underdeveloped features.*

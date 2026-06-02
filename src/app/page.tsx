@@ -1,3 +1,4 @@
+
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
@@ -83,6 +84,7 @@ import { GeographyView } from '@/components/views/geography-view';
 import { ArchiveView } from '@/components/views/archive-view';
 import { CitationScannerView } from '@/components/views/citation-scanner-view';
 import { SynopticView } from '@/components/views/synoptic-view';
+import { LicensingHubView } from '@/components/views/licensing-hub-view';
 
 // AI & API Imports
 import { defineAndAnalyzeTerm } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
@@ -217,6 +219,7 @@ export default function Home() {
       case 'geography': return <GeographyView isLoading={isLoading} result={geographyResult} onSearch={(term) => handleSearch(term, 'geography')} />;
       case 'archaeology': return <ArchaeologyView isLoading={isLoading} result={archaeologyResult} onSearch={(term) => handleSearch(term, 'archaeology')} />;
       case 'timeline': return <TimelineView isLoading={isLoading} result={timelineResult} onSearch={(term) => handleSearch(term, 'timeline')} />;
+      case 'licensing-hub': return <LicensingHubView />;
       default: return <DashboardView t={t} effectiveApiKey={undefined} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={DEFAULT_MODULES} momentumData={momentumData} />;
     }
   };
