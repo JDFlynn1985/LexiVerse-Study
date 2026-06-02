@@ -5,7 +5,9 @@ LexiVerse Explorer is built on the principle of **Scholarly Autonomy**. We belie
 ## 🛡️ Privacy by Design
 
 ### 1. Age Restriction (Clause 1.1)
-LexiVerse Explorer enforces a strict **15+ age requirement** for all users. During registration, we collect your date of birth to verify compliance with this clause. Accounts belonging to users under 15 will be terminated to ensure a mature research environment and compliance with data safety regulations.
+LexiVerse Explorer enforces a strict **15+ age requirement** for all users. In accordance with international data protection standards and our commitment to a professional research environment, access to scholarly resources and profile creation is restricted to individuals 15 years of age or older.
+
+**Verification Policy**: During registration, we collect and store your date of birth solely to verify compliance with this clause. Accounts created with birth dates indicating the user is under 15 will be blocked or terminated upon discovery to safeguard minors and maintain the integrity of the scholarly community.
 
 ### 2. Local-First Research (RAG Isolation)
 The most sensitive data a researcher handles—unpublished papers, draft manuscripts, and institutional PDFs—is stored using **IndexedDB** in the user's browser.
@@ -24,12 +26,12 @@ We follow the principle of data minimization:
 ### 5. Compliance (GDPR & CCPA)
 LexiVerse Explorer fully respects international privacy regulations:
 - **Right to Access**: Researchers can view their entire study history and profile data in the Profile Settings.
-- **Right to Erasure**: Users can trigger a "Permanent Takedown" of their account. This deletes all Firestore records and removes their name from the Wiki (attributing the content to "Anonymous Scholar" to maintain community knowledge).
+- **Right to Erasure**: Users can trigger a "Permanent Takedown" of their account. This deletes all Firestore records and removes their name from the Wiki.
 - **Consent Control**: Researchers can adjust their functional and marketing cookie preferences at any time via the built-in **Cookie Consent** manager.
 
 ## 🔌 Third-Party Integrations
 - **AI Engines**: Research queries are processed via Google Gemini, OpenAI, or Anthropic depending on your choice.
 - **API Keys**: User-provided keys are stored in an encrypted format within your private Firestore profile.
-- **Ollama**: For maximum privacy, researchers can toggle to **Local Network Mode**, routing all AI inference to a server within their own intranet (e.g., Llama 3).
+- **Ollama**: For maximum privacy, researchers can toggle to **Local Network Mode**, routing all AI inference to a server within their own intranet.
 
 For privacy inquiries, please contact Joshua Flynn at [joshuaflynn040@gmail.com](mailto:joshuaflynn040@gmail.com).

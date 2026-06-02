@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { ArrowLeft, ShieldCheck, Megaphone, Database, Lock, EyeOff, Info, Scale } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, Megaphone, Database, Lock, EyeOff, Info, Scale, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { trackAdClick } from '@/components/analytics';
 
@@ -40,12 +40,15 @@ export default function PrivacyPolicy() {
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
             <p>
-              In accordance with international data safety standards (including GDPR and COPPA) and our commitment to a professional research environment, LexiVerse Explorer enforces a strict <strong>15+ age requirement</strong>.
+              In accordance with international data safety standards and our commitment to a professional research environment, LexiVerse Explorer enforces a strict <strong>15+ age requirement</strong>.
             </p>
             <div className="p-4 bg-primary/5 rounded-lg border border-primary/10">
-              <p className="text-sm font-bold text-primary mb-1">Clause 1.1 Verification</p>
-              <p className="text-xs text-muted-foreground italic">
-                We collect and store your date of birth during registration solely for the purpose of age verification. Accounts created with birth dates indicating the user is under 15 will be blocked from creation or terminated upon discovery to safeguard minors and preserve the scholarly nature of the platform.
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="h-4 w-4 text-primary" />
+                <p className="text-sm font-bold text-primary">Clause 1.1: Verification Requirement</p>
+              </div>
+              <p className="text-xs text-muted-foreground italic leading-relaxed">
+                We collect and store your date of birth during registration solely for the purpose of age verification. Access to scholarly resources and profile creation is strictly prohibited for individuals under this age. Accounts created with birth dates indicating the user is under 15 will be blocked from creation or terminated upon discovery to safeguard minors and preserve the scholarly nature of the platform.
               </p>
             </div>
           </CardContent>
