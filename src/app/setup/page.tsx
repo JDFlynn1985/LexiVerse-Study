@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -82,12 +83,15 @@ export default function SetupWizard() {
         const iconName = mod.id === 'dashboard' ? 'layout-dashboard' : 
                          mod.id === 'chat' ? 'message-square' :
                          mod.id === 'wiki' ? 'graduation-cap' :
+                         mod.id === 'wiki-moderation' ? 'shield-check' :
                          mod.id === 'ai-assistant' ? 'sparkles' :
                          mod.id === 'theology' ? 'history' :
                          mod.id === 'manuscripts' ? 'file-search' :
                          mod.id === 'lexicon' ? 'book-open' :
                          mod.id === 'synthesis' ? 'feather' :
                          mod.id === 'verse-explorer' ? 'quill' :
+                         mod.id === 'geography' ? 'globe' :
+                         mod.id === 'timeline' ? 'history' :
                          mod.id === 'profile' ? 'key' :
                          mod.labelKey === 'nav.audit' ? 'activity' : 'globe';
 

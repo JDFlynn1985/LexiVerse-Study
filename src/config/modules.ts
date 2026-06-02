@@ -1,3 +1,4 @@
+
 /**
  * LexiVerse Explorer
  * Copyright (c) 2024. Licensed under CC BY-NC-SA 4.0.
@@ -23,7 +24,9 @@ import {
   Library,
   ArrowLeftRight,
   Clock,
-  Quill
+  Quill,
+  Globe,
+  UserCheck
 } from 'lucide-react';
 import { ViewMode } from '@/types/scholarly';
 
@@ -57,6 +60,7 @@ export const DEFAULT_MODULES: ModuleDefinition[] = [
   { id: 'ai-assistant', labelKey: 'nav.study_assistant', icon: Sparkles, group: 'ai_hub' },
   { id: 'verse-explorer', labelKey: 'nav.verse_explorer', icon: Quill, group: 'ai_hub' },
   { id: 'translation-compare', labelKey: 'nav.translation_compare', icon: ArrowLeftRight, group: 'ai_hub' },
+  { id: 'geography', labelKey: 'nav.geography', icon: Globe, group: 'ai_hub' },
   { id: 'theology', labelKey: 'nav.theology_map', icon: History, group: 'ai_hub' },
   { id: 'manuscripts', labelKey: 'nav.manuscript_hub', icon: FileSearch2, group: 'ai_hub', path: '/manuscripts' },
   { id: 'timeline', labelKey: 'nav.timeline', icon: Clock, group: 'ai_hub' },
@@ -70,6 +74,7 @@ export const DEFAULT_MODULES: ModuleDefinition[] = [
  */
 export const GOVERNANCE_MODULES: ModuleDefinition[] = [
   { id: 'profile', labelKey: 'nav.api_portal', icon: Key, group: 'governance', path: '/api-keys' },
+  { id: 'wiki-moderation', labelKey: 'nav.wiki_moderation', icon: UserCheck, group: 'governance', adminOnly: true, path: '/admin/wiki' },
   { id: 'dashboard', labelKey: 'nav.admin_api', icon: Key, group: 'governance', adminOnly: true, path: '/admin/api' },
   { id: 'dashboard', labelKey: 'nav.institutions', icon: School, group: 'governance', adminOnly: true, path: '/admin/institutions' },
   { id: 'dashboard', labelKey: 'nav.audit', icon: Activity, group: 'governance', adminOnly: true, path: '/admin/audit' },

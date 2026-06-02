@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview English (US) localization strings for LexiVerse Explorer.
  */
@@ -15,6 +16,7 @@ export const enUS = {
     dictionaries: "Dictionaries",
     commentaries: "Commentaries",
     wiki: "Scholarly Wiki",
+    wiki_moderation: "Wiki Peer-Review",
     synthesis: "Writing Hub",
     theology_map: "Theology Map",
     manuscript_hub: "Manuscript Analysis",
@@ -27,6 +29,7 @@ export const enUS = {
     logout: "Logout",
     login_google: "Link Google",
     archaeology: "Archaeology Hub",
+    geography: "Geography Hub",
     api_portal: "API Access",
     admin_api: "Provision Keys",
     institutions: "Institutions",
@@ -63,6 +66,20 @@ export const enUS = {
       findings: "Significant Discoveries",
       nuance: "Linguistic & Cultural Context",
       sources: "Cataloged References"
+    }
+  },
+  geography: {
+    title: "Geography Hub",
+    description: "Analyze the biblical landscape and the spatial narrative of scripture.",
+    placeholder: "Enter a location or region (e.g. Galilee, Path of the Exodus)...",
+    action: "Analyze Spatial Context",
+    empty_state: "Explore the Landscape",
+    empty_sub: "\"Every step of the narrative is grounded in the earth.\"",
+    sections: {
+      summary: "Geographical Overview",
+      sites: "Notable Sites & Coordinates",
+      nuance: "Topographical Significance",
+      sources: "Cartographic References"
     }
   },
   timeline: {

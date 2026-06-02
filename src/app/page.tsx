@@ -1,3 +1,4 @@
+
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
@@ -8,7 +9,6 @@
 
 /**
  * @fileOverview Primary Research Dashboard Orchestrator.
- * Enhanced with Research Persistence, Universal Export Hub, and Verse Explorer.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -77,6 +77,7 @@ import { ArchaeologyView } from '@/components/views/archaeology-view';
 import { TimelineView } from '@/components/views/timeline-view';
 import { TranslationCompareView } from '@/components/views/translation-compare-view';
 import { VerseExplorerView } from '@/components/views/verse-explorer-view';
+import { GeographyView } from '@/components/views/geography-view';
 
 // AI & API Imports
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
@@ -89,6 +90,7 @@ import { analyzeTheologicalConcept, type TheologicalConceptOutput } from '@/ai/f
 import { runArchaeologyAnalysis, type ArchaeologyOutput } from '@/ai/flows/archaeology-site-flow';
 import { generateHistoricalTimeline, type HistoricalTimelineOutput } from '@/ai/flows/historical-timeline-flow';
 import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/compare-translations-ai';
+import { runGeographyAnalysis, type GeographyOutput } from '@/ai/flows/geography-flow';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 import { getAllLocalDocuments, saveLocalDocument, type IDBDocument } from '@/lib/idb';
 import { chunkText, selectRelevantChunks } from '@/lib/rag-engine';
@@ -141,6 +143,7 @@ export default function Home() {
   const [lexiconResult, setLexiconResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
   const [assistantResult, setAssistantResult] = useState<AiStudyAssistantOutput | null>(null);
   const [archaeologyResult, setArchaeologyResult] = useState<ArchaeologyOutput | null>(null);
+  const [geographyResult, setGeographyResult] = useState<GeographyOutput | null>(null);
   const [timelineResult, setTimelineResult] = useState<HistoricalTimelineOutput | null>(null);
   const [translationResult, setTranslationResult] = useState<CompareTranslationsOutput | null>(null);
   const [profileDraft, setProfileDraft] = useState({ displayName: '', credentials: '', designation: '', degreeSubject: '', academicLevel: '', institutionId: '', bio: '', photoURL: '' });
@@ -285,6 +288,7 @@ export default function Home() {
       }
       else if (type === 'theology') setTheologyResult(await analyzeTheologicalConcept({ concept: term }));
       else if (type === 'archaeology') setArchaeologyResult(await runArchaeologyAnalysis({ query: term }));
+      else if (type === 'geography') setGeographyResult(await runGeographyAnalysis({ query: term }));
       else if (type === 'timeline') setTimelineResult(await generateHistoricalTimeline({ topic: term }));
       
       if (type !== 'chat') {
@@ -447,6 +451,7 @@ export default function Home() {
         catch (e: any) { toast({ variant: 'destructive', title: "Comparison Error" }); }
         finally { setIsLoading(false); }
       }} />;
+      case 'geography': return <GeographyView isLoading={isLoading} result={geographyResult} onSearch={(term) => handleSearch(term, 'geography')} />;
       case 'archaeology': return <ArchaeologyView isLoading={isLoading} result={archaeologyResult} onSearch={(term) => handleSearch(term, 'archaeology')} />;
       case 'timeline': return <TimelineView isLoading={isLoading} result={timelineResult} onSearch={(term) => handleSearch(term, 'timeline')} />;
       case 'profile': return userProfile ? <ProfileView userProfile={userProfile} effectiveAvatar={effectiveAvatar} userInstitutionName={userInstitutionName} profileDraft={profileDraft} setProfileDraft={setProfileDraft} institutions={institutions} updateProfile={updateProfile} isLoading={isLoading} aiPrefs={aiPrefs} saveAiPreferences={saveAiPreferences} systemConfig={systemConfig} historyItems={historyItems} handleSearch={handleSearch} /> : null;

@@ -18,7 +18,9 @@ export type ViewMode =
   | 'library'
   | 'translation-compare'
   | 'archaeology'
-  | 'timeline';
+  | 'timeline'
+  | 'geography'
+  | 'wiki-moderation';
 
 export interface UserProfile {
   uid: string;
