@@ -3,7 +3,7 @@
 /**
  * @fileOverview Dedicated Signup Portal for LexiVerse Explorer.
  * Supports Email/Password registration and Social Providers.
- * Enhanced with dual-layer (client/server) password validation.
+ * Enhanced with dual-layer (client/server) validation and age restriction (15+).
  */
 
 import { useState, useEffect } from 'react';
@@ -54,6 +54,7 @@ export default function SignupPage() {
   const performClientValidation = (pass: string, name: string, emailAddr: string, bday: string) => {
     const normalizedPass = pass.toLowerCase();
     
+    // 1. Identity Check
     const nameParts = name.toLowerCase().split(/\s+/).filter(p => p.length > 2);
     for (const part of nameParts) {
       if (normalizedPass.includes(part)) {
@@ -66,11 +67,27 @@ export default function SignupPage() {
       return "Password cannot contain your email username.";
     }
 
+    // 2. Age Check (15+)
+    if (!bday) return "Date of birth is required.";
+    const birthDate = new Date(bday);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+
+    if (age < 15) {
+      return "You must be at least 15 years old to register as a scholar.";
+    }
+
+    // 3. Date Components in Password
     if (bday) {
       const [year] = bday.split('-');
       if (normalizedPass.includes(year)) return "Password cannot contain your birth year.";
     }
 
+    // 4. Basic Length
     if (pass.length < 8) return "Password must be at least 8 characters long.";
 
     return null;
@@ -105,7 +122,7 @@ export default function SignupPage() {
     // 1. Fast Client-side Check
     const clientError = performClientValidation(password, displayName, email, birthday);
     if (clientError) {
-      toast({ variant: "destructive", title: "Insecure Password", description: clientError });
+      toast({ variant: "destructive", title: "Validation Error", description: clientError });
       return;
     }
 
@@ -117,7 +134,7 @@ export default function SignupPage() {
         toast({ 
           variant: "destructive", 
           title: "Policy Violation", 
-          description: serverValidation.error || "Password does not meet scholarly security standards." 
+          description: serverValidation.error || "Signup does not meet scholarly security standards." 
         });
         setIsAuthLoading(false);
         return;
@@ -194,7 +211,7 @@ export default function SignupPage() {
                     required 
                   />
                 </div>
-                <p className="text-[10px] text-muted-foreground italic px-1">Used for authoritative security validation.</p>
+                <p className="text-[10px] text-muted-foreground italic px-1">Registrants must be at least 15 years old.</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
@@ -268,7 +285,7 @@ export default function SignupPage() {
           </CardContent>
           <CardFooter className="bg-muted/30 border-t p-6 flex flex-col gap-4">
             <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
-              By joining, you agree to the dual-layer security verification policy.
+              By joining, you agree to the dual-layer security verification and minimum age policy.
             </p>
             <div className="flex justify-between w-full text-xs font-bold text-primary pt-2">
                <Link href="/login" className="hover:underline">Already a member?</Link>

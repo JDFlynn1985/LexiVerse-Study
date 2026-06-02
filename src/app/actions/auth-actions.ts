@@ -8,7 +8,7 @@
 import { sanitizeHtml } from '@/lib/sanitization';
 
 /**
- * Validates a proposed password against identity components on the server.
+ * Validates a proposed password and scholar metadata on the server.
  * This provides the authoritative security check before account creation.
  */
 export async function validateScholarPassword(password: string, name: string, email: string, birthday: string) {
@@ -36,19 +36,39 @@ export async function validateScholarPassword(password: string, name: string, em
     return { valid: false, error: "Password cannot contain your full email address." };
   }
 
-  // 3. Birthday component check
-  if (birthday) {
-    const [year, month, day] = birthday.split('-');
-    if (normalizedPass.includes(year)) {
-      return { valid: false, error: "Password cannot contain your birth year." };
-    }
-    // Check month and day (only if 2 digits)
-    if (month.length > 1 && normalizedPass.includes(month)) {
-      return { valid: false, error: "Password cannot contain your birth month." };
-    }
-    if (day.length > 1 && normalizedPass.includes(day)) {
-      return { valid: false, error: "Password cannot contain your birth day." };
-    }
+  // 3. Birthday component check & Age Validation (Reject under 15)
+  if (!birthday) {
+    return { valid: false, error: "Date of birth is required for security validation." };
+  }
+
+  const birthDate = new Date(birthday);
+  const today = new Date();
+  
+  // Calculate age accurately
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+
+  // Check age threshold
+  if (age < 15) {
+    return { 
+      valid: false, 
+      error: "You must be at least 15 years old to join the LexiVerse research community." 
+    };
+  }
+
+  // Check if password contains parts of birth date
+  const [year, month, day] = birthday.split('-');
+  if (normalizedPass.includes(year)) {
+    return { valid: false, error: "Password cannot contain your birth year." };
+  }
+  if (month.length > 1 && normalizedPass.includes(month)) {
+    return { valid: false, error: "Password cannot contain your birth month." };
+  }
+  if (day.length > 1 && normalizedPass.includes(day)) {
+    return { valid: false, error: "Password cannot contain your birth day." };
   }
 
   // 4. Basic strength check (Server-side enforcement)
