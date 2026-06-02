@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -293,9 +292,11 @@ export default function Home() {
     });
   };
 
+  const activeModulesList = [...getActiveModules('general'), ...getActiveModules('ai_hub'), ...getActiveModules('governance')];
+
   const renderModularContent = () => {
     switch (activeTab) {
-      case 'dashboard': return <DashboardView t={t} effectiveApiKey={effectiveApiKey} isLocalMode={isLocalMode} aiPrefs={aiPrefs} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} />;
+      case 'dashboard': return <DashboardView t={t} effectiveApiKey={effectiveApiKey} isLocalMode={isLocalMode} aiPrefs={aiPrefs} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} />;
       case 'chat': return <ChatView chatMode={chatMode} setChatMode={setChatMode} userProfile={userProfile} userInstitutionName={userInstitutionName} messages={messages} user={user} newMessage={newMessage} setNewMessage={setNewMessage} handleSendMessage={handleSendMessage} chatEndRef={chatEndRef} />;
       case 'synthesis': return <SynthesisView synthesisText={synthesisText} setSynthesisText={setSynthesisText} handleSynthesisAction={async (a) => {
         setIsLoading(true);
@@ -311,7 +312,7 @@ export default function Home() {
       case 'ai-assistant': return <AssistantView assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} assistantResult={assistantResult} />;
       case 'boilerplate': return <BoilerplateView isLoading={isLoading} result={boilerplateResult} onSearch={(term) => handleSearch(term, 'boilerplate')} />;
       case 'profile': return userProfile && <ProfileView userProfile={userProfile} effectiveAvatar={effectiveAvatar} userInstitutionName={userInstitutionName} profileDraft={profileDraft} setProfileDraft={setProfileDraft} institutions={institutions} updateProfile={updateProfile} isLoading={isLoading} aiPrefs={aiPrefs} saveAiPreferences={saveAiPreferences} systemConfig={systemConfig} historyItems={historyItems} handleSearch={handleSearch} />;
-      default: return <DashboardView t={t} effectiveApiKey={effectiveApiKey} isLocalMode={isLocalMode} aiPrefs={aiPrefs} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} />;
+      default: return <DashboardView t={t} effectiveApiKey={effectiveApiKey} isLocalMode={isLocalMode} aiPrefs={aiPrefs} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} />;
     }
   };
 
