@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, setDoc, updateDoc, collection, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, writeBatch } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { useAuth } from '@/firebase';
 import { cn } from '@/lib/utils';
-import { DEFAULT_MODULES } from '@/config/modules';
+import { DEFAULT_MODULES, GOVERNANCE_MODULES } from '@/config/modules';
 
 export default function SetupWizard() {
   const router = useRouter();
@@ -75,9 +74,11 @@ export default function SetupWizard() {
         updatedAt: new Date().toISOString()
       });
 
-      // 2. Default Modules Seeding
-      DEFAULT_MODULES.forEach(mod => {
-        // Simplified object for Firestore storage (exclude the Icon component)
+      // 2. Comprehensive Module Seeding
+      const allModules = [...DEFAULT_MODULES, ...GOVERNANCE_MODULES];
+      
+      allModules.forEach(mod => {
+        // Map Lucide components back to their string keys used in ICON_MAP
         const iconName = mod.id === 'dashboard' ? 'layout-dashboard' : 
                          mod.id === 'chat' ? 'message-square' :
                          mod.id === 'wiki' ? 'graduation-cap' :
@@ -85,20 +86,23 @@ export default function SetupWizard() {
                          mod.id === 'theology' ? 'history' :
                          mod.id === 'manuscripts' ? 'file-search' :
                          mod.id === 'lexicon' ? 'book-open' :
-                         mod.id === 'synthesis' ? 'feather' : 'puzzle';
+                         mod.id === 'synthesis' ? 'feather' :
+                         mod.id === 'boilerplate' ? 'puzzle' :
+                         mod.id === 'profile' ? 'key' : 'globe';
 
-        batch.set(doc(db, 'system', 'modules', mod.id), {
+        batch.set(doc(db, 'system', 'modules', mod.id + '-' + (mod.path?.replace(/\//g, '') || 'tab')), {
           id: mod.id,
           labelKey: mod.labelKey,
           iconName: iconName,
           group: mod.group,
-          enabled: true,
+          enabled: true, // ENABLED BY DEFAULT
           adminOnly: mod.adminOnly || false,
-          path: mod.path || null
+          path: mod.path || null,
+          createdAt: new Date().toISOString()
         });
       });
 
-      // 3. Admin User
+      // 3. Admin User Promotion
       const userRef = doc(db, 'users', user.uid);
       batch.set(userRef, {
         uid: user.uid,
@@ -112,7 +116,7 @@ export default function SetupWizard() {
 
       await batch.commit();
 
-      toast({ title: "Configuration Saved", description: "Your scholarly workspace is ready, and modules have been initialized." });
+      toast({ title: "Configuration Saved", description: "Your scholarly workspace is ready, and modules have been initialized as active." });
       router.push('/');
     } catch (e: any) {
       toast({ variant: 'destructive', title: "Setup Failed", description: e.message });
@@ -213,10 +217,10 @@ export default function SetupWizard() {
               </div>
               <p className="text-sm text-muted-foreground">The platform will automatically initialize the following scholarly tools for your environment:</p>
               <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-4 bg-muted/30 rounded-lg border">
-                {DEFAULT_MODULES.map(m => (
-                  <div key={m.id} className="flex items-center gap-2 text-[10px]">
+                {[...DEFAULT_MODULES, ...GOVERNANCE_MODULES].map((m, i) => (
+                  <div key={i} className="flex items-center gap-2 text-[10px]">
                     <CheckCircle2 className="h-3 w-3 text-green-600" />
-                    <span>{m.id}</span>
+                    <span className="truncate">{m.id}</span>
                   </div>
                 ))}
               </div>

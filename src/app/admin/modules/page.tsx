@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -48,7 +47,7 @@ export default function ModuleManagement() {
     labelKey: '',
     iconName: 'puzzle',
     group: 'ai_hub',
-    enabled: true,
+    enabled: true, // New modules enabled by default
     adminOnly: false
   });
 
@@ -82,7 +81,7 @@ export default function ModuleManagement() {
     if (!newModule.id.trim() || !newModule.labelKey.trim()) return;
     setSaving(true);
     try {
-      const docId = newModule.id;
+      const docId = `${newModule.id}-${Date.now()}`;
       await setDoc(doc(db, 'system', 'modules', docId), {
         ...newModule,
         createdAt: new Date().toISOString()

@@ -8,7 +8,7 @@ import {
   GoogleAuthProvider, 
   signOut
 } from 'firebase/auth';
-import { doc, setDoc, onSnapshot, getDoc, updateDoc, collection, getDocs, query, orderBy, addDoc, limit, where, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, getDocs, collection, query, orderBy, addDoc, limit, where, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { useAuth, useFirestore, useUser, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { logSearch } from '@/lib/search-logging';
 import { useLanguage } from '@/components/language-provider';
@@ -154,7 +154,7 @@ export default function Home() {
     });
 
     const unsubModules = onSnapshot(collection(db, 'system', 'modules'), (snap) => {
-      const mods = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+      const mods = snap.docs.map(d => ({ ...d.data(), docId: d.id }));
       setDynamicModules(mods);
       setModulesLoading(false);
     });
@@ -277,18 +277,18 @@ export default function Home() {
     return res || key;
   };
 
-  // Combine static defaults with dynamic overrides from Firestore
   const getActiveModules = (group: string) => {
     const staticGroup = [...DEFAULT_MODULES, ...GOVERNANCE_MODULES].filter(m => m.group === group);
     
-    // If modules are still loading, show defaults
-    if (modulesLoading || dynamicModules.length === 0) return staticGroup;
+    // Default to statically defined modules while Firestore is loading
+    if (modulesLoading) return staticGroup;
 
-    // Filter based on Firestore 'enabled' status
+    // Filter statically defined modules based on dynamic "enabled" status from Firestore
+    // If a module is defined in code but missing from Firestore, it is ENABLED BY DEFAULT
     return staticGroup.filter(m => {
       const dynamic = dynamicModules.find(dm => dm.id === m.id);
       if (dynamic) return dynamic.enabled === true;
-      return true; // Default to enabled if not explicitly in Firestore
+      return true; // Enabled by default logic
     });
   };
 
