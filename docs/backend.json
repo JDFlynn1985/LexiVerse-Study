@@ -198,11 +198,11 @@
       "schema": "#/backend/entities/SystemSettings",
       "description": "Global system configuration."
     },
-    "/system/modules/{moduleId}": {
+    "/modules/{moduleId}": {
       "schema": "#/backend/entities/ScholarlyModule",
       "description": "Scholarly modules and their availability status."
     },
-    "/system/error_logs/{logId}": {
+    "/error_logs/{logId}": {
         "schema": "#/backend/entities/ErrorLog",
         "description": "Application error logs."
     },

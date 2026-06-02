@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -55,7 +56,7 @@ export default function ModuleManagement() {
     async function fetchModules() {
       if (!isAdmin) return;
       try {
-        const snap = await getDocs(query(collection(db, 'system', 'modules'), orderBy('id', 'asc')));
+        const snap = await getDocs(query(collection(db, 'modules'), orderBy('id', 'asc')));
         setModules(snap.docs.map(d => ({ docId: d.id, ...d.data() })));
       } catch (e) {
         console.error("Fetch failed", e);
@@ -68,7 +69,7 @@ export default function ModuleManagement() {
 
   const handleToggle = async (module: any) => {
     try {
-      const docRef = doc(db, 'system', 'modules', module.docId);
+      const docRef = doc(db, 'modules', module.docId);
       await updateDoc(docRef, { enabled: !module.enabled });
       setModules(modules.map(m => m.docId === module.docId ? { ...m, enabled: !module.enabled } : m));
       toast({ title: "Module Updated", description: `${module.id} status changed.` });
@@ -82,11 +83,11 @@ export default function ModuleManagement() {
     setSaving(true);
     try {
       const docId = `${newModule.id}-${Date.now()}`;
-      await setDoc(doc(db, 'system', 'modules', docId), {
+      await setDoc(doc(db, 'modules', docId), {
         ...newModule,
         createdAt: new Date().toISOString()
       });
-      setModules([...modules, { docId, ...newModule }].sort((a, b) => a.id.localeCompare(b.id)));
+      setModules([...modules, { docId, ...newModule }].sort((a, b) => a.id.compareLocale(b.id)));
       setNewModule({ id: '', labelKey: '', iconName: 'puzzle', group: 'ai_hub', enabled: true, adminOnly: false });
       toast({ title: "Module Registered", description: "Successfully added to the scholarly registry." });
     } catch (e: any) {
@@ -99,7 +100,7 @@ export default function ModuleManagement() {
   const handleDelete = async (docId: string) => {
     if (!confirm("Are you sure? This will remove the module registry. The code files will remain, but the tool will be hidden.")) return;
     try {
-      await deleteDoc(doc(db, 'system', 'modules', docId));
+      await deleteDoc(doc(db, 'modules', docId));
       setModules(modules.filter(m => m.docId !== docId));
       toast({ title: "Registry Removed" });
     } catch (e) {

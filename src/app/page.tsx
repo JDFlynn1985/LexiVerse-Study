@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -153,7 +154,7 @@ export default function Home() {
       }
     });
 
-    const unsubModules = onSnapshot(collection(db, 'system', 'modules'), (snap) => {
+    const unsubModules = onSnapshot(collection(db, 'modules'), (snap) => {
       const mods = snap.docs.map(d => ({ ...d.data(), docId: d.id }));
       setDynamicModules(mods);
       setModulesLoading(false);
@@ -311,7 +312,7 @@ export default function Home() {
       case 'lexicon': return <LexiconView handleSearch={handleSearch} isLoading={isLoading} lexiconResult={lexiconResult} />;
       case 'ai-assistant': return <AssistantView assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} assistantResult={assistantResult} />;
       case 'boilerplate': return <BoilerplateView isLoading={isLoading} result={boilerplateResult} onSearch={(term) => handleSearch(term, 'boilerplate')} />;
-      case 'profile': return userProfile && <ProfileView userProfile={userProfile} effectiveAvatar={effectiveAvatar} userInstitutionName={userInstitutionName} profileDraft={profileDraft} setProfileDraft={setProfileDraft} institutions={institutions} updateProfile={updateProfile} isLoading={isLoading} aiPrefs={aiPrefs} saveAiPreferences={saveAiPreferences} systemConfig={systemConfig} historyItems={historyItems} handleSearch={handleSearch} />;
+      case 'profile': return userProfile ? <ProfileView userProfile={userProfile} effectiveAvatar={effectiveAvatar} userInstitutionName={userInstitutionName} profileDraft={profileDraft} setProfileDraft={setProfileDraft} institutions={institutions} updateProfile={updateProfile} isLoading={isLoading} aiPrefs={aiPrefs} saveAiPreferences={saveAiPreferences} systemConfig={systemConfig} historyItems={historyItems} handleSearch={handleSearch} /> : null;
       default: return <DashboardView t={t} effectiveApiKey={effectiveApiKey} isLocalMode={isLocalMode} aiPrefs={aiPrefs} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} />;
     }
   };
@@ -336,11 +337,15 @@ export default function Home() {
                   <SidebarMenuItem key={m.id}>
                     {m.path ? (
                       <SidebarMenuButton asChild tooltip={getTranslatedLabel(m.labelKey)}>
-                        <Link href={m.path}><m.icon className="h-5 w-5" /> <span>{getTranslatedLabel(m.labelKey)}</span></Link>
+                        <Link href={m.path}>
+                          <m.icon className="h-5 w-5" /> 
+                          <span>{getTranslatedLabel(m.labelKey)}</span>
+                        </Link>
                       </SidebarMenuButton>
                     ) : (
                       <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)} tooltip={getTranslatedLabel(m.labelKey)}>
-                        <m.icon className="h-5 w-5" /> <span>{getTranslatedLabel(m.labelKey)}</span>
+                        <m.icon className="h-5 w-5" /> 
+                        <span>{getTranslatedLabel(m.labelKey)}</span>
                       </SidebarMenuButton>
                     )}
                   </SidebarMenuItem>
@@ -355,11 +360,15 @@ export default function Home() {
                   <SidebarMenuItem key={m.id}>
                     {m.path ? (
                       <SidebarMenuButton asChild tooltip={getTranslatedLabel(m.labelKey)}>
-                        <Link href={m.path}><m.icon className="h-5 w-5" /> <span>{getTranslatedLabel(m.labelKey)}</span></Link>
+                        <Link href={m.path}>
+                          <m.icon className="h-5 w-5" /> 
+                          <span>{getTranslatedLabel(m.labelKey)}</span>
+                        </Link>
                       </SidebarMenuButton>
                     ) : (
                       <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)} tooltip={getTranslatedLabel(m.labelKey)}>
-                        <m.icon className="h-5 w-5" /> <span>{getTranslatedLabel(m.labelKey)}</span>
+                        <m.icon className="h-5 w-5" /> 
+                        <span>{getTranslatedLabel(m.labelKey)}</span>
                       </SidebarMenuButton>
                     )}
                   </SidebarMenuItem>
@@ -376,11 +385,15 @@ export default function Home() {
                     <SidebarMenuItem key={idx}>
                       {m.path ? (
                         <SidebarMenuButton asChild tooltip={getTranslatedLabel(m.labelKey)}>
-                          <Link href={m.path}><m.icon className="h-5 w-5" /> <span>{getTranslatedLabel(m.labelKey)}</span></Link>
+                          <Link href={m.path}>
+                            <m.icon className="h-5 w-5" /> 
+                            <span>{getTranslatedLabel(m.labelKey)}</span>
+                          </Link>
                         </SidebarMenuButton>
                       ) : (
                         <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)} tooltip={getTranslatedLabel(m.labelKey)}>
-                          <m.icon className="h-5 w-5" /> <span>{getTranslatedLabel(m.labelKey)}</span>
+                          <m.icon className="h-5 w-5" /> 
+                          <span>{getTranslatedLabel(m.labelKey)}</span>
                         </SidebarMenuButton>
                       )}
                     </SidebarMenuItem>

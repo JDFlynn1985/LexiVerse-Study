@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -90,7 +91,8 @@ export default function SetupWizard() {
                          mod.id === 'boilerplate' ? 'puzzle' :
                          mod.id === 'profile' ? 'key' : 'globe';
 
-        batch.set(doc(db, 'system', 'modules', mod.id + '-' + (mod.path?.replace(/\//g, '') || 'tab')), {
+        const docId = mod.id + '-' + (mod.path?.replace(/\//g, '') || 'tab');
+        batch.set(doc(db, 'modules', docId), {
           id: mod.id,
           labelKey: mod.labelKey,
           iconName: iconName,

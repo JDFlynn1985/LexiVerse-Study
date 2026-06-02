@@ -10,13 +10,13 @@ export type ErrorLogContext = {
 };
 
 /**
- * Persists an error to the /system/error_logs collection in Firestore.
+ * Persists an error to the /error_logs collection in Firestore.
  * This is used for background auditing and developer diagnostics.
  */
 export function logErrorToFirestore(db: Firestore, error: any, context: ErrorLogContext) {
   if (!db) return;
 
-  const logsRef = collection(db, 'system', 'error_logs');
+  const logsRef = collection(db, 'error_logs');
   
   // Construct the log payload
   const logData = {
