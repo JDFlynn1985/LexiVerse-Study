@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserStudyProfile": {
@@ -31,6 +32,20 @@
         }
       },
       "required": ["uid"]
+    },
+    "SystemSettings": {
+      "title": "System Settings",
+      "description": "Global application configuration stored in Firestore.",
+      "type": "object",
+      "properties": {
+        "geminiApiKey": { "type": "string" },
+        "gaMeasurementId": { "type": "string" },
+        "matomoSiteId": { "type": "string" },
+        "matomoUrl": { "type": "string" },
+        "adminUsername": { "type": "string" },
+        "adminPassword": { "type": "string" },
+        "isConfigured": { "type": "boolean" }
+      }
     },
     "SearchLog": {
       "title": "Search Log",
@@ -67,6 +82,10 @@
     "/users/{userId}": {
       "schema": "#/backend/entities/UserStudyProfile",
       "description": "User's study profile and settings."
+    },
+    "/system/config": {
+      "schema": "#/backend/entities/SystemSettings",
+      "description": "Global system configuration and admin credentials."
     },
     "/search_logs/{logId}": {
       "schema": "#/backend/entities/SearchLog",
