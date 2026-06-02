@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview This flow defines and analyzes Greek or Hebrew terms based on Strong's numbers.
@@ -56,6 +57,11 @@ const DefineAndAnalyzeTermOutputSchema = z.object({
 export type DefineAndAnalyzeTermOutput = z.infer<typeof DefineAndAnalyzeTermOutputSchema>;
 
 export async function defineAndAnalyzeTerm(input: DefineAndAnalyzeTermInput): Promise<DefineAndAnalyzeTermOutput> {
+  // Check for API Configuration Readiness
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("AI engine is not configured. Please add a Gemini API Key in System Settings to enable Lexicon analysis.");
+  }
+
   const selectedModel = input.model || 'googleai/gemini-2.5-flash';
   
   const { output } = await ai.generate({

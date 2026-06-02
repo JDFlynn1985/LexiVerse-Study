@@ -69,7 +69,8 @@ import {
   Save,
   Camera,
   Award,
-  AlertTriangle
+  AlertTriangle,
+  Info
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -181,6 +182,7 @@ export default function Home() {
   const db = useFirestore();
   const { user } = useUser();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isAiEnabled, setIsAiEnabled] = useState(true);
 
   const [history, setHistory] = useState<{id: string, type: string, term: string, date: string}[]>([]);
   const [localDocuments, setLocalDocuments] = useState<IDBDocument[]>([]);
@@ -255,7 +257,21 @@ export default function Home() {
     if (savedHistory) setHistory(JSON.parse(savedHistory));
     refreshLocalDocs();
     getVersions().then(setAvailableVersions);
-  }, [refreshLocalDocs]);
+
+    // Check system config for AI readiness
+    async function checkSystemConfig() {
+      const configSnap = await getDoc(doc(db, 'system', 'config'));
+      if (configSnap.exists()) {
+        const config = configSnap.data();
+        if (!config.geminiApiKey) {
+          setIsAiEnabled(false);
+        }
+      } else {
+        setIsAiEnabled(false);
+      }
+    }
+    checkSystemConfig();
+  }, [refreshLocalDocs, db]);
 
   useEffect(() => {
     if (user && db) {
@@ -336,6 +352,15 @@ export default function Home() {
 
   const handleSearch = async (term: string, type: ViewMode) => {
     if (!term.trim()) return;
+    if (!isAiEnabled && ['lexicon', 'theology-map', 'timeline', 'ai-assistant', 'verse-explorer', 'writing-assistant', 'academic-integrity'].includes(type)) {
+      toast({ 
+        variant: 'destructive', 
+        title: "AI Engine Not Configured", 
+        description: "Please visit the Setup Wizard or Admin Settings to configure your AI API Key." 
+      });
+      return;
+    }
+
     setIsLoading(true);
     setActiveTab(type);
     setActiveHighlights([]);
@@ -360,8 +385,8 @@ export default function Home() {
       const newHistory = [{id: Date.now().toString(), type, term, date: new Date().toLocaleString()}, ...history];
       setHistory(newHistory.slice(0, 10));
       localStorage.setItem('lexiverse_history', JSON.stringify(newHistory.slice(0, 10)));
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Search failed' });
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Search failed', description: error.message });
     } finally {
       setIsLoading(false);
     }
@@ -458,6 +483,10 @@ export default function Home() {
   };
 
   const handleVoiceSearch = async () => {
+    if (!isAiEnabled) {
+      toast({ variant: 'destructive', title: "Voice features require AI configuration." });
+      return;
+    }
     if (isRecording) {
       setIsRecording(false);
       setIsLoading(true);
@@ -516,25 +545,28 @@ export default function Home() {
 
             {/* AI Research Hub */}
             <SidebarGroup>
-              <SidebarGroupLabel>AI Research Hub</SidebarGroupLabel>
+              <SidebarGroupLabel className="flex items-center justify-between">
+                AI Research Hub
+                {!isAiEnabled && <Badge variant="destructive" className="scale-75 origin-right">OFF</Badge>}
+              </SidebarGroupLabel>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'ai-assistant'} onClick={() => setActiveTab('ai-assistant')} tooltip="Study Assistant">
+                  <SidebarMenuButton isActive={activeTab === 'ai-assistant'} onClick={() => handleSearch(assistantTerm, 'ai-assistant')} tooltip="Study Assistant" disabled={!isAiEnabled}>
                     <Sparkles className="h-5 w-5" /> <span>Study Assistant</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'lexicon'} onClick={() => setActiveTab('lexicon')} tooltip="Lexicon Analysis">
+                  <SidebarMenuButton isActive={activeTab === 'lexicon'} onClick={() => setActiveTab('lexicon')} tooltip="Lexicon Analysis" disabled={!isAiEnabled}>
                     <BookOpen className="h-5 w-5" /> <span>Lexicon</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'theology-map'} onClick={() => setActiveTab('theology-map')} tooltip="Theology Concept Map">
+                  <SidebarMenuButton isActive={activeTab === 'theology-map'} onClick={() => setActiveTab('theology-map')} tooltip="Theology Concept Map" disabled={!isAiEnabled}>
                     <Network className="h-5 w-5" /> <span>Theology Map</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')} tooltip="Historical Timeline">
+                  <SidebarMenuButton isActive={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')} tooltip="Historical Timeline" disabled={!isAiEnabled}>
                     <Milestone className="h-5 w-5" /> <span>Historical Timeline</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -546,7 +578,7 @@ export default function Home() {
               <SidebarGroupLabel>Linguistic Analysis</SidebarGroupLabel>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'verse-explorer'} onClick={() => setActiveTab('verse-explorer')} tooltip="Verse Explorer">
+                  <SidebarMenuButton isActive={activeTab === 'verse-explorer'} onClick={() => setActiveTab('verse-explorer')} tooltip="Verse Explorer" disabled={!isAiEnabled}>
                     <BookMarked className="h-5 w-5" /> <span>Verse Explorer</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -575,12 +607,12 @@ export default function Home() {
                   </SidebarMenuItem>
                 )}
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'writing-assistant'} onClick={() => setActiveTab('writing-assistant')} tooltip="Writing Assistant">
+                  <SidebarMenuButton isActive={activeTab === 'writing-assistant'} onClick={() => setActiveTab('writing-assistant')} tooltip="Writing Assistant" disabled={!isAiEnabled}>
                     <Edit3 className="h-5 w-5" /> <span>Writing Assistant</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'academic-integrity'} onClick={() => setActiveTab('academic-integrity')} tooltip="Integrity Checker">
+                  <SidebarMenuButton isActive={activeTab === 'academic-integrity'} onClick={() => setActiveTab('academic-integrity')} tooltip="Integrity Checker" disabled={!isAiEnabled}>
                     <ShieldCheck className="h-5 w-5" /> <span>Academic Integrity</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -653,6 +685,19 @@ export default function Home() {
         <SidebarInset>
           <main id="main-content" className="container max-w-5xl mx-auto py-10 px-6 min-h-screen">
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              
+              {!isAiEnabled && activeTab === 'dashboard' && (
+                <Alert className="mb-8 border-destructive/20 bg-destructive/5 text-destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Limited Functionality Mode</AlertTitle>
+                  <AlertDescription className="text-sm">
+                    AI-powered research tools (Lexicon, Theology Map, Study Assistant) are currently offline because the AI API Key is not configured.
+                    You can still use the <strong>Wiki</strong>, <strong>Journal</strong>, and <strong>Research Library</strong>.
+                    Visit <Button variant="link" className="p-0 h-auto font-bold text-destructive underline" onClick={() => window.open('/setup', '_blank')}>Setup Wizard</Button> to restore full functionality.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {activeTab === 'dashboard' && (
                 <div className="space-y-8">
                   <header>
@@ -664,21 +709,27 @@ export default function Home() {
                     <Card className="md:col-span-2 shadow-md border-primary/10">
                       <CardHeader>
                         <CardTitle className="font-headline flex items-center gap-2">
-                          <Sparkles className="h-5 w-5 text-primary" /> Scholarly Workspace
+                          <Sparkles className={cn("h-5 w-5", isAiEnabled ? "text-primary" : "text-muted-foreground")} /> Scholarly Workspace
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="flex gap-2">
                           <Input 
-                            placeholder="Greek/Hebrew term or eschatological question..." 
+                            placeholder={isAiEnabled ? "Greek/Hebrew term or eschatological question..." : "AI Features Disabled - Configuration Required"}
                             value={assistantTerm} 
+                            disabled={!isAiEnabled}
                             onChange={e => setAssistantTerm(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && handleSearch(assistantTerm, 'ai-assistant')}
                           />
-                          <Button onClick={() => handleSearch(assistantTerm, 'ai-assistant')} disabled={isLoading}>
+                          <Button onClick={() => handleSearch(assistantTerm, 'ai-assistant')} disabled={isLoading || !isAiEnabled}>
                             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                           </Button>
                         </div>
+                        {!isAiEnabled && (
+                          <p className="text-[10px] text-muted-foreground italic flex items-center gap-1">
+                            <Info className="h-3 w-3" /> Please add a Gemini API Key in System Settings to enable this search engine.
+                          </p>
+                        )}
                       </CardContent>
                     </Card>
 
@@ -696,6 +747,11 @@ export default function Home() {
                               <p className="text-[10px] text-muted-foreground uppercase">{h.type.replace('-', ' ')}</p>
                             </div>
                           ))}
+                          {history.length === 0 && (
+                            <div className="p-8 text-center text-[10px] text-muted-foreground italic">
+                              No history logged yet.
+                            </div>
+                          )}
                         </ScrollArea>
                       </CardContent>
                     </Card>
@@ -809,6 +865,11 @@ export default function Home() {
                             </CardContent>
                           </Card>
                         ))}
+                        {wikiArticles?.filter(a => a.status === 'approved').length === 0 && (
+                          <div className="md:col-span-2 text-center py-12 text-muted-foreground italic">
+                            No approved wiki articles yet. Be the first to contribute!
+                          </div>
+                        )}
                      </TabsContent>
                      <TabsContent value="submit" className="pt-6">
                         <Card className="max-w-2xl mx-auto">

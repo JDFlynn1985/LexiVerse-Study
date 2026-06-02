@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Comprehensive AI Study Assistant for in-depth biblical research.
@@ -101,6 +102,11 @@ const aiStudyAssistantFlow = ai.defineFlow(
     outputSchema: AiStudyAssistantOutputSchema,
   },
   async input => {
+    // Check for API Configuration Readiness
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error("AI engine is not configured. Please add a Gemini API Key in System Settings to enable the Study Assistant.");
+    }
+
     const aggregatedData = await aggregateExternalData(input.term);
     const researchContextString = input.researchContext?.join('\n\n---\n\n');
     
