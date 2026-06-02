@@ -28,4 +28,4 @@
 - [ ] **Offline PWA Sync**: Service worker optimization for weak network environments, allowing local exegesis to buffer and sync.
 
 ---
-*Last Audit: February 2024. This roadmap defines the path forward for the 4 primary underdeveloped features.*
+*Last Audit: February 2024. This roadmap defines the path forward for the 4 primary unfinished features.*
