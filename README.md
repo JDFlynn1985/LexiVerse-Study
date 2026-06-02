@@ -3,22 +3,25 @@
 
 LexiVerse Explorer is an advanced, AI-powered Bible study platform designed for seminary students and biblical scholars. It integrates scripture modules, original language lexicons, and scholarly research tools into a single cohesive environment.
 
-## 🌟 Current Features
+## 🌟 Primary Research Hubs
 
 ### 📖 Digital Library & Lexicon
 - **Scripture Access**: Integration with the Free Use Bible API for multiple versions (KJV, NET, WEB, etc.).
-- **Semantic Lexicon**: Deep analysis of Greek and Hebrew terms using Strong's numbers, providing morphology, part of speech, and theological classification.
-- **Persistent Library**: Local document storage via IndexedDB for privacy and high-speed manuscript analysis.
+- **Semantic Lexicon**: Deep analysis of Greek and Hebrew terms using Strong's numbers.
+- **Manuscript Hub**: Paleographic OCR for extracting text from ancient fragments and papyri.
 
 ### 🤖 Scholar AI Engine
-- **Multimodal Research**: AI-powered OCR for extracting text from ancient manuscripts and voice transcription for hands-free research queries.
-- **Cross-Reference Engine**: Advanced algorithms to detect both overt (explicit) and covert (semantic) theological links across texts.
-- **RAG Synthesis**: Synthesizes scripture, commentaries, and user-uploaded papers into structured scholarly reports.
+- **Study Assistant**: Synthesizes scripture, commentaries, and user-uploaded papers into structured reports.
+- **Theology Mapper**: Visualizes the historical development and scriptural foundations of systemic concepts.
+- **Synthesis Hub**: AI-powered writing assistance, bibliography formatting (SBL/Turabian), and academic integrity scanning.
 
-### ✍️ Scholarly Synthesis & Export
-- **Dynamic Highlighting**: Highlight key insights in your research; these are preserved across all export formats.
-- **Multi-Channel Export**: Generate PDF, Word (.docx), Markdown (Obsidian-ready), RTF, and Plain Text files with one click.
-- **Google Workspace Sync**: Direct export to Google Drive and Google Docs with structured links to all references.
+### 💬 Scholarly Discourse
+- **Social Chat Hub**: Real-time dialogue channels. Scholars can choose between **Global Discourse** or private **Institutional Seminars**.
+- **Institution Registry**: A governed directory of seminaries and universities for accurate scholarly attribution.
+
+### 🛡️ Governance & Governance
+- **Error Logging**: Automated capture of system and permission errors for administrative audit.
+- **API Portal**: Tiered access tokens for external research integration via OpenAPI-compliant endpoints.
 
 ## 🚀 Getting Started
 
@@ -33,7 +36,6 @@ Run the interactive installer to set up your API keys and analytics:
 ```bash
 npm run setup
 ```
-This will prompt you for your Firebase, Gemini, and Analytics keys and create your `.env` file automatically.
 
 ### 3. Development
 Run the development server:
@@ -42,7 +44,7 @@ npm run dev
 ```
 
 ## 🌍 Accessibility & Privacy
-LexiVerse is committed to WCAG 2.1 AAA standards and GDPR/CCPA compliance. Users maintain full control over their data, with granular cookie consent and a "Right to Erasure" built directly into the settings.
+LexiVerse is committed to WCAG 2.1 AAA standards and GDPR/CCPA compliance. Users maintain full control over their data, with granular cookie consent and local-only storage options for sensitive API credentials.
 
 ## 📄 License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
