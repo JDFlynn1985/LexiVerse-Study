@@ -3,7 +3,7 @@
 /**
  * @fileOverview Dedicated Signup Portal for LexiVerse Explorer.
  * Supports Email/Password registration and Social Providers.
- * Enhanced with strict password validation against user identity components.
+ * Enhanced with dual-layer (client/server) password validation.
  */
 
 import { useState, useEffect } from 'react';
@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Globe, Building2, Loader2, ArrowLeft, ShieldCheck, Sparkles, Mail, User, Key, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { validateScholarPassword } from '@/app/actions/auth-actions';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -47,10 +48,12 @@ export default function SignupPage() {
     });
   }, [db]);
 
-  const validatePassword = (pass: string, name: string, emailAddr: string, bday: string) => {
+  /**
+   * Client-side validation for immediate user feedback.
+   */
+  const performClientValidation = (pass: string, name: string, emailAddr: string, bday: string) => {
     const normalizedPass = pass.toLowerCase();
     
-    // 1. Name check (split into words, check for those longer than 2 chars)
     const nameParts = name.toLowerCase().split(/\s+/).filter(p => p.length > 2);
     for (const part of nameParts) {
       if (normalizedPass.includes(part)) {
@@ -58,24 +61,16 @@ export default function SignupPage() {
       }
     }
 
-    // 2. Email check
     const emailPrefix = emailAddr.toLowerCase().split('@')[0];
     if (emailPrefix.length > 2 && normalizedPass.includes(emailPrefix)) {
       return "Password cannot contain your email username.";
     }
-    if (normalizedPass.includes(emailAddr.toLowerCase())) {
-      return "Password cannot contain your full email address.";
-    }
 
-    // 3. Birthday check
     if (bday) {
-      const [year, month, day] = bday.split('-');
+      const [year] = bday.split('-');
       if (normalizedPass.includes(year)) return "Password cannot contain your birth year.";
-      if (normalizedPass.includes(month) && month.length > 1) return "Password cannot contain your birth month.";
-      if (normalizedPass.includes(day) && day.length > 1) return "Password cannot contain your birth day.";
     }
 
-    // 4. Basic strength check
     if (pass.length < 8) return "Password must be at least 8 characters long.";
 
     return null;
@@ -107,22 +102,31 @@ export default function SignupPage() {
     e.preventDefault();
     if (!email || !password || !displayName || !birthday) return;
 
-    const validationError = validatePassword(password, displayName, email, birthday);
-    if (validationError) {
-      toast({
-        variant: "destructive",
-        title: "Insecure Password",
-        description: validationError
-      });
+    // 1. Fast Client-side Check
+    const clientError = performClientValidation(password, displayName, email, birthday);
+    if (clientError) {
+      toast({ variant: "destructive", title: "Insecure Password", description: clientError });
       return;
     }
 
     setIsAuthLoading(true);
     try {
+      // 2. Authoritative Server-side Check (AJAX)
+      const serverValidation = await validateScholarPassword(password, displayName, email, birthday);
+      if (!serverValidation.valid) {
+        toast({ 
+          variant: "destructive", 
+          title: "Policy Violation", 
+          description: serverValidation.error || "Password does not meet scholarly security standards." 
+        });
+        setIsAuthLoading(false);
+        return;
+      }
+
+      // 3. Secure Account Creation
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName });
       
-      // Initialize the user profile in Firestore
       await setDoc(doc(db, 'users', userCredential.user.uid), {
         uid: userCredential.user.uid,
         displayName,
@@ -134,7 +138,7 @@ export default function SignupPage() {
         licensedVersions: []
       });
 
-      toast({ title: "Account Created", description: `Welcome, ${displayName}. Your research workstation is ready.` });
+      toast({ title: "Account Created", description: `Welcome, ${displayName}. Your workstation is ready.` });
       router.push('/');
     } catch (error: any) {
       toast({ variant: "destructive", title: "Signup Failed", description: error.message });
@@ -190,7 +194,7 @@ export default function SignupPage() {
                     required 
                   />
                 </div>
-                <p className="text-[10px] text-muted-foreground italic px-1">Required for identity-based security validation.</p>
+                <p className="text-[10px] text-muted-foreground italic px-1">Used for authoritative security validation.</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
@@ -221,7 +225,7 @@ export default function SignupPage() {
                     required 
                   />
                 </div>
-                <p className="text-[10px] text-muted-foreground italic px-1">Must not contain your name, email, or birthday.</p>
+                <p className="text-[10px] text-muted-foreground italic px-1">Verified on-server against name, email, and birthday.</p>
               </div>
               <Button type="submit" className="w-full h-11 shadow-lg" disabled={isAuthLoading}>
                 {isAuthLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -264,7 +268,7 @@ export default function SignupPage() {
           </CardContent>
           <CardFooter className="bg-muted/30 border-t p-6 flex flex-col gap-4">
             <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
-              By joining, you agree to the CC BY 4.0 licensing terms for public contributions.
+              By joining, you agree to the dual-layer security verification policy.
             </p>
             <div className="flex justify-between w-full text-xs font-bold text-primary pt-2">
                <Link href="/login" className="hover:underline">Already a member?</Link>
