@@ -1,7 +1,7 @@
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
- * Source: https://github.com
+ * Source: https://github.com/JDFlynn1985/LexiVerse
  *
  * This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 
  * International License. To view a copy of this license, visit:
