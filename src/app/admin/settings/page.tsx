@@ -18,25 +18,24 @@ import {
   Save, 
   ShieldAlert, 
   CheckCircle2, 
-  Database,
   Server,
   Network,
   Plus,
   Trash2,
   ExternalLink,
-  Lock,
-  AlertCircle,
   Globe,
   WifiOff,
   RefreshCw,
-  Search
+  Download,
+  AlertTriangle,
+  Database
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
-import { getLocalOllamaModels } from '@/app/actions/ollama-actions';
+import { getLocalOllamaModels, pullOllamaModel, deleteOllamaModel } from '@/app/actions/ollama-actions';
 
 export default function AdminSettings() {
   const db = useFirestore();
@@ -49,6 +48,7 @@ export default function AdminSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [detecting, setDetecting] = useState(false);
+  const [pulling, setPulling] = useState(false);
   const [config, setConfig] = useState<any>({
     geminiApiKey: '',
     ollamaUrl: 'http://localhost:11434',
@@ -57,6 +57,7 @@ export default function AdminSettings() {
     networkMode: 'internet'
   });
   const [newModelName, setNewModelName] = useState('');
+  const [pullModelName, setPullModelName] = useState('');
 
   const isAdmin = userProfile?.isAdmin === true;
 
@@ -109,21 +110,19 @@ export default function AdminSettings() {
           description: result.error 
         });
       } else if (result.models.length > 0) {
-        // Merge with existing models, ensuring uniqueness
-        const uniqueModels = Array.from(new Set([...config.localModelList, ...result.models]));
         setConfig({
           ...config,
-          localModelList: uniqueModels
+          localModelList: result.models
         });
         toast({ 
           title: "Models Detected", 
-          description: `Identified ${result.models.length} local models from your server.` 
+          description: `Synchronized ${result.models.length} models from your local server.` 
         });
       } else {
         toast({ 
           variant: 'destructive', 
           title: "No Models Found", 
-          description: "Ollama is reachable, but no models have been downloaded yet." 
+          description: "Ollama is reachable, but no models have been pulled yet." 
         });
       }
     } catch (e: any) {
@@ -133,7 +132,42 @@ export default function AdminSettings() {
     }
   };
 
-  const addModel = () => {
+  const handlePullModel = async () => {
+    if (!pullModelName.trim()) return;
+    setPulling(true);
+    toast({ title: "Pulling Model", description: `Starting download for ${pullModelName}. This may take several minutes.` });
+    
+    try {
+      const result = await pullOllamaModel(pullModelName.trim(), config.ollamaUrl);
+      if (result.success) {
+        toast({ title: "Model Installed", description: `${pullModelName} is now ready for use.` });
+        setPullModelName('');
+        handleAutoDetect(); // Refresh list
+      } else {
+        toast({ variant: 'destructive', title: "Installation Failed", description: result.error });
+      }
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: "Error", description: "Connection timeout or server error." });
+    } finally {
+      setPulling(false);
+    }
+  };
+
+  const handleDeleteModel = async (model: string) => {
+    try {
+      const result = await deleteOllamaModel(model, config.ollamaUrl);
+      if (result.success) {
+        toast({ title: "Model Deleted", description: `${model} has been removed from the server.` });
+        handleAutoDetect(); // Refresh list
+      } else {
+        toast({ variant: 'destructive', title: "Deletion Failed", description: result.error });
+      }
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: "Error", description: "Could not complete deletion." });
+    }
+  };
+
+  const addModelManually = () => {
     if (!newModelName.trim()) return;
     if (config.localModelList.includes(newModelName.trim())) {
       toast({ variant: 'destructive', title: "Model already exists" });
@@ -144,13 +178,6 @@ export default function AdminSettings() {
       localModelList: [...config.localModelList, newModelName.trim()]
     });
     setNewModelName('');
-  };
-
-  const removeModel = (model: string) => {
-    setConfig({
-      ...config,
-      localModelList: config.localModelList.filter((m: string) => m !== model)
-    });
   };
 
   const promoteUser = async (role: 'admin' | 'moderator' | 'trusted') => {
@@ -219,7 +246,7 @@ export default function AdminSettings() {
         <ShieldCheck className="h-4 w-4 text-primary" />
         <AlertTitle className="text-primary font-bold">Secure Session Active</AlertTitle>
         <AlertDescription className="text-xs">
-          Authenticated as <strong>{userProfile?.displayName}</strong> (System Administrator). All changes are logged for academic transparency.
+          Authenticated as <strong>{userProfile?.displayName}</strong> (System Administrator).
         </AlertDescription>
       </Alert>
 
@@ -255,19 +282,16 @@ export default function AdminSettings() {
                     onChange={e => setConfig({...config, geminiApiKey: e.target.value})} 
                     placeholder="Enter system Google AI API key"
                   />
-                  <p className="text-[10px] text-muted-foreground italic">
-                    This key powers research for users who haven't supplied their own in their profile.
-                  </p>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-primary/20">
               <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2"><Server className="h-5 w-5 text-primary" /> Local Inference (Ollama)</CardTitle>
-                <CardDescription>Manage multiple locally hosted models.</CardDescription>
+                <CardTitle className="text-lg flex items-center gap-2"><Server className="h-5 w-5 text-primary" /> Local Engine (Ollama)</CardTitle>
+                <CardDescription>Install and manage locally hosted models.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 <div className="space-y-2">
                   <Label>Ollama Server Address</Label>
                   <div className="flex gap-2">
@@ -276,47 +300,54 @@ export default function AdminSettings() {
                       value={config?.ollamaUrl || ''} 
                       onChange={e => setConfig({...config, ollamaUrl: e.target.value})} 
                     />
-                    <Button variant="outline" size="icon" onClick={handleAutoDetect} disabled={detecting} title="Auto-detect models using official Ollama package">
+                    <Button variant="outline" size="icon" onClick={handleAutoDetect} disabled={detecting} title="Sync models from server">
                       {detecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                     </Button>
                   </div>
                 </div>
                 
-                <div className="space-y-4 border-t pt-4">
-                  <div className="flex justify-between items-center">
-                    <Label>Manage Models</Label>
-                    <Badge variant="outline" className="text-[10px]">Official JS Package Enabled</Badge>
+                <div className="space-y-3 bg-muted/30 p-4 rounded-lg border border-dashed">
+                  <div className="flex items-center gap-2 text-sm font-bold text-primary">
+                    <Download className="h-4 w-4" /> Install New Model
                   </div>
                   <div className="flex gap-2">
                     <Input 
                       placeholder="e.g. llama3.1" 
-                      value={newModelName}
-                      onChange={e => setNewModelName(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && addModel()}
+                      value={pullModelName}
+                      onChange={e => setPullModelName(e.target.value)}
                     />
-                    <Button size="icon" onClick={addModel}><Plus className="h-4 w-4" /></Button>
+                    <Button onClick={handlePullModel} disabled={pulling || !pullModelName.trim()} variant="secondary">
+                      {pulling ? <Loader2 className="h-4 w-4 animate-spin" /> : "Pull"}
+                    </Button>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <p className="text-[10px] text-muted-foreground italic">Models are pulled from the official Ollama library.</p>
+                </div>
+
+                <div className="space-y-4">
+                  <Label>Managed Models ({config.localModelList.length})</Label>
+                  <div className="grid gap-2">
                     {config.localModelList.map((model: string) => (
-                      <Badge key={model} variant="secondary" className="pl-3 pr-1 py-1 flex items-center gap-2">
-                        {model}
+                      <div key={model} className="flex items-center justify-between p-2 bg-background rounded border group">
+                        <span className="text-sm font-medium">{model}</span>
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-4 w-4 rounded-full hover:bg-destructive hover:text-destructive-foreground"
-                          onClick={() => removeModel(model)}
+                          className="h-7 w-7 opacity-0 group-hover:opacity-100 text-destructive hover:bg-destructive hover:text-white transition-all"
+                          onClick={() => handleDeleteModel(model)}
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-4 w-4" />
                         </Button>
-                      </Badge>
+                      </div>
                     ))}
                     {config.localModelList.length === 0 && (
-                      <p className="text-xs text-muted-foreground italic">No local models configured. Use auto-detect to fetch them.</p>
+                      <div className="text-center py-4 text-xs text-muted-foreground border rounded-lg bg-muted/10">
+                        No models found. Use "Sync" or "Pull" to begin.
+                      </div>
                     )}
                   </div>
                 </div>
 
-                <div className="space-y-2 border-t pt-4">
+                <div className="pt-4 border-t">
                   <Label>Default Provider</Label>
                   <Select 
                     value={config?.defaultModelProvider || 'google'} 
@@ -326,7 +357,7 @@ export default function AdminSettings() {
                       <SelectValue placeholder="Select Provider" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="google">Google Gemini (Cloud - Preferred)</SelectItem>
+                      <SelectItem value="google">Google Gemini (Cloud)</SelectItem>
                       <SelectItem value="local">Ollama (Local)</SelectItem>
                     </SelectContent>
                   </Select>
@@ -340,7 +371,7 @@ export default function AdminSettings() {
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2"><Network className="h-5 w-5 text-primary" /> Connectivity Mode</CardTitle>
-              <CardDescription>Inform the application of its network topology.</CardDescription>
+              <CardDescription>Define the application's network awareness.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2">
@@ -354,7 +385,7 @@ export default function AdminSettings() {
                   <Globe className={cn("h-12 w-12", config.networkMode === 'internet' ? "text-primary" : "text-muted-foreground")} />
                   <div>
                     <h3 className="font-bold">Internet-Accessible</h3>
-                    <p className="text-xs text-muted-foreground mt-1">Application is exposed to the public internet. Enables external API fallbacks and global collaboration.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Application is exposed to the public internet.</p>
                   </div>
                 </div>
 
@@ -368,16 +399,8 @@ export default function AdminSettings() {
                   <WifiOff className={cn("h-12 w-12", config.networkMode === 'local-only' ? "text-green-600" : "text-muted-foreground")} />
                   <div>
                     <h3 className="font-bold">Local Network Only</h3>
-                    <p className="text-xs text-muted-foreground mt-1">Application is strictly isolated to a local network (Air-gapped or Intranet). Disables analytics and remote syncing.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Isolated intranet installation.</p>
                   </div>
-                </div>
-              </div>
-
-              <div className="bg-muted/30 p-4 rounded-lg border flex gap-3">
-                <AlertCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                <div className="text-xs space-y-2">
-                  <p className="font-bold">Why inform the app?</p>
-                  <p>Informing the application of its network mode allows the Lexiverse research engine to optimize for available resources. In **Local Network Only** mode, the system emphasizes Ollama local inference and IndexedDB document storage, providing a seamless "dark" scholarly workspace.</p>
                 </div>
               </div>
             </CardContent>
@@ -388,7 +411,7 @@ export default function AdminSettings() {
           <Card className="border-accent/20 bg-accent/5">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2 text-accent"><UserCheck className="h-5 w-5" /> Role Management</CardTitle>
-              <CardDescription>Grant specific scholarly permissions to your linked Google account.</CardDescription>
+              <CardDescription>Grant specific scholarly permissions.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
@@ -412,19 +435,6 @@ export default function AdminSettings() {
                 </div>
                 <Button variant="outline" size="sm" onClick={() => promoteUser('moderator')} disabled={saving}>
                   {userProfile?.isModerator ? 'Verified' : 'Promote'}
-                </Button>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
-                <div className="flex items-center gap-4">
-                  <CheckCircle2 className="h-6 w-6 text-green-600" />
-                  <div>
-                    <p className="font-bold text-sm">Trusted Contributor</p>
-                    <p className="text-xs text-muted-foreground">Bypass peer review for wiki posts.</p>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm" onClick={() => promoteUser('trusted')} disabled={saving}>
-                  {userProfile?.isTrustedContributor ? 'Verified' : 'Promote'}
                 </Button>
               </div>
             </CardContent>
