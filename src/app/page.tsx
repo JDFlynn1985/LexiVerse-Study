@@ -250,7 +250,12 @@ export default function Home() {
       case 'chat': return <ChatView chatMode={chatMode} setChatMode={setChatMode} userProfile={userProfile} userInstitutionName={""} messages={chatMessages} user={user} newMessage={newMessage} setNewMessage={setNewMessage} chatAgreed={chatAgreed} setChatAgreed={setChatAgreed} handleSendMessage={() => {}} chatEndRef={chatEndRef} onInitiateDM={(peer) => { setDmRecipient(peer); setActiveTab('direct-messages'); }} />;
       case 'direct-messages': return <DirectMessageView initialRecipient={dmRecipient} />;
       case 'library': return <LibraryView documents={localDocuments} onRefresh={refreshLocalDocs} isLoading={isLoading} />;
-      case 'archive': return <ArchiveView onRestore={(type, data) => { setActiveTab(type); if(type === 'assistant') setAssistantResult(data); }} />;
+      case 'archive': return <ArchiveView onRestore={(type, data) => { 
+        setActiveTab(type === 'assistant' ? 'ai-assistant' : type); 
+        if(type === 'assistant' || type === 'ai-assistant') setAssistantResult(data);
+        if(type === 'lexicon') setLexiconResult(data);
+        if(type === 'theology') setTheologyResult(data);
+      }} />;
       case 'zotero': return <ZoteroHubView />;
       case 'debate': return <DebateView />;
       case 'audio_hub': return <AudioHubView />;
@@ -281,7 +286,7 @@ export default function Home() {
                 <div className="bg-primary text-primary-foreground p-1.5 rounded-lg">
                   <Globe className="h-6 w-6" />
                 </div>
-                <span className="text-xl font-bold font-headline group-data-[collapsible=icon]:hidden">{t.app_title}</span>
+                <span className="text-xl font-bold font-headline group-data-[state=collapsed]:hidden">{t.app_title}</span>
               </div>
             </div>
           </SidebarHeader>
