@@ -270,6 +270,7 @@ export default function Home() {
       case 'timeline': return <TimelineView isLoading={isLoading} result={timelineResult} onSearch={(term) => handleSearch(term, 'timeline')} />;
       case 'licensing-hub': return <LicensingHubView />;
       case 'commentaries': return <CommentaryView />;
+      case 'profile': return <ProfileView userProfile={userProfile!} effectiveAvatar={userProfile?.photoURL || getGravatarUrl(userProfile?.email || '')} userInstitutionName="" profileDraft={userProfile} setProfileDraft={() => {}} institutions={[]} updateProfile={() => {}} isLoading={isLoading} aiPrefs={aiPrefs} saveAiPreferences={() => {}} systemConfig={systemConfig} historyItems={historyItems} handleSearch={handleSearch} />;
       default: return <DashboardView t={t} effectiveApiKey={aiPrefs.googleKey || systemConfig?.geminiApiKey} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={DEFAULT_MODULES} momentumData={momentumData} />;
     }
   };
@@ -404,12 +405,24 @@ export default function Home() {
                        </Button>
                      </div>
                    ) : (
-                     <div className="flex items-center gap-3 animate-in fade-in slide-in-from-right-2">
-                       <div className="hidden md:flex flex-col items-end leading-none">
-                         <span className="text-[10px] font-bold text-primary uppercase tracking-tighter">Scholar Verified</span>
-                         <span className="text-[9px] text-muted-foreground truncate max-w-[150px]">{user.email}</span>
-                       </div>
-                       <Avatar className="h-8 w-8 border-2 border-background shadow-sm">
+                     <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
+                       <Button 
+                         variant="ghost" 
+                         size="sm" 
+                         className="text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-primary"
+                         onClick={() => setActiveTab('profile')}
+                       >
+                         Profile
+                       </Button>
+                       <Button 
+                         variant="ghost" 
+                         size="sm" 
+                         className="text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-destructive"
+                         onClick={() => signOut(auth)}
+                       >
+                         Sign Out
+                       </Button>
+                       <Avatar className="h-8 w-8 border-2 border-background shadow-sm ml-2 hidden sm:flex">
                          <AvatarImage src={user.photoURL || getGravatarUrl(user.email || '')} />
                          <AvatarFallback>{user.displayName?.[0]}</AvatarFallback>
                        </Avatar>
