@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -24,19 +25,21 @@ import {
   Trash2,
   ExternalLink,
   Lock,
-  AlertCircle
+  AlertCircle,
+  Globe,
+  WifiOff
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
 
 export default function AdminSettings() {
   const db = useFirestore();
   const { user, loading: authLoading } = useUser();
   const { toast } = useToast();
   
-  // Fetch the logged-in user's profile to verify admin status
   const userRef = user ? doc(db, 'users', user.uid) : null;
   const { data: userProfile, loading: profileLoading } = useDoc<any>(userRef);
 
@@ -46,7 +49,8 @@ export default function AdminSettings() {
     geminiApiKey: '',
     ollamaUrl: 'http://localhost:11434',
     defaultModelProvider: 'google',
-    localModelList: ['llama3', 'mistral', 'gemma']
+    localModelList: ['llama3', 'mistral', 'gemma'],
+    networkMode: 'internet'
   });
   const [newModelName, setNewModelName] = useState('');
 
@@ -62,7 +66,8 @@ export default function AdminSettings() {
           setConfig({
             ...config,
             ...data,
-            localModelList: data.localModelList || ['llama3', 'mistral', 'gemma']
+            localModelList: data.localModelList || ['llama3', 'mistral', 'gemma'],
+            networkMode: data.networkMode || 'internet'
           });
         }
       } catch (e) {
@@ -180,8 +185,9 @@ export default function AdminSettings() {
       </Alert>
 
       <Tabs defaultValue="ai" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 mb-8">
+        <TabsList className="grid w-full grid-cols-3 mb-8">
           <TabsTrigger value="ai">AI Engine Config</TabsTrigger>
+          <TabsTrigger value="network">Network Topology</TabsTrigger>
           <TabsTrigger value="roles">Role Management</TabsTrigger>
         </TabsList>
 
@@ -281,6 +287,54 @@ export default function AdminSettings() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="network" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2"><Network className="h-5 w-5 text-primary" /> Connectivity Mode</CardTitle>
+              <CardDescription>Inform the application of its network topology.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-6 md:grid-cols-2">
+                <div 
+                  className={cn(
+                    "p-6 rounded-xl border-2 transition-all cursor-pointer flex flex-col items-center text-center gap-4",
+                    config.networkMode === 'internet' ? "border-primary bg-primary/5" : "border-muted hover:border-muted-foreground/30"
+                  )}
+                  onClick={() => setConfig({...config, networkMode: 'internet'})}
+                >
+                  <Globe className={cn("h-12 w-12", config.networkMode === 'internet' ? "text-primary" : "text-muted-foreground")} />
+                  <div>
+                    <h3 className="font-bold">Internet-Accessible</h3>
+                    <p className="text-xs text-muted-foreground mt-1">Application is exposed to the public internet. Enables external API fallbacks and global collaboration.</p>
+                  </div>
+                </div>
+
+                <div 
+                  className={cn(
+                    "p-6 rounded-xl border-2 transition-all cursor-pointer flex flex-col items-center text-center gap-4",
+                    config.networkMode === 'local-only' ? "border-green-600 bg-green-600/5" : "border-muted hover:border-muted-foreground/30"
+                  )}
+                  onClick={() => setConfig({...config, networkMode: 'local-only'})}
+                >
+                  <WifiOff className={cn("h-12 w-12", config.networkMode === 'local-only' ? "text-green-600" : "text-muted-foreground")} />
+                  <div>
+                    <h3 className="font-bold">Local Network Only</h3>
+                    <p className="text-xs text-muted-foreground mt-1">Application is strictly isolated to a local network (Air-gapped or Intranet). Disables analytics and remote syncing.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-muted/30 p-4 rounded-lg border flex gap-3">
+                <AlertCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                <div className="text-xs space-y-2">
+                  <p className="font-bold">Why inform the app?</p>
+                  <p>Informing the application of its network mode allows the Lexiverse research engine to optimize for available resources. In **Local Network Only** mode, the system emphasizes Ollama local inference and IndexedDB document storage, providing a seamless "dark" scholarly workspace.</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="roles" className="space-y-6">

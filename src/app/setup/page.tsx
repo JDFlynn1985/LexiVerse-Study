@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -9,10 +10,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ShieldCheck, Database, Sparkles, Activity, Key, CheckCircle2, Loader2, LogIn } from 'lucide-react';
+import { ShieldCheck, Database, Sparkles, Activity, Key, CheckCircle2, Loader2, LogIn, Globe, WifiOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { useAuth } from '@/firebase';
+import { cn } from '@/lib/utils';
 
 export default function SetupWizard() {
   const router = useRouter();
@@ -29,6 +31,7 @@ export default function SetupWizard() {
     gaMeasurementId: '',
     matomoSiteId: '',
     matomoUrl: '',
+    networkMode: 'internet',
   });
 
   useEffect(() => {
@@ -56,20 +59,18 @@ export default function SetupWizard() {
   const handleComplete = async () => {
     if (!user) {
       toast({ variant: 'destructive', title: "Authentication Required", description: "Please sign in with Google to claim ownership of the first admin account." });
-      setStep(3);
+      setStep(4);
       return;
     }
 
     setLoading(true);
     try {
-      // 1. Initialize system config
       await setDoc(doc(db, 'system', 'config'), {
         ...formData,
         isConfigured: true,
         updatedAt: new Date().toISOString()
       });
 
-      // 2. Securely bootstrap the first admin
       const userRef = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userRef);
       
@@ -106,7 +107,7 @@ export default function SetupWizard() {
     );
   }
 
-  const progress = (step / 4) * 100;
+  const progress = (step / 5) * 100;
 
   return (
     <div className="min-h-screen bg-muted/30 flex items-center justify-center p-6">
@@ -126,6 +127,45 @@ export default function SetupWizard() {
           {step === 1 && (
             <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
               <div className="flex items-center gap-2 text-primary font-bold">
+                <Globe className="h-5 w-5" />
+                <h3>Network Topology</h3>
+              </div>
+              <p className="text-sm text-muted-foreground">Is this application exposed to the public internet or isolated to a local network?</p>
+              <div className="grid gap-4">
+                <div 
+                  className={cn(
+                    "p-4 rounded-lg border-2 cursor-pointer transition-all flex items-center gap-4",
+                    formData.networkMode === 'internet' ? "border-primary bg-primary/5" : "border-muted hover:border-muted-foreground/30"
+                  )}
+                  onClick={() => setFormData({...formData, networkMode: 'internet'})}
+                >
+                  <Globe className={cn("h-8 w-8", formData.networkMode === 'internet' ? "text-primary" : "text-muted-foreground")} />
+                  <div>
+                    <p className="font-bold text-sm">Internet-Accessible</p>
+                    <p className="text-[10px] text-muted-foreground">Standard cloud-enabled scholarly collaboration.</p>
+                  </div>
+                </div>
+
+                <div 
+                  className={cn(
+                    "p-4 rounded-lg border-2 cursor-pointer transition-all flex items-center gap-4",
+                    formData.networkMode === 'local-only' ? "border-green-600 bg-green-600/5" : "border-muted hover:border-muted-foreground/30"
+                  )}
+                  onClick={() => setFormData({...formData, networkMode: 'local-only'})}
+                >
+                  <WifiOff className={cn("h-8 w-8", formData.networkMode === 'local-only' ? "text-green-600" : "text-muted-foreground")} />
+                  <div>
+                    <p className="font-bold text-sm">Local Network Only</p>
+                    <p className="text-[10px] text-muted-foreground">Isolated intranet or air-gapped installation.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
+              <div className="flex items-center gap-2 text-primary font-bold">
                 <Sparkles className="h-5 w-5" />
                 <h3>AI Configuration</h3>
               </div>
@@ -143,7 +183,7 @@ export default function SetupWizard() {
             </div>
           )}
 
-          {step === 2 && (
+          {step === 3 && (
             <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
               <div className="flex items-center gap-2 text-primary font-bold">
                 <Activity className="h-5 w-5" />
@@ -167,7 +207,7 @@ export default function SetupWizard() {
             </div>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <div className="space-y-4 animate-in fade-in slide-in-from-right-4 text-center">
               <div className="flex items-center justify-center gap-2 text-primary font-bold">
                 <Key className="h-5 w-5" />
@@ -191,7 +231,7 @@ export default function SetupWizard() {
             </div>
           )}
 
-          {step === 4 && (
+          {step === 5 && (
             <div className="text-center space-y-4 py-6 animate-in zoom-in-95">
               <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto" />
               <h3 className="text-xl font-bold font-headline">Ready for Deployment</h3>
@@ -202,8 +242,8 @@ export default function SetupWizard() {
 
         <CardFooter className="flex justify-between bg-muted/20 p-6 rounded-b-lg border-t">
           <Button variant="ghost" onClick={() => setStep(s => Math.max(1, s - 1))} disabled={step === 1 || loading}>Previous</Button>
-          {step < 4 ? (
-            <Button onClick={() => setStep(s => s + 1)} disabled={step === 3 && !user}>Continue</Button>
+          {step < 5 ? (
+            <Button onClick={() => setStep(s => s + 1)} disabled={step === 4 && !user}>Continue</Button>
           ) : (
             <Button onClick={handleComplete} disabled={loading || !user} className="bg-primary hover:bg-primary/90">
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

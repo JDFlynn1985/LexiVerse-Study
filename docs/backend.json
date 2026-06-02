@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserStudyProfile": {
@@ -112,6 +113,7 @@
         "ollamaUrl": { "type": "string" },
         "localModelList": { "type": "array", "items": { "type": "string" }, "description": "A list of locally available models via Ollama." },
         "defaultModelProvider": { "type": "string", "enum": ["google", "local"] },
+        "networkMode": { "type": "string", "enum": ["internet", "local-only"], "description": "Specifies if the deployment is internet-facing or isolated to a local network." },
         "isConfigured": { "type": "boolean" }
       }
     }

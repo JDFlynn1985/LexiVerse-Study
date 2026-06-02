@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -74,7 +75,8 @@ import {
   Key,
   Send,
   Lock,
-  CloudOff
+  CloudOff,
+  WifiOff
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -186,12 +188,12 @@ export default function Home() {
   const [isAiEnabled, setIsAiEnabled] = useState(true);
   const [systemApiKey, setSystemApiKey] = useState<string | null>(null);
   const [localModels, setLocalModels] = useState<string[]>([]);
+  const [networkMode, setNetworkMode] = useState<'internet' | 'local-only'>('internet');
 
   const [history, setHistory] = useState<{id: string, type: string, term: string, date: string}[]>([]);
   const [localDocuments, setLocalDocuments] = useState<IDBDocument[]>([]);
   const [availableVersions, setAvailableVersions] = useState<BibleVersion[]>([]);
 
-  // Privacy-first state: local API key from localStorage
   const [localApiKey, setLocalApiKey] = useState<string>('');
   
   const [aiPrefs, setAiPrefs] = useState({
@@ -259,7 +261,6 @@ export default function Home() {
     const savedHistory = localStorage.getItem('lexiverse_history');
     if (savedHistory) setHistory(JSON.parse(savedHistory));
     
-    // Load local-only API key if it exists
     const savedLocalKey = localStorage.getItem('lexiverse_local_api_key');
     if (savedLocalKey) setLocalApiKey(savedLocalKey);
 
@@ -272,6 +273,7 @@ export default function Home() {
         const config = configSnap.data();
         setLocalModels(config.localModelList || ['llama3', 'mistral', 'gemma']);
         setSystemApiKey(config.geminiApiKey || null);
+        setNetworkMode(config.networkMode || 'internet');
         setIsAiEnabled(!!config.geminiApiKey || !!localStorage.getItem('lexiverse_local_api_key'));
       } else {
         setIsAiEnabled(!!localStorage.getItem('lexiverse_local_api_key'));
@@ -312,7 +314,6 @@ export default function Home() {
     }
   }, [user, db, language, localApiKey]);
 
-  // Privacy logic: prioritize local key over cloud key
   const effectiveApiKey = localApiKey || aiPrefs.customApiKey || systemApiKey;
 
   const handleSearch = async (term: string, type: ViewMode) => {
@@ -331,8 +332,6 @@ export default function Home() {
     setActiveTab(type);
     logSearch(db, term, type, user?.uid);
     try {
-      let result;
-      // Inject the local key into the env variable context if using local key (client-side only trick for Genkit)
       if (localApiKey) {
         process.env.GEMINI_API_KEY = localApiKey;
       }
@@ -386,9 +385,7 @@ export default function Home() {
   const saveAiPreferences = async (newPrefs: any) => {
     if (!user || !db) return;
     try {
-      // Handle privacy-first key storage
       if (newPrefs.storagePreference === 'local') {
-        // Clear from cloud, save to local
         localStorage.setItem('lexiverse_local_api_key', newPrefs.customApiKey || aiPrefs.customApiKey);
         setLocalApiKey(newPrefs.customApiKey || aiPrefs.customApiKey);
         const userRef = doc(db, 'users', user.uid);
@@ -396,12 +393,11 @@ export default function Home() {
           preferences: {
             ...userProfile?.preferences,
             ...newPrefs,
-            customApiKey: '', // Erase from cloud for privacy
+            customApiKey: '', 
             storagePreference: 'local'
           }
         });
       } else if (newPrefs.storagePreference === 'cloud') {
-        // Save to cloud, clear local
         localStorage.removeItem('lexiverse_local_api_key');
         setLocalApiKey('');
         const userRef = doc(db, 'users', user.uid);
@@ -413,7 +409,6 @@ export default function Home() {
           }
         });
       } else {
-        // Just standard updates
         const userRef = doc(db, 'users', user.uid);
         await updateDoc(userRef, {
           preferences: {
@@ -449,7 +444,7 @@ export default function Home() {
             modelProvider: 'google',
             selectedModel: 'googleai/gemini-2.5-flash',
             customApiKey: '',
-            storagePreference: 'local' // Default to local privacy
+            storagePreference: 'local' 
           }
         });
       }
@@ -575,6 +570,13 @@ export default function Home() {
             </SidebarGroup>
           </SidebarContent>
           <SidebarFooter className="p-4 border-t flex flex-col gap-2">
+            {networkMode === 'local-only' && (
+              <div className="px-2 mb-2">
+                <Badge variant="outline" className="w-full justify-center gap-1.5 py-1 border-green-600/50 text-green-700 bg-green-600/5">
+                  <WifiOff className="h-3 w-3" /> Local Network Only
+                </Badge>
+              </div>
+            )}
             <div className="flex flex-row items-center justify-between w-full">
               <div className="flex items-center gap-1">
                 {(userProfile?.isAdmin || !user) && (
@@ -792,7 +794,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Research Library: A network-isolated IndexedDB interface */}
               {activeTab === 'research-library' && (
                 <div className="space-y-8">
                   <header>
