@@ -1,3 +1,4 @@
+
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
@@ -11,14 +12,25 @@
 /**
  * @fileOverview Advanced RAG (Retrieval-Augmented Generation) Engine.
  * Provides semantic chunking and relevance ranking for network-isolated scholarly papers.
+ * Optimized for browser-side execution without Node.js dependencies.
  */
-
-import natural from 'natural';
 
 export interface RAGChunk {
   text: string;
   sourceName: string;
   score?: number;
+}
+
+/**
+ * Simple browser-safe tokenizer.
+ * Splits text into unique lowercase words, filtering out short tokens.
+ */
+function tokenize(text: string): string[] {
+  if (!text) return [];
+  return text.toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .filter(t => t.length > 2);
 }
 
 /**
@@ -28,12 +40,15 @@ export function chunkText(text: string, sourceName: string, size: number = 600, 
   const chunks: RAGChunk[] = [];
   let start = 0;
 
+  if (!text) return [];
+
   while (start < text.length) {
     const end = Math.min(start + size, text.length);
     chunks.push({
       text: text.substring(start, end),
       sourceName: sourceName
     });
+    if (end === text.length) break;
     start += (size - overlap);
   }
 
@@ -42,20 +57,20 @@ export function chunkText(text: string, sourceName: string, size: number = 600, 
 
 /**
  * Selects the top-k most relevant chunks based on a search term.
- * Uses a keyword overlap approach (TF-IDF style) for local ranking.
+ * Uses a keyword overlap approach for local ranking.
  */
 export function selectRelevantChunks(query: string, allChunks: RAGChunk[], topK: number = 5): RAGChunk[] {
-  if (allChunks.length === 0) return [];
+  if (allChunks.length === 0 || !query.trim()) return [];
   
-  const tokenizer = new natural.WordTokenizer();
-  const queryTokens = tokenizer.tokenize(query.toLowerCase());
+  const queryTokens = tokenize(query);
+  if (queryTokens.length === 0) return allChunks.slice(0, topK);
   
   const scoredChunks = allChunks.map(chunk => {
-    const chunkTokens = tokenizer.tokenize(chunk.text.toLowerCase());
+    const chunkTokens = new Set(tokenize(chunk.text));
     let score = 0;
     
     queryTokens.forEach(qToken => {
-      if (chunkTokens.includes(qToken)) {
+      if (chunkTokens.has(qToken)) {
         score += 1;
       }
     });

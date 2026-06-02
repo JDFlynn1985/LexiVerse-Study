@@ -1,37 +1,33 @@
-# LexiVerse Explorer: Security Policy & Measures
+# LexiVerse Explorer: Security Policy & Governance
 
-This document outlines the security architecture and data protection protocols implemented within LexiVerse Explorer to safeguard scholarly research and maintain academic integrity.
+This document outlines the multi-layered security architecture of LexiVerse Explorer, designed to safeguard scholarly research and maintain platform integrity.
 
-## 🛡️ Core Security Measures
+## 🛡️ Defense in Depth
 
 ### 1. Authentication & Identity
 - **Provider**: Firebase Authentication (Google OIDC).
-- **Session Management**: Secure, signed tokens managed client-side.
-- **Role-Based Access Control (RBAC)**: Fine-grained permissions based on `UserStudyProfile` designations (e.g., Professor, Student, Admin).
+- **Session Security**: Authenticated sessions are managed via secure, signed JWT tokens.
+- **Role-Based Access Control (RBAC)**: Fine-grained permissions based on `UserStudyProfile` designations. Administrative portals (/admin/*) are strictly guarded by `isAdmin` flags checked at both the UI and Firestore Rule level.
 
-### 2. Authorization (Firestore Rules)
-- **Deny-by-Default**: No data is accessible unless an explicit rule allows it.
-- **Path Isolation**: Users can only read/write their own profiles.
-- **Administrative Guardianship**: Only verified Admins can modify system configuration or module registries.
-- **Audit Trails**: Security rule violations are caught by the `FirebaseErrorListener` and logged to `error_logs` for review.
+### 2. Data Authorization (Firestore Rules)
+- **Deny-by-Default**: Our security rules follow a strict "zero-trust" model. No data is accessible unless an explicit rule allows it.
+- **Path Isolation**: Researchers can only read/write their own profiles.
+- **Governance Rules**: 
+  - `wiki_entries`: Publicly readable once "approved", but only writable by the author or moderators.
+  - `system_config`: Only writable by verified System Administrators.
+  - `api_keys`: Restricted to the key owner.
 
-### 3. Data Privacy & RAG Isolation
-- **Local-First Storage**: Sensitive research papers uploaded for AI context are stored exclusively in the user's browser via **IndexedDB**.
-- **Network Awareness**: These documents never touch the cloud, preventing data leakage and maintaining institutional confidentiality.
-- **Encrypted Transmission**: All cloud communication is handled over SSL/TLS (HTTPS).
+### 3. API & External Integration
+- **Tiered Rate Limiting**: External research tokens (`lv_`) are governed by usage quotas (Basic, Scholar, Institution) to prevent resource exhaustion and DoS attacks.
+- **Revocation**: Administrators can instantly revoke API tokens through the **API Management** portal.
 
-### 4. API Security
-- **Tiered Access**: External research tokens (`lv_`) are tiered to prevent resource exhaustion.
-- **Revocation**: Administrators can revoke API keys instantly through the **API Management** portal.
-- **Rate Limiting**: Integrated usage counters monitor and enforce daily request quotas.
+### 4. AI Governance
+- **Prompt Sanitization**: System prompts are architected to prevent prompt injection and ensure a formal theological tone.
+- **API Key Handling**: User-provided Gemini keys are stored either in Firestore (encrypted) or Browser LocalStorage, depending on the user's "Network Mode" preference.
 
-### 5. AI Governance
-- **API Key Management**: Researchers can provide their own Gemini API keys, which are handled as sensitive environment variables or local-only storage.
-- **Prompt Isolation**: System prompts are sanitized to prevent prompt injection and ensure scholarly tone.
+### 5. Audit & Oversight
+- **Error Logging**: Every runtime exception and permission violation is caught and persisted to `error_logs`.
+- **Governance Audit**: Administrators have a dedicated dashboard to monitor system health and investigate legal (DMCA) complaints in real-time.
 
 ## 🚀 Reporting Vulnerabilities
-If you discover a security vulnerability within LexiVerse, please do not disclose it publicly. Email **Joshua Flynn** at **joshuaflynn040@gmail.com** with a detailed report. We aim to acknowledge and address critical issues within 48 hours.
-
-## ⚖️ Compliance
-- **GDPR/CCPA**: Users maintain the right to export and delete their data via the Profile Settings.
-- **Academic Integrity**: Integrated scanners identify uncredited scholarly phrasing to support institutional plagiarism policies.
+If you discover a security vulnerability, please do not disclose it publicly. Email **Joshua Flynn** at **joshuaflynn040@gmail.com**. We aim to acknowledge and address critical issues within 48 hours.

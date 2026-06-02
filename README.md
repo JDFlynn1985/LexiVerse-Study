@@ -38,15 +38,14 @@ npm install
 npm run dev
 ```
 
-## 📖 Developer Resources
+## 📖 Scholarly Standards & Manuals
 
-- **[SDK Documentation](docs/SDK_DOCUMENTATION.md)**: Full technical manual for the LexiVerse architecture.
-- **[Security Policy](docs/SECURITY.md)**: Details on data protection and governance.
+- **[Security Policy](docs/SECURITY.md)**: Details on multi-layered defense and data protection.
+- **[Privacy Standards](docs/PRIVACY.md)**: Information on Local-First storage and researcher data rights.
+- **[Accessibility (WCAG)](docs/ACCESSIBILITY.md)**: Our commitment to inclusive design for all scholars.
+- **[SDK Documentation](docs/SDK_DOCUMENTATION.md)**: Full technical manual for the architecture.
 - **[Module Development Guide](docs/MODULE_GUIDE.md)**: How to build and register new research tools.
 - **[Contributing](CONTRIBUTING.md)**: Guidelines for code and scholarly submissions.
-
-## 🌍 Accessibility & Privacy
-LexiVerse is committed to **WCAG 2.1 AA** standards. Users maintain full control over their data, with granular cookie consent and local-only storage options for sensitive API credentials and research papers.
 
 ## 📄 License
 This project is licensed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)** license.
