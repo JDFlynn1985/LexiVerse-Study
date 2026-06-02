@@ -69,7 +69,21 @@ export default function TermsOfUse() {
 
         <Card className="shadow-sm border-primary/10">
           <CardHeader>
-            <CardTitle className="font-headline text-xl">4. Prohibited Uses</CardTitle>
+            <CardTitle className="font-headline text-xl">4. User-Generated Content & Licensing</CardTitle>
+          </CardHeader>
+          <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
+            <p>
+              To foster a collaborative and open scholarly environment, all user-generated content (UGC)—including but not limited to wiki articles, research annotations, and community discourse—is automatically licensed under the <strong>Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)</strong> license.
+            </p>
+            <p>
+              By contributing content to the App, you grant other researchers the right to share and adapt your work, provided they give appropriate credit and distribute their contributions under the same license.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm border-primary/10">
+          <CardHeader>
+            <CardTitle className="font-headline text-xl">5. Prohibited Uses</CardTitle>
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
             <p>
@@ -80,7 +94,7 @@ export default function TermsOfUse() {
 
         <Card className="shadow-sm border-primary/10">
           <CardHeader>
-            <CardTitle className="font-headline text-xl">5. Limitation of Liability</CardTitle>
+            <CardTitle className="font-headline text-xl">6. Limitation of Liability</CardTitle>
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
             <p>
