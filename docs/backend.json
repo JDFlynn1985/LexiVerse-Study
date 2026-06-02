@@ -34,187 +34,27 @@
           "properties": {
             "modelProvider": { 
               "type": "string", 
-              "enum": ["google", "local"],
-              "description": "Whether to use cloud-based Google AI or locally hosted models."
+              "enum": ["google", "local", "openai", "anthropic", "mistral", "deepseek", "xai"],
+              "description": "The active AI engine provider."
             },
             "selectedModel": { 
               "type": "string",
-              "description": "The specific model name (e.g. gemini-2.5-flash, llama3)."
+              "description": "The specific model name."
             },
-            "customApiKey": {
-              "type": "string",
-              "description": "The user's personal Google AI API key. Encrypted at rest."
-            },
-            "ollamaUrl": {
-              "type": "string",
-              "description": "Custom endpoint for local Ollama inference."
-            },
-            "preferredBibleVersion": {
-              "type": "string",
-              "description": "The user's preferred Bible translation."
-            },
-            "language": {
-              "type": "string",
-              "description": "The user's preferred interface language."
-            },
-            "storagePreference": {
-              "type": "string",
-              "enum": ["cloud", "local"],
-              "description": "Whether to store credentials in Firestore or browser local storage."
-            }
+            "googleKey": { "type": "string" },
+            "openaiKey": { "type": "string" },
+            "anthropicKey": { "type": "string" },
+            "mistralKey": { "type": "string" },
+            "deepseekKey": { "type": "string" },
+            "xaiKey": { "type": "string" },
+            "ollamaUrl": { "type": "string" },
+            "preferredBibleVersion": { "type": "string" },
+            "language": { "type": "string" },
+            "storagePreference": { "type": "string", "enum": ["cloud", "local"] }
           }
         }
       },
       "required": ["uid"]
-    },
-    "AcademicInstitution": {
-      "title": "Academic Institution",
-      "description": "Details about a seminary, university, or research center.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "address": { "type": "string" },
-        "website": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["name"]
-    },
-    "ChatMessage": {
-      "title": "Chat Message",
-      "description": "A real-time message sent in the social chat system.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "content": { "type": "string" },
-        "senderUid": { "type": "string" },
-        "senderName": { "type": "string" },
-        "senderPhotoURL": { "type": "string" },
-        "senderDesignation": { "type": "string" },
-        "senderInstitutionName": { "type": "string" },
-        "type": { "type": "string", "enum": ["global", "institutional"] },
-        "institutionId": { "type": "string", "description": "Target institution ID for filtered chat." },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["active", "removed_dmca"], "default": "active" }
-      },
-      "required": ["content", "senderUid", "type", "createdAt"]
-    },
-    "ScholarlyModule": {
-      "title": "Scholarly Module",
-      "description": "Definition of a research tool module for dynamic activation.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "labelKey": { "type": "string" },
-        "iconName": { "type": "string" },
-        "group": { "type": "string", "enum": ["general", "ai_hub", "governance"] },
-        "enabled": { "type": "boolean" },
-        "adminOnly": { "type": "boolean" },
-        "path": { "type": "string" }
-      },
-      "required": ["id", "labelKey", "iconName", "group", "enabled"]
-    },
-    "APIKey": {
-      "title": "API Key",
-      "description": "Authentication credentials for external research access.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "key": { "type": "string", "description": "The secret API key string." },
-        "ownerUid": { "type": "string" },
-        "label": { "type": "string", "description": "Identifier for the key (e.g. 'Logos Integration')." },
-        "tier": { "type": "string", "description": "The access tier (e.g. 'Basic', 'Scholar')." },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "lastUsedAt": { "type": "string", "format": "date-time" },
-        "usageCount": { "type": "number" },
-        "revoked": { "type": "boolean" }
-      },
-      "required": ["key", "ownerUid", "tier"]
-    },
-    "WikiEntry": {
-      "title": "Wiki Entry",
-      "description": "A scholarly wiki article requiring citations and moderation.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "title": { "type": "string" },
-        "content": { "type": "string" },
-        "worksCited": { "type": "string" },
-        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "removed_dmca"] },
-        "authorUid": { "type": "string" },
-        "authorName": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["title", "content", "status", "authorUid"]
-    },
-    "DMCAComplaint": {
-      "title": "DMCA Complaint",
-      "description": "A formal notice of copyright infringement requiring investigation.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "contentId": { "type": "string" },
-        "contentType": { "type": "string", "enum": ["wiki", "chat"] },
-        "complainantName": { "type": "string" },
-        "complainantEmail": { "type": "string" },
-        "complainantAddress": { "type": "string" },
-        "infringementDescription": { "type": "string" },
-        "digitalSignature": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["pending", "investigated", "resolved"] }
-      },
-      "required": ["contentId", "contentType", "complainantName", "complainantEmail", "digitalSignature"]
-    },
-    "ErrorLog": {
-      "title": "Error Log",
-      "description": "A capture of a system or permission error for administrative audit.",
-      "type": "object",
-      "properties": {
-        "message": { "type": "string" },
-        "stack": { "type": "string" },
-        "type": { "type": "string" },
-        "userId": { "type": "string" },
-        "url": { "type": "string" },
-        "userAgent": { "type": "string" },
-        "context": { "type": "object" },
-        "timestamp": { "type": "string", "format": "date-time" }
-      },
-      "required": ["message", "timestamp"]
-    },
-    "SearchLog": {
-      "title": "Search Log",
-      "description": "Record of a scholarly research query for analytic oversight.",
-      "type": "object",
-      "properties": {
-        "term": { "type": "string" },
-        "type": { "type": "string" },
-        "uid": { "type": "string" },
-        "timestamp": { "type": "string", "format": "date-time" }
-      },
-      "required": ["term", "timestamp"]
-    },
-    "SystemSettings": {
-      "title": "System Settings",
-      "description": "Global application configuration.",
-      "type": "object",
-      "properties": {
-        "geminiApiKey": { "type": "string" },
-        "defaultModelProvider": { "type": "string", "enum": ["google", "local"] },
-        "defaultModel": { "type": "string" },
-        "networkMode": { "type": "string", "enum": ["internet", "local-only"] },
-        "apiTiers": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "name": { "type": "string" },
-              "requestsPerDay": { "type": "number" },
-              "description": { "type": "string" }
-            }
-          }
-        },
-        "isConfigured": { "type": "boolean" }
-      }
     }
   },
   "auth": {
@@ -228,38 +68,6 @@
     "/system/config": {
       "schema": "#/backend/entities/SystemSettings",
       "description": "Global system configuration."
-    },
-    "/modules/{moduleId}": {
-      "schema": "#/backend/entities/ScholarlyModule",
-      "description": "Scholarly modules and their availability status."
-    },
-    "/error_logs/{logId}": {
-        "schema": "#/backend/entities/ErrorLog",
-        "description": "Application error logs."
-    },
-    "/search_logs/{logId}": {
-        "schema": "#/backend/entities/SearchLog",
-        "description": "Research query analytics."
-    },
-    "/dmca_complaints/{complaintId}": {
-        "schema": "#/backend/entities/DMCAComplaint",
-        "description": "Formal copyright infringement notices."
-    },
-    "/api_keys/{keyId}": {
-      "schema": "#/backend/entities/APIKey",
-      "description": "External access keys."
-    },
-    "/wiki_entries/{entryId}": {
-      "schema": "#/backend/entities/WikiEntry",
-      "description": "Scholarly wiki articles."
-    },
-    "/institutions/{institutionId}": {
-      "schema": "#/backend/entities/AcademicInstitution",
-      "description": "Directory of scholarly institutions."
-    },
-    "/messages/{messageId}": {
-      "schema": "#/backend/entities/ChatMessage",
-      "description": "Chat messages for the social research system."
     }
   }
 }

@@ -1,6 +1,9 @@
+
 /**
  * @fileOverview Shared types and constants for the LexiVerse scholarly environment.
  */
+
+export type AIProvider = 'google' | 'local' | 'openai' | 'anthropic' | 'mistral' | 'deepseek' | 'xai';
 
 export type ViewMode = 
   | 'dashboard' 
@@ -14,7 +17,7 @@ export type ViewMode =
   | 'chat'
   | 'library'
   | 'translation-compare'
-  | 'boilerplate'; // Added for module development assistance
+  | 'boilerplate';
 
 export interface UserProfile {
   uid: string;
@@ -31,9 +34,15 @@ export interface UserProfile {
   isModerator?: boolean;
   isTrustedContributor?: boolean;
   preferences?: {
-    modelProvider?: 'google' | 'local';
+    modelProvider?: AIProvider;
     selectedModel?: string;
-    customApiKey?: string;
+    googleKey?: string;
+    openaiKey?: string;
+    anthropicKey?: string;
+    mistralKey?: string;
+    deepseekKey?: string;
+    xaiKey?: string;
+    ollamaUrl?: string;
     preferredBibleVersion?: string;
     language?: string;
     storagePreference?: 'cloud' | 'local';

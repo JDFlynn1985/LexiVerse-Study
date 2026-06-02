@@ -1,3 +1,4 @@
+
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
@@ -8,7 +9,7 @@
 
 /**
  * @fileOverview Primary Research Dashboard Orchestrator.
- * Updated with Advanced RAG chunking logic and mid-session AI model switching.
+ * Enhanced with Universal AI Provider support (Google, OpenAI, Anthropic, Mistral, etc.).
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -61,7 +62,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 // Config & Types
-import { ViewMode, UserProfile } from '@/types/scholarly';
+import { ViewMode, UserProfile, AIProvider } from '@/types/scholarly';
 import { DEFAULT_MODULES, GOVERNANCE_MODULES } from '@/config/modules';
 
 // Modular View Components
@@ -89,9 +90,6 @@ import { getVersions, type BibleVersion } from '@/lib/bible-api';
 import { getAllLocalDocuments, type IDBDocument } from '@/lib/idb';
 import { chunkText, selectRelevantChunks } from '@/lib/rag-engine';
 
-/**
- * Main Home component orchestrating the scholarly workspace.
- */
 export default function Home() {
   const { language, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<ViewMode>('dashboard');
@@ -111,14 +109,18 @@ export default function Home() {
   const [localDocuments, setLocalDocuments] = useState<IDBDocument[]>([]);
   const [availableVersions, setAvailableVersions] = useState<BibleVersion[]>([]);
   const [institutions, setInstitutions] = useState<{id: string, name: string}[]>([]);
-  const [localApiKey, setLocalApiKey] = useState<string>('');
   const [dynamicModules, setDynamicModules] = useState<any[]>([]);
   const [modulesLoading, setModulesLoading] = useState(true);
   
   const [aiPrefs, setAiPrefs] = useState({
-    modelProvider: 'google' as 'google' | 'local',
+    modelProvider: 'google' as AIProvider,
     selectedModel: 'googleai/gemini-2.5-flash',
-    customApiKey: '',
+    googleKey: '',
+    openaiKey: '',
+    anthropicKey: '',
+    mistralKey: '',
+    deepseekKey: '',
+    xaiKey: '',
     preferredBibleVersion: 'kjv',
     language: language,
     storagePreference: 'local' as 'cloud' | 'local'
@@ -151,8 +153,6 @@ export default function Home() {
     setMounted(true);
     const savedHistory = localStorage.getItem('lexiverse_history');
     if (savedHistory) setHistoryItems(JSON.parse(savedHistory));
-    const savedLocalKey = localStorage.getItem('lexiverse_local_api_key');
-    if (savedLocalKey) setLocalApiKey(savedLocalKey);
     refreshLocalDocs();
     getVersions().then(setAvailableVersions);
 
@@ -167,10 +167,7 @@ export default function Home() {
 
     if (!db) return;
     const unsubConfig = onSnapshot(doc(db, 'system', 'config'), (snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        setSystemConfig(data);
-      }
+      if (snap.exists()) setSystemConfig(snap.data());
     });
 
     const unsubModules = onSnapshot(collection(db, 'modules'), (snap) => {
@@ -207,55 +204,35 @@ export default function Home() {
     }
   }, [userProfile]);
 
-  const chatQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    const base = collection(db, 'messages');
-    if (chatMode === 'global') return query(base, where('type', '==', 'global'), orderBy('createdAt', 'desc'), limit(50));
-    const instId = userProfile?.institutionId || 'independent';
-    return query(base, where('type', '==', 'institutional'), where('institutionId', '==', instId), orderBy('createdAt', 'desc'), limit(50));
-  }, [db, chatMode, userProfile?.institutionId]);
-
-  const { data: messages } = useCollection<any>(chatQuery);
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !newMessage.trim() || !db || !chatAgreed) return;
-    const msgContent = newMessage;
-    setNewMessage('');
-    try {
-      const userInstName = institutions.find(i => i.id === userProfile?.institutionId)?.name || 'Independent Scholar';
-      await addDoc(collection(db, 'messages'), {
-        content: msgContent,
-        senderUid: user.uid,
-        senderName: userProfile?.displayName || user.displayName,
-        senderPhotoURL: userProfile?.photoURL || user.photoURL || '',
-        senderDesignation: userProfile?.designation || 'Scholar',
-        senderInstitutionName: userInstName,
-        type: chatMode,
-        institutionId: chatMode === 'institutional' ? (userProfile?.institutionId || 'independent') : null,
-        createdAt: serverTimestamp(),
-        license: 'CC-BY-4.0'
-      });
-    } catch (e: any) { toast({ variant: 'destructive', title: "Message Failed", description: e.message }); }
+  const getEffectiveKey = () => {
+    const p = aiPrefs.modelProvider;
+    if (p === 'google') return aiPrefs.googleKey || systemConfig?.geminiApiKey;
+    if (p === 'openai') return aiPrefs.openaiKey || systemConfig?.openaiApiKey;
+    if (p === 'anthropic') return aiPrefs.anthropicKey || systemConfig?.anthropicApiKey;
+    if (p === 'mistral') return aiPrefs.mistralKey || systemConfig?.mistralApiKey;
+    if (p === 'deepseek') return aiPrefs.deepseekKey || systemConfig?.deepseekApiKey;
+    if (p === 'xai') return aiPrefs.xaiKey || systemConfig?.xaiApiKey;
+    return undefined;
   };
-
-  const effectiveApiKey = localApiKey || aiPrefs.customApiKey || systemConfig?.geminiApiKey;
-  const isLocalMode = aiPrefs.modelProvider === 'local';
-  const effectiveModel = isLocalMode ? aiPrefs.selectedModel : (aiPrefs.selectedModel?.includes('/') ? aiPrefs.selectedModel : `googleai/${aiPrefs.selectedModel}`);
 
   const handleSearch = async (term: string, type: ViewMode) => {
     if (!term.trim()) return;
-    if (type !== 'chat' && !effectiveApiKey && !isLocalMode) {
-      toast({ variant: "destructive", title: "AI Hub Configuration Required", description: "Please supply your own Gemini API key in your profile settings." });
+    const effectiveKey = getEffectiveKey();
+    const isLocal = aiPrefs.modelProvider === 'local';
+
+    if (type !== 'chat' && !effectiveKey && !isLocal) {
+      toast({ variant: "destructive", title: "AI Hub Configuration Required", description: "Please supply an API key for the selected provider in your profile." });
       return;
     }
+
     setIsLoading(true);
     setActiveTab(type);
     if (type !== 'chat') logSearch(db, term, type, user?.uid);
     try {
-      if (type === 'lexicon') setLexiconResult(await defineAndAnalyzeTerm({ strongsNumber: term, model: effectiveModel, apiKey: effectiveApiKey || undefined }));
+      const modelString = aiPrefs.selectedModel;
+      
+      if (type === 'lexicon') setLexiconResult(await defineAndAnalyzeTerm({ strongsNumber: term, model: modelString, apiKey: effectiveKey }));
       else if (type === 'ai-assistant') {
-        // Advanced RAG Selection Logic
         const allChunks = localDocuments.flatMap(d => chunkText(d.content, d.name));
         const relevantChunks = selectRelevantChunks(term, allChunks, 8);
         const contextExcerpts = relevantChunks.map(c => `[From Paper: ${c.sourceName}]: ${c.text}`);
@@ -263,8 +240,8 @@ export default function Home() {
         setAssistantResult(await aiStudyAssistant({ 
           term, 
           researchContext: contextExcerpts, 
-          model: effectiveModel, 
-          apiKey: effectiveApiKey || undefined 
+          model: modelString, 
+          apiKey: effectiveKey 
         }));
       }
       else if (type === 'theology') setTheologyResult(await analyzeTheologicalConcept({ concept: term }));
@@ -331,7 +308,7 @@ export default function Home() {
 
   const renderModularContent = () => {
     switch (activeTab) {
-      case 'dashboard': return <DashboardView t={t} effectiveApiKey={effectiveApiKey} isLocalMode={isLocalMode} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} />;
+      case 'dashboard': return <DashboardView t={t} effectiveApiKey={getEffectiveKey()} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} />;
       case 'chat': return <ChatView chatMode={chatMode} setChatMode={setChatMode} userProfile={userProfile} userInstitutionName={userInstitutionName} messages={messages} user={user} newMessage={newMessage} setNewMessage={setNewMessage} chatAgreed={chatAgreed} setChatAgreed={setChatAgreed} handleSendMessage={handleSendMessage} chatEndRef={chatEndRef} />;
       case 'library': return <LibraryView documents={localDocuments} onRefresh={refreshLocalDocs} isLoading={isLoading} />;
       case 'synthesis': return <SynthesisView synthesisText={synthesisText} setSynthesisText={setSynthesisText} handleSynthesisAction={async (a) => {
@@ -354,7 +331,7 @@ export default function Home() {
       }} />;
       case 'boilerplate': return <BoilerplateView isLoading={isLoading} result={boilerplateResult} onSearch={(term) => handleSearch(term, 'boilerplate')} />;
       case 'profile': return userProfile ? <ProfileView userProfile={userProfile} effectiveAvatar={effectiveAvatar} userInstitutionName={userInstitutionName} profileDraft={profileDraft} setProfileDraft={setProfileDraft} institutions={institutions} updateProfile={updateProfile} isLoading={isLoading} aiPrefs={aiPrefs} saveAiPreferences={saveAiPreferences} systemConfig={systemConfig} historyItems={historyItems} handleSearch={handleSearch} /> : null;
-      default: return <DashboardView t={t} effectiveApiKey={effectiveApiKey} isLocalMode={isLocalMode} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} />;
+      default: return <DashboardView t={t} effectiveApiKey={getEffectiveKey()} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} />;
     }
   };
 
