@@ -1,7 +1,7 @@
 'use client';
 
 import React, { memo, useState, useRef } from 'react';
-import { Sparkles, GraduationCap, Clock, ArrowRight, History, FileSearch2, Feather, MessageSquare, Puzzle, Loader2, Cpu, Globe, Server, Brain, Activity, TrendingUp, Mic, MicOff } from 'lucide-react';
+import { Sparkles, GraduationCap, Clock, ArrowRight, History, FileSearch2, Feather, MessageSquare, Puzzle, Loader2, Cpu, Globe, Server, Brain, Activity, TrendingUp, Mic, MicOff, Search as SearchIcon } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -260,42 +260,77 @@ export const DashboardView = memo(({
           </CardContent>
         </Card>
 
-        <Card className="shadow-lg border-accent/20 bg-accent/5 overflow-hidden">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold uppercase tracking-widest text-accent flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" /> Scholarly Momentum
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="h-40 p-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={momentumData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorQueries" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="hsl(var(--accent))" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <Area 
-                  type="monotone" 
-                  dataKey="queries" 
-                  stroke="hsl(var(--accent))" 
-                  fillOpacity={1} 
-                  fill="url(#colorQueries)" 
-                  strokeWidth={2}
-                />
-                <RechartsTooltip 
-                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))', fontSize: '10px' }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-          <CardFooter className="pt-2 border-t bg-muted/20">
-             <div className="flex justify-between items-center w-full text-[10px] font-bold text-muted-foreground">
-               <span>LAST 7 DAYS ANALYTICS</span>
-               <span className="text-accent flex items-center gap-1"><Activity className="h-3 w-3" /> LIVE FEED</span>
-             </div>
-          </CardFooter>
-        </Card>
+        <div className="space-y-6">
+          <Card className="shadow-lg border-accent/20 bg-accent/5 overflow-hidden">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-bold uppercase tracking-widest text-accent flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" /> Scholarly Momentum
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="h-32 p-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={momentumData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorQueries" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="hsl(var(--accent))" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <Area 
+                    type="monotone" 
+                    dataKey="queries" 
+                    stroke="hsl(var(--accent))" 
+                    fillOpacity={1} 
+                    fill="url(#colorQueries)" 
+                    strokeWidth={2}
+                  />
+                  <RechartsTooltip 
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))', fontSize: '10px' }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+            <CardFooter className="pt-2 border-t bg-muted/20">
+              <div className="flex justify-between items-center w-full text-[10px] font-bold text-muted-foreground">
+                <span>7-DAY TRENDS</span>
+                <span className="text-accent flex items-center gap-1"><Activity className="h-3 w-3" /> LIVE</span>
+              </div>
+            </CardFooter>
+          </Card>
+
+          <Card className="shadow-lg border-primary/10">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
+                <History className="h-4 w-4" /> Recent Research
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-3 pb-4">
+              <div className="space-y-2">
+                {historyItems.slice(0, 3).map((item: any) => (
+                  <div 
+                    key={item.id} 
+                    className="p-2.5 rounded-lg border bg-background/50 flex items-center justify-between group cursor-pointer hover:border-primary/40 transition-all"
+                    onClick={() => handleSearch(item.term, item.type as any)}
+                  >
+                    <div className="overflow-hidden">
+                      <p className="text-xs font-bold truncate">{item.term}</p>
+                      <p className="text-[9px] uppercase text-muted-foreground">{item.type}</p>
+                    </div>
+                    <ArrowRight className="h-3 w-3 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                ))}
+                {historyItems.length === 0 && (
+                  <p className="text-center py-6 text-[10px] text-muted-foreground italic">No research logged yet.</p>
+                )}
+                {historyItems.length > 0 && (
+                   <Button variant="ghost" size="sm" className="w-full text-[10px] h-7 gap-1" onClick={() => setActiveTab('archive')}>
+                     View Full Archive <Clock className="h-3 w-3" />
+                   </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <div className="space-y-6">

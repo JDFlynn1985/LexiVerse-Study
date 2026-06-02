@@ -10,8 +10,8 @@
 
 /**
  * @fileOverview Advanced RAG (Retrieval-Augmented Generation) Engine.
- * Provides semantic chunking and relevance ranking for network-isolated scholarly papers.
- * Optimized for browser-side execution without Node.js dependencies.
+ * Provides semantic chunking and weighted relevance ranking for scholarly papers.
+ * Enhanced with TF-IDF inspired keyword frequency scoring.
  */
 
 export interface RAGChunk {
@@ -22,12 +22,12 @@ export interface RAGChunk {
 
 /**
  * Simple browser-safe tokenizer.
- * Splits text into unique lowercase words, filtering out short tokens and common noise.
+ * Splits text into unique lowercase words, filtering out noise.
  */
 function tokenize(text: string): string[] {
   if (!text) return [];
-  // Basic stop words to ignore in ranking
-  const stopWords = new Set(['the', 'and', 'for', 'was', 'with', 'that', 'this', 'from']);
+  // Academic stop words
+  const stopWords = new Set(['the', 'and', 'for', 'was', 'with', 'that', 'this', 'from', 'but', 'his', 'her', 'they', 'are']);
   
   return text.toLowerCase()
     .replace(/[^\w\s]/g, ' ')
@@ -37,6 +37,7 @@ function tokenize(text: string): string[] {
 
 /**
  * Chunks text into smaller overlapping segments to preserve semantic context.
+ * Optimized for theological and linguistic document structures.
  */
 export function chunkText(text: string, sourceName: string, size: number = 800, overlap: number = 150): RAGChunk[] {
   const chunks: RAGChunk[] = [];
@@ -59,7 +60,10 @@ export function chunkText(text: string, sourceName: string, size: number = 800, 
 
 /**
  * Selects the top-k most relevant chunks based on a search term.
- * Uses an weighted keyword overlap approach for local ranking.
+ * Uses a weighted keyword frequency approach (TF) for local ranking.
+ * @param query The user's research query.
+ * @param allChunks Every chunk currently indexed in the local library.
+ * @param topK Maximum number of chunks to return.
  */
 export function selectRelevantChunks(query: string, allChunks: RAGChunk[], topK: number = 5): RAGChunk[] {
   if (allChunks.length === 0 || !query.trim()) return [];
@@ -69,21 +73,22 @@ export function selectRelevantChunks(query: string, allChunks: RAGChunk[], topK:
   
   const scoredChunks = allChunks.map(chunk => {
     const chunkTokens = tokenize(chunk.text);
-    const chunkTokenSet = new Set(chunkTokens);
+    const chunkTokenCount = chunkTokens.length;
     
     let score = 0;
     queryTokens.forEach(qToken => {
-      if (chunkTokenSet.has(qToken)) {
-        // Simple boost for exact term frequency in chunk
-        const count = chunkTokens.filter(t => t === qToken).length;
-        score += (1 + Math.log10(count));
+      const occurrences = chunkTokens.filter(t => t === qToken).length;
+      if (occurrences > 0) {
+        // Boost score based on frequency relative to chunk size
+        const termFrequency = occurrences / chunkTokenCount;
+        score += (1 + termFrequency) * (occurrences > 1 ? 1.5 : 1.0);
       }
     });
 
     return { ...chunk, score };
   });
 
-  // Sort by score descending and take top K
+  // Sort by score descending, filter out non-matches, and take top K
   return scoredChunks
     .filter(c => c.score! > 0)
     .sort((a, b) => b.score! - a.score!)
