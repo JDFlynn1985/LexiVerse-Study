@@ -1,3 +1,4 @@
+
 /**
  * LexiVerse Explorer
  * Copyright (c) 2024. Licensed under CC BY-NC-SA 4.0.
@@ -22,7 +23,8 @@ import {
   Key,
   School,
   Settings,
-  Layers
+  Layers,
+  Activity
 } from 'lucide-react';
 import { ViewMode } from '@/types/scholarly';
 
@@ -68,6 +70,7 @@ export const GOVERNANCE_MODULES: ModuleDefinition[] = [
   { id: 'profile', labelKey: 'nav.api_portal', icon: Key, group: 'governance', path: '/api-keys' },
   { id: 'dashboard', labelKey: 'nav.admin_api', icon: Key, group: 'governance', adminOnly: true, path: '/admin/api' },
   { id: 'dashboard', labelKey: 'nav.institutions', icon: School, group: 'governance', adminOnly: true, path: '/admin/institutions' },
+  { id: 'dashboard', labelKey: 'nav.audit', icon: Activity, group: 'governance', adminOnly: true, path: '/admin/audit' },
   { id: 'dashboard', labelKey: 'nav.system_control', icon: Settings, group: 'governance', adminOnly: true, path: '/admin/settings' },
   { id: 'dashboard', labelKey: 'nav.module_governance', icon: Layers, group: 'governance', adminOnly: true, path: '/admin/modules' }
 ];

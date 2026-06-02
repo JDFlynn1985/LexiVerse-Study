@@ -89,9 +89,10 @@ export default function SetupWizard() {
                          mod.id === 'lexicon' ? 'book-open' :
                          mod.id === 'synthesis' ? 'feather' :
                          mod.id === 'boilerplate' ? 'puzzle' :
-                         mod.id === 'profile' ? 'key' : 'globe';
+                         mod.id === 'profile' ? 'key' :
+                         mod.labelKey === 'nav.audit' ? 'activity' : 'globe';
 
-        const docId = mod.id + '-' + (mod.path?.replace(/\//g, '') || 'tab');
+        const docId = (mod.id + '-' + (mod.path?.replace(/\//g, '') || 'tab')).toLowerCase();
         batch.set(doc(db, 'modules', docId), {
           id: mod.id,
           labelKey: mod.labelKey,
@@ -222,7 +223,7 @@ export default function SetupWizard() {
                 {[...DEFAULT_MODULES, ...GOVERNANCE_MODULES].map((m, i) => (
                   <div key={i} className="flex items-center gap-2 text-[10px]">
                     <CheckCircle2 className="h-3 w-3 text-green-600" />
-                    <span className="truncate">{m.id}</span>
+                    <span className="truncate">{m.id} - {m.labelKey}</span>
                   </div>
                 ))}
               </div>

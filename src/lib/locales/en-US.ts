@@ -31,6 +31,7 @@ export const enUS = {
     api_portal: "API Access",
     admin_api: "Provision Keys",
     institutions: "Institutions",
+    audit: "Governance Audit",
     system_control: "System Control",
     module_governance: "Modules",
     chat_hub: "Social Chat"

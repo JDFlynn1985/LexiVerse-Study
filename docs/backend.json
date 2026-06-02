@@ -181,6 +181,18 @@
       },
       "required": ["message", "timestamp"]
     },
+    "SearchLog": {
+      "title": "Search Log",
+      "description": "Record of a scholarly research query for analytic oversight.",
+      "type": "object",
+      "properties": {
+        "term": { "type": "string" },
+        "type": { "type": "string" },
+        "uid": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["term", "timestamp"]
+    },
     "SystemSettings": {
       "title": "System Settings",
       "description": "Global application configuration.",
@@ -224,6 +236,10 @@
     "/error_logs/{logId}": {
         "schema": "#/backend/entities/ErrorLog",
         "description": "Application error logs."
+    },
+    "/search_logs/{logId}": {
+        "schema": "#/backend/entities/SearchLog",
+        "description": "Research query analytics."
     },
     "/dmca_complaints/{complaintId}": {
         "schema": "#/backend/entities/DMCAComplaint",
