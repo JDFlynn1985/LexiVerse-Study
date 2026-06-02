@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Architecture | LexiVerse Explorer</title>
+    <title>Accessibility Standards | LexiVerse Explorer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Literata:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -29,14 +29,14 @@
                     <li><a href="index.html" class="docs-nav-link">Introduction</a></li>
                     <li><a href="style.html" class="docs-nav-link">Scholarly Style Guide</a></li>
                     <li><a href="researcher-guide.html" class="docs-nav-link">Researcher Guide</a></li>
-                    <li><a href="accessibility.html" class="docs-nav-link">Accessibility</a></li>
+                    <li><a href="accessibility.html" class="docs-nav-link active">Accessibility</a></li>
                 </ul>
             </div>
             <div class="docs-nav-group">
                 <div class="docs-nav-title">Engineering</div>
                 <ul class="docs-nav-list">
                     <li><a href="sdk.html" class="docs-nav-link">SDK Documentation</a></li>
-                    <li><a href="ai.html" class="docs-nav-link active">AI Architecture</a></li>
+                    <li><a href="ai.html" class="docs-nav-link">AI Architecture</a></li>
                     <li><a href="schema.html" class="docs-nav-link">Database Schema</a></li>
                     <li><a href="governance.html" class="docs-nav-link">Governance Manual</a></li>
                     <li><a href="api.html" class="docs-nav-link">API Reference</a></li>
@@ -47,23 +47,19 @@
         </aside>
 
         <section class="prose">
-            <h1>The Research Brain</h1>
-            <p>LexiVerse Explorer utilizes <strong>Firebase Genkit (1.x)</strong> as its primary orchestration layer, providing a unified interface for cloud-based synthesis and local-network inference.</p>
+            <h1>Accessibility Standards (WCAG 2.1 AA)</h1>
+            <p>LexiVerse Explorer is committed to providing a digitally inclusive environment for all scholars, regardless of physical or cognitive ability.</p>
             
-            <h2>Local RAG (Retrieval-Augmented Generation)</h2>
-            <p>The Digital Library enables researchers to ground the AI in their personal research papers without data leaving the client.</p>
-            <ol>
-                <li><strong>Local Indexing</strong>: Documents are parsed in the browser and stored in <strong>IndexedDB</strong>.</li>
-                <li><strong>Semantic Chunking</strong>: Text is split into fragments with overlap to preserve context.</li>
-                <li><strong>TF-IDF Ranking</strong>: Chunks are ranked locally based on weighted keyword frequency.</li>
-                <li><strong>Attributed Synthesis</strong>: AI is instructed to cite these fragments using the filename.</li>
-            </ol>
-
-            <h2>Multimodal Integration</h2>
-            <p>The platform supports <strong>Voice transcription</strong> via Gemini Multimodal and <strong>Manuscript OCR</strong> via Gemini Vision, preserving Greek and Hebrew terms with high precision.</p>
+            <h2>Core Measures</h2>
+            <ul>
+                <li><strong>Robust Foundation</strong>: Built on Radix UI primitives for keyboard-first navigation and focus management.</li>
+                <li><strong>Visual Clarity</strong>: High-contrast "Parchment" theme exceeding 4.5:1 ratio for reduced eye strain.</li>
+                <li><strong>Semantic HTML</strong>: Standard landmarks (header, nav, main) for screen reader efficiency.</li>
+                <li><strong>Interactive Components</strong>: Aria-live announcements for urgent feedback and error logging.</li>
+            </ul>
 
             <div class="docs-footer">
-                <span>Arch: Genkit 1.x / Gemini 2.5</span>
+                <span>Compliance: WCAG 2.1 AA</span>
                 <a href="index.html" style="color: inherit;">Back to Index</a>
             </div>
         </section>

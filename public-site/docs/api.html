@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Architecture | LexiVerse Explorer</title>
+    <title>API Reference | LexiVerse Explorer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Literata:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -36,10 +36,10 @@
                 <div class="docs-nav-title">Engineering</div>
                 <ul class="docs-nav-list">
                     <li><a href="sdk.html" class="docs-nav-link">SDK Documentation</a></li>
-                    <li><a href="ai.html" class="docs-nav-link active">AI Architecture</a></li>
+                    <li><a href="ai.html" class="docs-nav-link">AI Architecture</a></li>
                     <li><a href="schema.html" class="docs-nav-link">Database Schema</a></li>
                     <li><a href="governance.html" class="docs-nav-link">Governance Manual</a></li>
-                    <li><a href="api.html" class="docs-nav-link">API Reference</a></li>
+                    <li><a href="api.html" class="docs-nav-link active">API Reference</a></li>
                     <li><a href="stack.html" class="docs-nav-link">Tech Stack</a></li>
                     <li><a href="roadmap.html" class="docs-nav-link">Roadmap</a></li>
                 </ul>
@@ -47,23 +47,26 @@
         </aside>
 
         <section class="prose">
-            <h1>The Research Brain</h1>
-            <p>LexiVerse Explorer utilizes <strong>Firebase Genkit (1.x)</strong> as its primary orchestration layer, providing a unified interface for cloud-based synthesis and local-network inference.</p>
+            <h1>API Reference (v1)</h1>
+            <p>External scholarly tools and institutional scripts can integrate with the LexiVerse research engine using our RESTful API.</p>
             
-            <h2>Local RAG (Retrieval-Augmented Generation)</h2>
-            <p>The Digital Library enables researchers to ground the AI in their personal research papers without data leaving the client.</p>
-            <ol>
-                <li><strong>Local Indexing</strong>: Documents are parsed in the browser and stored in <strong>IndexedDB</strong>.</li>
-                <li><strong>Semantic Chunking</strong>: Text is split into fragments with overlap to preserve context.</li>
-                <li><strong>TF-IDF Ranking</strong>: Chunks are ranked locally based on weighted keyword frequency.</li>
-                <li><strong>Attributed Synthesis</strong>: AI is instructed to cite these fragments using the filename.</li>
-            </ol>
+            <h2>Authentication</h2>
+            <p>All requests must include a Bearer token in the <code>Authorization</code> header. Tokens can be generated in the <strong>API Portal</strong>.</p>
+            <pre><code>Authorization: Bearer lv_...</code></pre>
 
-            <h2>Multimodal Integration</h2>
-            <p>The platform supports <strong>Voice transcription</strong> via Gemini Multimodal and <strong>Manuscript OCR</strong> via Gemini Vision, preserving Greek and Hebrew terms with high precision.</p>
+            <h2>Primary Endpoint</h2>
+            <h3>POST /api/v1/research</h3>
+            <p>Executes a synthesized scholarly analysis query, optionally grounded in RAG context.</p>
+
+            <h3>Tiered Rate Limits</h3>
+            <ul>
+                <li><strong>Basic</strong>: 20 queries / 24 hrs.</li>
+                <li><strong>Scholar</strong>: 100 queries / 24 hrs.</li>
+                <li><strong>Institution</strong>: 5000 queries / 24 hrs.</li>
+            </ul>
 
             <div class="docs-footer">
-                <span>Arch: Genkit 1.x / Gemini 2.5</span>
+                <span>Version: 1.0.0</span>
                 <a href="index.html" style="color: inherit;">Back to Index</a>
             </div>
         </section>

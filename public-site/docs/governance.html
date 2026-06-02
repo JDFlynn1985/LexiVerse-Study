@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Architecture | LexiVerse Explorer</title>
+    <title>Governance Manual | LexiVerse Explorer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Literata:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -36,9 +36,9 @@
                 <div class="docs-nav-title">Engineering</div>
                 <ul class="docs-nav-list">
                     <li><a href="sdk.html" class="docs-nav-link">SDK Documentation</a></li>
-                    <li><a href="ai.html" class="docs-nav-link active">AI Architecture</a></li>
+                    <li><a href="ai.html" class="docs-nav-link">AI Architecture</a></li>
                     <li><a href="schema.html" class="docs-nav-link">Database Schema</a></li>
-                    <li><a href="governance.html" class="docs-nav-link">Governance Manual</a></li>
+                    <li><a href="governance.html" class="docs-nav-link active">Governance Manual</a></li>
                     <li><a href="api.html" class="docs-nav-link">API Reference</a></li>
                     <li><a href="stack.html" class="docs-nav-link">Tech Stack</a></li>
                     <li><a href="roadmap.html" class="docs-nav-link">Roadmap</a></li>
@@ -47,23 +47,27 @@
         </aside>
 
         <section class="prose">
-            <h1>The Research Brain</h1>
-            <p>LexiVerse Explorer utilizes <strong>Firebase Genkit (1.x)</strong> as its primary orchestration layer, providing a unified interface for cloud-based synthesis and local-network inference.</p>
+            <h1>Institutional Governance Manual</h1>
+            <p>LexiVerse provides robust oversight tools for seminary administrators to maintain scholarly integrity and platform stability.</p>
             
-            <h2>Local RAG (Retrieval-Augmented Generation)</h2>
-            <p>The Digital Library enables researchers to ground the AI in their personal research papers without data leaving the client.</p>
+            <h2>Role-Based Access Control (RBAC)</h2>
+            <ul>
+                <li><strong>isAdmin</strong>: Grants access to system controls and institutional registry.</li>
+                <li><strong>isModerator</strong>: Grants access to Wiki Peer-Review and DMCA Resolution.</li>
+            </ul>
+
+            <h2>Wiki Moderation Workflow</h2>
             <ol>
-                <li><strong>Local Indexing</strong>: Documents are parsed in the browser and stored in <strong>IndexedDB</strong>.</li>
-                <li><strong>Semantic Chunking</strong>: Text is split into fragments with overlap to preserve context.</li>
-                <li><strong>TF-IDF Ranking</strong>: Chunks are ranked locally based on weighted keyword frequency.</li>
-                <li><strong>Attributed Synthesis</strong>: AI is instructed to cite these fragments using the filename.</li>
+                <li><strong>Proposal</strong>: Researcher submits a draft with SBL works cited.</li>
+                <li><strong>Review</strong>: Moderators audit for academic rigor.</li>
+                <li><strong>Action</strong>: Approval triggers global publication and user notification.</li>
             </ol>
 
-            <h2>Multimodal Integration</h2>
-            <p>The platform supports <strong>Voice transcription</strong> via Gemini Multimodal and <strong>Manuscript OCR</strong> via Gemini Vision, preserving Greek and Hebrew terms with high precision.</p>
+            <h2>DMCA & Automated Takedown</h2>
+            <p>Upon submission of a formal complaint, flagged content (Wiki or Chat) is instantly hidden pending administrative investigation.</p>
 
             <div class="docs-footer">
-                <span>Arch: Genkit 1.x / Gemini 2.5</span>
+                <span>Last Audit: Feb 2026</span>
                 <a href="index.html" style="color: inherit;">Back to Index</a>
             </div>
         </section>

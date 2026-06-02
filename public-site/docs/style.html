@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Architecture | LexiVerse Explorer</title>
+    <title>Scholarly Style Guide | LexiVerse Explorer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Literata:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -27,7 +27,7 @@
                 <div class="docs-nav-title">Fundamentals</div>
                 <ul class="docs-nav-list">
                     <li><a href="index.html" class="docs-nav-link">Introduction</a></li>
-                    <li><a href="style.html" class="docs-nav-link">Scholarly Style Guide</a></li>
+                    <li><a href="style.html" class="docs-nav-link active">Scholarly Style Guide</a></li>
                     <li><a href="researcher-guide.html" class="docs-nav-link">Researcher Guide</a></li>
                     <li><a href="accessibility.html" class="docs-nav-link">Accessibility</a></li>
                 </ul>
@@ -36,7 +36,7 @@
                 <div class="docs-nav-title">Engineering</div>
                 <ul class="docs-nav-list">
                     <li><a href="sdk.html" class="docs-nav-link">SDK Documentation</a></li>
-                    <li><a href="ai.html" class="docs-nav-link active">AI Architecture</a></li>
+                    <li><a href="ai.html" class="docs-nav-link">AI Architecture</a></li>
                     <li><a href="schema.html" class="docs-nav-link">Database Schema</a></li>
                     <li><a href="governance.html" class="docs-nav-link">Governance Manual</a></li>
                     <li><a href="api.html" class="docs-nav-link">API Reference</a></li>
@@ -47,23 +47,23 @@
         </aside>
 
         <section class="prose">
-            <h1>The Research Brain</h1>
-            <p>LexiVerse Explorer utilizes <strong>Firebase Genkit (1.x)</strong> as its primary orchestration layer, providing a unified interface for cloud-based synthesis and local-network inference.</p>
+            <h1>Scholarly Style & Citation Standards</h1>
+            <p>LexiVerse Explorer is engineered to uphold the highest standards of academic rigor. This guide outlines how the platform handles linguistic data and citations.</p>
             
-            <h2>Local RAG (Retrieval-Augmented Generation)</h2>
-            <p>The Digital Library enables researchers to ground the AI in their personal research papers without data leaving the client.</p>
-            <ol>
-                <li><strong>Local Indexing</strong>: Documents are parsed in the browser and stored in <strong>IndexedDB</strong>.</li>
-                <li><strong>Semantic Chunking</strong>: Text is split into fragments with overlap to preserve context.</li>
-                <li><strong>TF-IDF Ranking</strong>: Chunks are ranked locally based on weighted keyword frequency.</li>
-                <li><strong>Attributed Synthesis</strong>: AI is instructed to cite these fragments using the filename.</li>
-            </ol>
+            <h2>The SBL Standard (2nd Edition)</h2>
+            <p>The <strong>Society of Biblical Literature (SBL) Handbook of Style</strong> is the primary authority for the platform's AI reasoning and writing tools.</p>
 
-            <h2>Multimodal Integration</h2>
-            <p>The platform supports <strong>Voice transcription</strong> via Gemini Multimodal and <strong>Manuscript OCR</strong> via Gemini Vision, preserving Greek and Hebrew terms with high precision.</p>
+            <h3>Linguistic Precision</h3>
+            <ul>
+                <li><strong>Original Alphabets</strong>: AI-synthesized reports MUST include Greek and Hebrew terms in their original characters (e.g., λόγος, בראשית).</li>
+                <li><strong>Morphology</strong>: Morphological analysis follows standard parsing conventions (Case, Number, Gender, Tense, etc.).</li>
+            </ul>
+
+            <h3>The "Academic Tone" Engine</h3>
+            <p>When using the Writing Hub's "Refine Tone" feature, the AI applies strict heuristics for formality, objective vocabulary, and evidence-based claims.</p>
 
             <div class="docs-footer">
-                <span>Arch: Genkit 1.x / Gemini 2.5</span>
+                <span>Standard: SBL 2nd Edition</span>
                 <a href="index.html" style="color: inherit;">Back to Index</a>
             </div>
         </section>
