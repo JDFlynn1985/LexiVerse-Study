@@ -1,4 +1,3 @@
-
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
@@ -23,20 +22,23 @@ export interface RAGChunk {
 
 /**
  * Simple browser-safe tokenizer.
- * Splits text into unique lowercase words, filtering out short tokens.
+ * Splits text into unique lowercase words, filtering out short tokens and common noise.
  */
 function tokenize(text: string): string[] {
   if (!text) return [];
+  // Basic stop words to ignore in ranking
+  const stopWords = new Set(['the', 'and', 'for', 'was', 'with', 'that', 'this', 'from']);
+  
   return text.toLowerCase()
     .replace(/[^\w\s]/g, ' ')
     .split(/\s+/)
-    .filter(t => t.length > 2);
+    .filter(t => t.length > 2 && !stopWords.has(t));
 }
 
 /**
  * Chunks text into smaller overlapping segments to preserve semantic context.
  */
-export function chunkText(text: string, sourceName: string, size: number = 600, overlap: number = 100): RAGChunk[] {
+export function chunkText(text: string, sourceName: string, size: number = 800, overlap: number = 150): RAGChunk[] {
   const chunks: RAGChunk[] = [];
   let start = 0;
 
@@ -57,7 +59,7 @@ export function chunkText(text: string, sourceName: string, size: number = 600, 
 
 /**
  * Selects the top-k most relevant chunks based on a search term.
- * Uses a keyword overlap approach for local ranking.
+ * Uses an weighted keyword overlap approach for local ranking.
  */
 export function selectRelevantChunks(query: string, allChunks: RAGChunk[], topK: number = 5): RAGChunk[] {
   if (allChunks.length === 0 || !query.trim()) return [];
@@ -66,12 +68,15 @@ export function selectRelevantChunks(query: string, allChunks: RAGChunk[], topK:
   if (queryTokens.length === 0) return allChunks.slice(0, topK);
   
   const scoredChunks = allChunks.map(chunk => {
-    const chunkTokens = new Set(tokenize(chunk.text));
-    let score = 0;
+    const chunkTokens = tokenize(chunk.text);
+    const chunkTokenSet = new Set(chunkTokens);
     
+    let score = 0;
     queryTokens.forEach(qToken => {
-      if (chunkTokens.has(qToken)) {
-        score += 1;
+      if (chunkTokenSet.has(qToken)) {
+        // Simple boost for exact term frequency in chunk
+        const count = chunkTokens.filter(t => t === qToken).length;
+        score += (1 + Math.log10(count));
       }
     });
 

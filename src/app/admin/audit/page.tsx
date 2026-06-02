@@ -1,9 +1,8 @@
-
 'use client';
 
 /**
  * @fileOverview Governance Audit Dashboard.
- * Enhanced with Research Volume analytics using Recharts.
+ * Enhanced with Top Research Topics visualization.
  */
 
 import { useState, useEffect, useMemo } from 'react';
@@ -23,7 +22,9 @@ import {
   Trash2,
   CheckCircle2,
   TrendingUp,
-  BarChart3
+  BarChart3,
+  Flame,
+  Award
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -61,7 +62,7 @@ export default function GovernanceAudit() {
     try {
       const [errSnap, searchSnap, dmcaSnap] = await Promise.all([
         getDocs(query(collection(db, 'error_logs'), orderBy('timestamp', 'desc'), limit(50))),
-        getDocs(query(collection(db, 'search_logs'), orderBy('timestamp', 'desc'), limit(100))),
+        getDocs(query(collection(db, 'search_logs'), orderBy('timestamp', 'desc'), limit(500))),
         getDocs(query(collection(db, 'dmca_complaints'), orderBy('createdAt', 'desc'), limit(20)))
       ]);
 
@@ -86,6 +87,18 @@ export default function GovernanceAudit() {
       stats[type] = (stats[type] || 0) + 1;
     });
     return Object.entries(stats).map(([name, value]) => ({ name: name.toUpperCase(), value }));
+  }, [searches]);
+
+  const topTopics = useMemo(() => {
+    const counts: Record<string, number> = {};
+    searches.forEach(s => {
+      const term = s.term?.toLowerCase().trim();
+      if (term) counts[term] = (counts[term] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([term, count]) => ({ term, count }));
   }, [searches]);
 
   const resolveDMCA = async (complaintId: string) => {
@@ -169,22 +182,36 @@ export default function GovernanceAudit() {
 
         <Card className="shadow-sm border-accent/20 bg-accent/5">
           <CardHeader>
-             <CardTitle className="text-sm font-bold uppercase tracking-widest text-accent">Active Oversight</CardTitle>
+             <CardTitle className="text-sm font-bold uppercase tracking-widest text-accent flex items-center gap-2">
+               <Flame className="h-4 w-4" /> High-Demand Topics
+             </CardTitle>
+             <CardDescription>Trending search terms for Wiki population.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-             <div className="p-4 bg-background rounded-lg border flex items-center justify-between shadow-sm">
-                <div className="space-y-0.5">
-                   <p className="text-xs text-muted-foreground">Pending Complaints</p>
-                   <p className="text-2xl font-bold font-headline">{complaints.filter(c => c.status === 'pending').length}</p>
-                </div>
-                <ShieldAlert className="h-8 w-8 text-destructive opacity-20" />
+             <div className="space-y-2">
+               {topTopics.map((topic, i) => (
+                 <div key={i} className="p-3 bg-background rounded-lg border flex items-center justify-between shadow-sm group hover:border-accent/40 transition-all">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                       <Award className={cn("h-4 w-4 shrink-0", i === 0 ? "text-accent" : "text-muted-foreground/30")} />
+                       <span className="text-sm font-bold truncate capitalize">{topic.term}</span>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] font-mono">{topic.count} hits</Badge>
+                 </div>
+               ))}
+               {topTopics.length === 0 && <p className="text-center text-xs text-muted-foreground italic py-10">Accumulating trending data...</p>}
              </div>
-             <div className="p-4 bg-background rounded-lg border flex items-center justify-between shadow-sm">
-                <div className="space-y-0.5">
-                   <p className="text-xs text-muted-foreground">System Alerts</p>
-                   <p className="text-2xl font-bold font-headline">{errors.length}</p>
+             
+             <Separator />
+             
+             <div className="grid grid-cols-2 gap-2">
+                <div className="p-3 bg-background rounded-lg border text-center">
+                   <p className="text-[10px] font-bold text-muted-foreground uppercase">Alerts</p>
+                   <p className="text-xl font-bold text-destructive">{errors.length}</p>
                 </div>
-                <AlertCircle className="h-8 w-8 text-primary opacity-20" />
+                <div className="p-3 bg-background rounded-lg border text-center">
+                   <p className="text-[10px] font-bold text-muted-foreground uppercase">DMCA</p>
+                   <p className="text-xl font-bold">{complaints.filter(c => c.status === 'pending').length}</p>
+                </div>
              </div>
           </CardContent>
         </Card>
@@ -201,7 +228,7 @@ export default function GovernanceAudit() {
           <Card>
             <CardHeader>
               <CardTitle>Research Query Feed</CardTitle>
-              <CardDescription>Identifying high-demand topics for institutional wiki population.</CardDescription>
+              <CardDescription>Historical log of all scholarly searches.</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>

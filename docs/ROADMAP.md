@@ -3,14 +3,12 @@
 This document outlines the features and components that require further development to reach full scholarly production standards.
 
 ## ✅ Completed (Recent Build)
+- [x] **Attributed Multi-Document Synthesis**: Integrated citation logic for library-grounded AI synthesis.
+- [x] **Live Research Trends**: Implemented real-time popularity analytics in the Governance Audit portal.
 - [x] **Voice Research Hub**: Integrated real-time voice transcription into the primary research engine via Gemini Multimodal.
 - [x] **Visual Theology Mapper**: Developed a scatter-plot density map using Recharts to visualize concept evolution.
 - [x] **Advanced BibTeX Export**: Implemented Zotero-compliant citation exports with abstract and metadata.
 - [x] **Google Workspace Deep Integration**: Real-time research export to Google Drive and Google Docs.
-- [x] **Live Research Momentum**: Real-time dashboard query aggregation from Firestore logs.
-- [x] **Spatial Narrative Hub**: Integrated Google Maps spatial data into the Geography Hub.
-- [x] **Grounded Synthesis Hub**: Integrated Digital Library RAG into the Writing Hub for integrity scans and tone refinement.
-- [x] **Codebase Sanitization**: Removed obsolete boilerplate templates and duplicate AI flows.
 - [x] **Notification Engine**: Implemented an in-app Notification Center for status changes and peer review alerts.
 - [x] **Wiki Moderation Flow**: Automated triggers for author alerts upon article approval/rejection.
 - [x] **Audit Dashboard**: Created UI views for system governance monitoring.
@@ -23,9 +21,6 @@ This document outlines the features and components that require further developm
 
 ## 🎙️ AI & Multimodal Research
 - [ ] **Advanced Vector Search**: Transition from keyword ranking to Firestore Vector Search for semantic accuracy.
-- [ ] **Multi-Document Synthesis**: Allow the RAG engine to combine multiple library papers into a single synthesized summary.
-
-## 🛡️ Governance & Administration
 - [ ] **Ollama Streaming Downloads**: Implement streaming for `pullOllamaModel` to prevent action timeouts.
 - [ ] **Institutional Single Sign-On (SSO)**: SAML/OIDC integration for seminaries.
 

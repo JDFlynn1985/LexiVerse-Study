@@ -6,7 +6,7 @@
  */
 
 import React, { memo, useState } from 'react';
-import { Library, Upload, Trash2, FileText, Loader2, Info, Search, BookOpen, CheckCircle2 } from 'lucide-react';
+import { Library, Upload, Trash2, FileText, Loader2, Info, Search, BookOpen, CheckCircle2, Languages } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -122,7 +122,7 @@ export const LibraryView = memo(({ documents, onRefresh, isLoading }: LibraryVie
                           <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                             <span>{new Date(doc.uploadDate).toLocaleDateString()}</span>
                             <span>•</span>
-                            <span>~{Math.round(doc.content.length / 5)} words</span>
+                            <span>{Math.round(doc.content.length / 5).toLocaleString()} words</span>
                           </div>
                         </div>
                       </div>
@@ -162,32 +162,45 @@ export const LibraryView = memo(({ documents, onRefresh, isLoading }: LibraryVie
           <Card className="border-accent/20 bg-accent/5">
             <CardHeader>
               <CardTitle className="text-lg font-headline flex items-center gap-2">
-                <Info className="h-5 w-5 text-accent" /> RAG Awareness
+                <Info className="h-5 w-5 text-accent" /> RAG Attribution
               </CardTitle>
-              <CardDescription>How the library enhances your research.</CardDescription>
+              <CardDescription>How cited context works.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 text-sm leading-relaxed">
               <p>
-                When you search in the <strong>AI Study Assistant</strong>, the system automatically pulls relevant fragments from these indexed papers.
+                The <strong>AI Study Assistant</strong> now uses multi-document grounding. Insights derived from your papers are cited using their filename.
               </p>
               <div className="p-3 bg-background rounded-lg border text-xs italic">
-                "Contextual groundedness increases AI accuracy for niche theological topics found in your personal research."
+                "According to recent research, the linguistic root 'logos' conveys specific ontological weight [Ref: TheologyPaper.pdf]."
               </div>
               <ul className="space-y-2 text-xs">
                  <li className="flex items-start gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-accent mt-1.5" />
-                    <span>Supports PDF, Docx, and TXT.</span>
+                    <CheckCircle2 className="h-3 w-3 text-accent mt-0.5" />
+                    <span>Automatic source identification.</span>
                  </li>
                  <li className="flex items-start gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-accent mt-1.5" />
-                    <span>No size limit (constrained by your storage).</span>
+                    <CheckCircle2 className="h-3 w-3 text-accent mt-0.5" />
+                    <span>Cross-document synthesis logic.</span>
                  </li>
                  <li className="flex items-start gap-2">
-                    <div className="h-1.5 w-1.5 rounded-full bg-accent mt-1.5" />
-                    <span>Instant local parsing.</span>
+                    <CheckCircle2 className="h-3 w-3 text-accent mt-0.5" />
+                    <span>Instant character indexing.</span>
                  </li>
               </ul>
             </CardContent>
+          </Card>
+          
+          <Card className="bg-primary text-primary-foreground">
+             <CardHeader>
+               <CardTitle className="text-sm font-bold uppercase flex items-center gap-2">
+                 <Languages className="h-4 w-4" /> Global Research
+               </CardTitle>
+             </CardHeader>
+             <CardContent>
+                <p className="text-[11px] opacity-80 leading-relaxed italic">
+                  Upload multiple synoptic papers to perform comparative cross-document analysis. The AI engine ranks chunks by semantic relevance across your entire indexed library.
+                </p>
+             </CardContent>
           </Card>
         </div>
       </div>
