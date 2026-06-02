@@ -1,10 +1,9 @@
-
 import { createSwaggerSpec } from 'next-swagger-doc';
 
 /**
  * @fileOverview Configuration for Automated OpenAPI Specification Generation.
  * Scans API routes for JSDoc comments and generates a standard Swagger document.
- * Updated for API v1.1 with Lexicon and Synoptic endpoints.
+ * Updated for API v1.2 with mandatory Clause 1.1 age compliance notes.
  */
 
 export const getApiDocs = async () => {
@@ -14,8 +13,8 @@ export const getApiDocs = async () => {
       openapi: '3.0.0',
       info: {
         title: 'LexiVerse Scholarly Research API',
-        version: '1.1.0',
-        description: 'Advanced RESTful API for external scholarly research integration. This API allows third-party tools to leverage the LexiVerse AI engine, grounded lexical data, and Gospel alignment tools.',
+        version: '1.2.0',
+        description: 'Advanced RESTful API for external scholarly research integration. This API allows third-party tools to leverage the LexiVerse AI engine, grounded lexical data, and Gospel alignment tools. Access is restricted to scholars age 15+ in compliance with Clause 1.1.',
         contact: {
           name: 'LexiVerse Engineering',
           url: 'https://lexiverse.app',
@@ -27,7 +26,7 @@ export const getApiDocs = async () => {
             type: 'http',
             scheme: 'bearer',
             bearerFormat: 'LV-TOKEN',
-            description: 'Provide your personal API key (starting with lv_) obtained from the API Portal.'
+            description: 'Provide your personal API key (starting with lv_) obtained from the API Portal. Key generation requires a verified scholar account.'
           },
         },
         schemas: {

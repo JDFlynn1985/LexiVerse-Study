@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeFirebase } from '@/firebase';
 import { collection, query, where, getDocs, doc, updateDoc, increment, getDoc } from 'firebase/firestore';
@@ -10,7 +9,7 @@ import { sanitizeHtml } from '@/lib/sanitization';
  * /api/v1/research:
  *   post:
  *     summary: Execute a scholarly research query
- *     description: Leverages the LexiVerse AI engine and local research papers to synthesize an academic report. Access is governed by tiered rate limits.
+ *     description: Leverages the LexiVerse AI engine and local research papers to synthesize an academic report. Access is governed by tiered rate limits and restricted to age-verified scholars (Clause 1.1).
  *     tags:
  *       - Research
  *     security:

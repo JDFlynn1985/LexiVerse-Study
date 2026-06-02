@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeFirebase } from '@/firebase';
 import { collection, query, where, getDocs, doc, updateDoc, increment } from 'firebase/firestore';
@@ -9,7 +8,7 @@ import { alignSynopticGospels } from '@/ai/flows/synoptic-aligner-flow';
  * /api/v1/synoptic:
  *   post:
  *     summary: Align Gospel narrative events
- *     description: Maps a specific biblical event across Matthew, Mark, Luke, and John traditions.
+ *     description: Maps a specific biblical event across Matthew, Mark, Luke, and John traditions using scholarly AI synthesis.
  *     tags:
  *       - Synoptics
  *     security:
@@ -26,13 +25,19 @@ import { alignSynopticGospels } from '@/ai/flows/synoptic-aligner-flow';
  *               event:
  *                 type: string
  *                 example: "The Transfiguration"
+ *                 description: The Gospel narrative event to align.
  *     responses:
  *       200:
  *         description: Synoptic alignment successful.
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/SynopticOutput'
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/SynopticOutput'
  */
 
 export async function POST(req: NextRequest) {

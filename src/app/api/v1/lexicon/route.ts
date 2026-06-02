@@ -1,4 +1,3 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeFirebase } from '@/firebase';
 import { collection, query, where, getDocs, doc, updateDoc, increment, getDoc } from 'firebase/firestore';
@@ -9,7 +8,7 @@ import { getStrongsData } from '@/lib/lexicon-api';
  * /api/v1/lexicon:
  *   get:
  *     summary: Retrieve verified lexical data
- *     description: Fetches structured linguistic data for a given Strong's number from the LexiVerse registry.
+ *     description: Fetches structured linguistic data for a given Strong's number from the LexiVerse registry. Grounded in verified concordance data.
  *     tags:
  *       - Linguistics
  *     security:
@@ -65,7 +64,6 @@ export async function GET(req: NextRequest) {
     const keyDoc = querySnapshot.docs[0];
     const keyData = keyDoc.data();
 
-    const configSnap = await getDoc(doc(firestore, 'system', 'config'));
     const dailyLimit = 100; // Lexicon queries are lighter
 
     if (keyData.usageCount >= dailyLimit) {

@@ -1,6 +1,6 @@
-# LexiVerse Explorer: Developer SDK & Architecture Manual (v1.2)
+# LexiVerse Explorer: Developer SDK & Architecture Manual (v1.3)
 
-Welcome to the LexiVerse Explorer SDK documentation. This guide provides the technical foundation for expanding the platform's scholarly capabilities, now updated for **Grounded Intelligence** and **Institutional SSO**.
+Welcome to the LexiVerse Explorer SDK documentation. This guide provides the technical foundation for expanding the platform's scholarly capabilities, now updated for **Dual-Layer Security** and **Grounded Intelligence**.
 
 ---
 
@@ -8,11 +8,21 @@ Welcome to the LexiVerse Explorer SDK documentation. This guide provides the tec
 LexiVerse follows a **Unified Native Architecture**. Research modules are integrated components of the core engine, utilizing shared context for language, theme, and authentication.
 
 ### Core Directories
-- **`src/ai/flows/`**: The intelligence layer. All LLM reasoning is encapsulated here.
-- **`src/app/actions/`**: The infrastructure layer. Uses Server Actions for tasks like Ollama management and SSO verification.
+- **`src/ai/flows/`**: The intelligence layer. All Genkit 1.x reasoning is encapsulated here.
+- **`src/app/actions/`**: The infrastructure layer. Uses Server Actions for tasks like Ollama management and **Identity Verification**.
 - **`src/components/views/`**: The UI layer. Each research tool is a memoized React component.
 - **`src/firebase/`**: The data layer. Orchestrates real-time syncing and RBAC permissions.
 - **`src/lib/`**: The utility layer. Contains the RAG engine, exporters, and sanitization logic.
+
+---
+
+## 🛡️ Security & Identity (Dual-Layer)
+The platform enforces a strict non-predictability policy for credentials. Developers must utilize the server-side validation flow for any identity management.
+
+### Server-Side Validation
+The `validateScholarPassword` server action (found in `src/app/actions/auth-actions.ts`) provides the authoritative check against:
+1. **Clause 1.1 (Age)**: Rejection of any user under 15.
+2. **Identity Collision**: Rejection of passwords containing components of the user's name, email, or birthday.
 
 ---
 
@@ -20,7 +30,7 @@ LexiVerse follows a **Unified Native Architecture**. Research modules are integr
 All AI logic MUST use the global `ai` instance from `@/ai/genkit`. To maintain 100% academic precision, we use **Grounded Tool Calling**.
 
 ### The Grounding Pattern
-When building linguistic or exegesis tools, never rely on LLM memory alone. Define a tool to fetch verified data:
+When building linguistic or exegesis tools, never rely on LLM memory alone. Use tools to fetch verified registry data:
 
 ```typescript
 const fetchStrongsDataTool = ai.defineTool({
@@ -48,17 +58,8 @@ The platform identifies researchers via their `UserStudyProfile`.
 
 ---
 
-## 🛡️ Input Security & Sanitization
-Every user-controllable text field MUST be sanitized before processing.
-- **Utility**: `src/lib/sanitization.ts`
-- **Policy**: Use `sanitizeHtml` for general text and `sanitizeRichText` for Wiki/Notes content to preserve basic formatting while preventing XSS.
-
----
-
 ## 🌍 Internationalization (i18n)
-UI strings are managed centrally in `src/lib/locales/`. 
-- Always use the `useLanguage` hook. 
-- Never hardcode strings directly in components to ensure the platform remains accessible across all supported dialects.
+UI strings are managed via **i18nexus**. Always use the `useLanguage` hook. Never hardcode strings directly in components to ensure the platform remains accessible across all 30+ supported dialects.
 
 ---
 
