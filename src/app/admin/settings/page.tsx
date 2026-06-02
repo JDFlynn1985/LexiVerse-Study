@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore, useUser, useDoc } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,20 +22,26 @@ import {
   Network,
   Plus,
   Trash2,
-  ExternalLink
+  ExternalLink,
+  Lock,
+  AlertCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function AdminSettings() {
   const db = useFirestore();
-  const { user } = useUser();
+  const { user, loading: authLoading } = useUser();
   const { toast } = useToast();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  // Fetch the logged-in user's profile to verify admin status
+  const userRef = user ? doc(db, 'users', user.uid) : null;
+  const { data: userProfile, loading: profileLoading } = useDoc<any>(userRef);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [config, setConfig] = useState<any>({
     geminiApiKey: '',
     ollamaUrl: 'http://localhost:11434',
@@ -45,39 +50,40 @@ export default function AdminSettings() {
   });
   const [newModelName, setNewModelName] = useState('');
 
+  const isAdmin = userProfile?.isAdmin === true;
+
   useEffect(() => {
     async function fetchConfig() {
-      const snap = await getDoc(doc(db, 'system', 'config'));
-      if (snap.exists()) {
-        const data = snap.data();
-        setConfig({
-          ...config,
-          ...data,
-          localModelList: data.localModelList || ['llama3', 'mistral', 'gemma']
-        });
+      if (!isAdmin) return;
+      try {
+        const snap = await getDoc(doc(db, 'system', 'config'));
+        if (snap.exists()) {
+          const data = snap.data();
+          setConfig({
+            ...config,
+            ...data,
+            localModelList: data.localModelList || ['llama3', 'mistral', 'gemma']
+          });
+        }
+      } catch (e) {
+        console.error("Permission denied fetching system config");
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
-    fetchConfig();
-  }, [db]);
-
-  const handleLocalLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (loginData.username === config?.adminUsername && loginData.password === config?.adminPassword) {
-      setIsAuthenticated(true);
-      toast({ title: "Authenticated", description: "Local Admin access granted." });
-    } else {
-      toast({ variant: 'destructive', title: "Invalid Credentials", description: "Local admin login failed." });
+    if (!authLoading && !profileLoading) {
+      fetchConfig();
     }
-  };
+  }, [db, isAdmin, authLoading, profileLoading]);
 
   const handleSave = async () => {
+    if (!isAdmin) return;
     setSaving(true);
     try {
       await setDoc(doc(db, 'system', 'config'), { ...config, updatedAt: new Date().toISOString() }, { merge: true });
       toast({ title: "Settings Updated", description: "Global configuration has been refreshed." });
     } catch (e: any) {
-      toast({ variant: 'destructive', title: "Update Failed", description: e.message });
+      toast({ variant: 'destructive', title: "Update Failed", description: "You do not have permission to modify system configuration." });
     } finally {
       setSaving(false);
     }
@@ -104,7 +110,7 @@ export default function AdminSettings() {
   };
 
   const promoteUser = async (role: 'admin' | 'moderator' | 'trusted') => {
-    if (!user) return;
+    if (!user || !isAdmin) return;
     setSaving(true);
     try {
       let updates = {};
@@ -115,38 +121,36 @@ export default function AdminSettings() {
       await updateDoc(doc(db, 'users', user.uid), updates);
       toast({ title: "User Promoted", description: `${user.displayName} is now a ${role}.` });
     } catch (e: any) {
-      toast({ variant: 'destructive', title: "Promotion Failed" });
+      toast({ variant: 'destructive', title: "Promotion Failed", description: "Permission denied." });
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
-
-  if (!isAuthenticated) {
+  if (authLoading || profileLoading || (isAdmin && loading)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-6">
-        <Card className="w-full max-w-md shadow-xl border-primary/20">
-          <CardHeader className="text-center">
-            <ShieldCheck className="h-12 w-12 text-primary mx-auto mb-2" />
-            <CardTitle className="font-headline text-2xl">Admin Portal</CardTitle>
-            <CardDescription>Authenticate via credentials stored during setup to manage the platform.</CardDescription>
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="animate-spin text-primary h-10 w-10" />
+      </div>
+    );
+  }
+
+  if (!user || !isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-6 text-center">
+        <Card className="w-full max-w-md shadow-xl border-destructive/20">
+          <CardHeader>
+            <ShieldAlert className="h-12 w-12 text-destructive mx-auto mb-2" />
+            <CardTitle className="font-headline text-2xl">Access Denied</CardTitle>
+            <CardDescription>
+              This portal is restricted to System Administrators. Your academic credentials do not grant access to global system parameters.
+            </CardDescription>
           </CardHeader>
-          <form onSubmit={handleLocalLogin}>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Username</Label>
-                <Input value={loginData.username} onChange={e => setLoginData({...loginData, username: e.target.value})} required />
-              </div>
-              <div className="space-y-2">
-                <Label>Password</Label>
-                <Input type="password" value={loginData.password} onChange={e => setLoginData({...loginData, password: e.target.value})} required />
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button type="submit" className="w-full">Unlock Dashboard</Button>
-            </CardFooter>
-          </form>
+          <CardFooter>
+            <Button variant="outline" className="w-full" onClick={() => window.location.href = '/'}>
+              Return to Research
+            </Button>
+          </CardFooter>
         </Card>
       </div>
     );
@@ -167,6 +171,14 @@ export default function AdminSettings() {
         </Button>
       </header>
 
+      <Alert className="bg-primary/5 border-primary/20">
+        <ShieldCheck className="h-4 w-4 text-primary" />
+        <AlertTitle className="text-primary font-bold">Secure Session Active</AlertTitle>
+        <AlertDescription className="text-xs">
+          Authenticated as <strong>{userProfile?.displayName}</strong> (System Administrator). All changes are logged for academic transparency.
+        </AlertDescription>
+      </Alert>
+
       <Tabs defaultValue="ai" className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-8">
           <TabsTrigger value="ai">AI Engine Config</TabsTrigger>
@@ -179,13 +191,13 @@ export default function AdminSettings() {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2"><Key className="h-5 w-5 text-primary" /> Cloud Research (Google)</CardTitle>
                 <CardDescription>
-                  Researchers must provide their own Gemini API key for cloud processing.
+                  Configure the default fallback key for guest researchers.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <Label>Gemini API Key</Label>
+                    <Label>System Gemini API Key</Label>
                     <Button variant="link" className="p-0 h-auto text-xs" asChild>
                       <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1">
                         Get Key <ExternalLink className="h-3 w-3" />
@@ -196,10 +208,10 @@ export default function AdminSettings() {
                     type="password" 
                     value={config?.geminiApiKey || ''} 
                     onChange={e => setConfig({...config, geminiApiKey: e.target.value})} 
-                    placeholder="Enter your Google AI API key"
+                    placeholder="Enter system Google AI API key"
                   />
                   <p className="text-[10px] text-muted-foreground italic">
-                    Keys are stored securely in your private Firestore instance.
+                    This key powers research for users who haven't supplied their own in their profile.
                   </p>
                 </div>
               </CardContent>
@@ -286,7 +298,7 @@ export default function AdminSettings() {
                     <p className="text-xs text-muted-foreground">Full access to settings.</p>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => promoteUser('admin')} disabled={!user || saving}>Promote</Button>
+                <Badge className="bg-primary">ACTIVE</Badge>
               </div>
 
               <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
@@ -297,7 +309,9 @@ export default function AdminSettings() {
                     <p className="text-xs text-muted-foreground">Peer review pending entries.</p>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => promoteUser('moderator')} disabled={!user || saving}>Promote</Button>
+                <Button variant="outline" size="sm" onClick={() => promoteUser('moderator')} disabled={saving}>
+                  {userProfile?.isModerator ? 'Verified' : 'Promote'}
+                </Button>
               </div>
 
               <div className="flex items-center justify-between p-4 bg-background rounded-lg border">
@@ -308,10 +322,10 @@ export default function AdminSettings() {
                     <p className="text-xs text-muted-foreground">Bypass peer review for wiki posts.</p>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => promoteUser('trusted')} disabled={!user || saving}>Promote</Button>
+                <Button variant="outline" size="sm" onClick={() => promoteUser('trusted')} disabled={saving}>
+                  {userProfile?.isTrustedContributor ? 'Verified' : 'Promote'}
+                </Button>
               </div>
-
-              {!user && <p className="text-xs italic text-center text-muted-foreground pt-2">Sign in with Google in the main app to enable role promotion.</p>}
             </CardContent>
           </Card>
         </TabsContent>

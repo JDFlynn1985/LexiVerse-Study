@@ -1,9 +1,8 @@
-
 {
   "entities": {
     "UserStudyProfile": {
       "title": "User Study Profile",
-      "description": "Metadata about the user's study preferences and linked external accounts.",
+      "description": "Metadata about the user's study preferences and linked external accounts. Access is restricted to self and admins.",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
@@ -12,9 +11,9 @@
         "photoURL": { "type": "string" },
         "credentials": { "type": "string", "description": "Academic or professional titles (e.g. PhD, MDiv, Seminary Student)." },
         "bio": { "type": "string", "description": "A brief scholarly biography explaining research interests." },
-        "isAdmin": { "type": "boolean", "description": "Whether the user has administrative privileges." },
-        "isModerator": { "type": "boolean", "description": "Whether the user has moderator privileges for the wiki and blog." },
-        "isTrustedContributor": { "type": "boolean", "description": "Whether the user can post wiki and blog entries without peer review." },
+        "isAdmin": { "type": "boolean", "description": "System administration privilege. Can only be granted by another admin." },
+        "isModerator": { "type": "boolean", "description": "Moderator privilege for peer review." },
+        "isTrustedContributor": { "type": "boolean", "description": "Privilege to bypass peer review for posts." },
         "preferences": {
           "type": "object",
           "properties": {
@@ -29,7 +28,7 @@
             },
             "customApiKey": {
               "type": "string",
-              "description": "The user's personal Google AI API key."
+              "description": "The user's personal Google AI API key. Encrypted at rest."
             },
             "ollamaUrl": {
               "type": "string",
@@ -103,12 +102,13 @@
     },
     "SystemSettings": {
       "title": "System Settings",
-      "description": "Global application configuration stored in Firestore.",
+      "description": "Global application configuration. Read/Write restricted to authenticated System Administrators only.",
       "type": "object",
       "properties": {
-        "adminUsername": { "type": "string" },
-        "adminPassword": { "type": "string" },
-        "geminiApiKey": { "type": "string" },
+        "geminiApiKey": { "type": "string", "description": "System-wide guest API key." },
+        "gaMeasurementId": { "type": "string" },
+        "matomoSiteId": { "type": "string" },
+        "matomoUrl": { "type": "string" },
         "ollamaUrl": { "type": "string" },
         "localModelList": { "type": "array", "items": { "type": "string" }, "description": "A list of locally available models via Ollama." },
         "defaultModelProvider": { "type": "string", "enum": ["google", "local"] },
@@ -122,23 +122,23 @@
   "firestore": {
     "/users/{userId}": {
       "schema": "#/backend/entities/UserStudyProfile",
-      "description": "User's study profile and role flags."
+      "description": "User's study profile and role flags. Access restricted to OWNER or ADMIN."
     },
     "/system/config": {
       "schema": "#/backend/entities/SystemSettings",
-      "description": "Global system configuration."
+      "description": "Global system configuration. Access restricted to ADMIN."
     },
     "/wiki_entries/{entryId}": {
       "schema": "#/backend/entities/WikiEntry",
-      "description": "Scholarly wiki articles."
+      "description": "Scholarly wiki articles. PUBLIC READ, MODERATOR WRITE."
     },
     "/blog_posts/{postId}": {
       "schema": "#/backend/entities/BlogPost",
-      "description": "Scholarly blog posts."
+      "description": "Scholarly blog posts. PUBLIC READ, MODERATOR WRITE."
     },
     "/blog_posts/{postId}/comments/{commentId}": {
       "schema": "#/backend/entities/BlogComment",
-      "description": "Comments on a blog post."
+      "description": "Comments on a blog post. PUBLIC READ, AUTHENTICATED WRITE."
     }
   }
 }

@@ -1,21 +1,24 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { useFirestore } from '@/firebase';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { useFirestore, useUser } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ShieldCheck, Database, Sparkles, Activity, Key, CheckCircle2, Loader2 } from 'lucide-react';
+import { ShieldCheck, Database, Sparkles, Activity, Key, CheckCircle2, Loader2, LogIn } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { useAuth } from '@/firebase';
 
 export default function SetupWizard() {
   const router = useRouter();
   const db = useFirestore();
+  const auth = useAuth();
+  const { user } = useUser();
   const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -26,9 +29,6 @@ export default function SetupWizard() {
     gaMeasurementId: '',
     matomoSiteId: '',
     matomoUrl: '',
-    adminUsername: '',
-    adminPassword: '',
-    confirmPassword: ''
   });
 
   useEffect(() => {
@@ -43,19 +43,53 @@ export default function SetupWizard() {
     checkConfig();
   }, [db, router]);
 
+  const handleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+      toast({ title: "Authenticated", description: "You are now eligible to become the first System Admin." });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Authentication Failed", description: error.message });
+    }
+  };
+
   const handleComplete = async () => {
-    if (formData.adminPassword !== formData.confirmPassword) {
-      toast({ variant: 'destructive', title: "Passwords don't match" });
+    if (!user) {
+      toast({ variant: 'destructive', title: "Authentication Required", description: "Please sign in with Google to claim ownership of the first admin account." });
+      setStep(3);
       return;
     }
+
     setLoading(true);
     try {
+      // 1. Initialize system config
       await setDoc(doc(db, 'system', 'config'), {
         ...formData,
         isConfigured: true,
         updatedAt: new Date().toISOString()
       });
-      toast({ title: "Configuration Saved", description: "Your scholarly workspace is now ready." });
+
+      // 2. Securely bootstrap the first admin
+      const userRef = doc(db, 'users', user.uid);
+      const userSnap = await getDoc(userRef);
+      
+      const userData = {
+        uid: user.uid,
+        displayName: user.displayName,
+        email: user.email,
+        isAdmin: true,
+        isModerator: true,
+        isTrustedContributor: true,
+        updatedAt: new Date().toISOString()
+      };
+
+      if (userSnap.exists()) {
+        await updateDoc(userRef, userData);
+      } else {
+        await setDoc(userRef, userData);
+      }
+
+      toast({ title: "Configuration Saved", description: "Your scholarly workspace is ready, and you have been granted System Admin status." });
       router.push('/');
     } catch (e: any) {
       toast({ variant: 'destructive', title: "Setup Failed", description: e.message });
@@ -95,13 +129,13 @@ export default function SetupWizard() {
                 <Sparkles className="h-5 w-5" />
                 <h3>AI Configuration</h3>
               </div>
-              <p className="text-sm text-muted-foreground">Provide your Google Gemini API key to power the research synthesis engine.</p>
+              <p className="text-sm text-muted-foreground">Provide a default Google Gemini API key to power the research synthesis engine for guests.</p>
               <div className="space-y-2">
-                <Label htmlFor="gemini">Gemini API Key</Label>
+                <Label htmlFor="gemini">System Gemini API Key</Label>
                 <Input 
                   id="gemini" 
                   type="password" 
-                  placeholder="Paste your API key here..." 
+                  placeholder="Paste system API key here..." 
                   value={formData.geminiApiKey} 
                   onChange={e => setFormData({...formData, geminiApiKey: e.target.value})} 
                 />
@@ -134,26 +168,26 @@ export default function SetupWizard() {
           )}
 
           {step === 3 && (
-            <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-              <div className="flex items-center gap-2 text-primary font-bold">
+            <div className="space-y-4 animate-in fade-in slide-in-from-right-4 text-center">
+              <div className="flex items-center justify-center gap-2 text-primary font-bold">
                 <Key className="h-5 w-5" />
-                <h3>Admin Credentials</h3>
+                <h3>Admin Ownership</h3>
               </div>
-              <p className="text-sm text-muted-foreground">Create your local administrator account for managing the platform.</p>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Username</Label>
-                  <Input placeholder="admin" value={formData.adminUsername} onChange={e => setFormData({...formData, adminUsername: e.target.value})} />
+              <p className="text-sm text-muted-foreground">To secure the platform, the first System Administrator must be linked to a verified Google account.</p>
+              
+              {user ? (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3 justify-center">
+                  <CheckCircle2 className="text-green-600 h-6 w-6" />
+                  <div className="text-left">
+                    <p className="text-xs font-bold text-green-800">Linked to: {user.email}</p>
+                    <p className="text-[10px] text-green-700">This account will become the root administrator.</p>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Password</Label>
-                  <Input type="password" value={formData.adminPassword} onChange={e => setFormData({...formData, adminPassword: e.target.value})} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Confirm Password</Label>
-                  <Input type="password" value={formData.confirmPassword} onChange={e => setFormData({...formData, confirmPassword: e.target.value})} />
-                </div>
-              </div>
+              ) : (
+                <Button onClick={handleLogin} className="w-full h-12">
+                  <LogIn className="mr-2 h-5 w-5" /> Authenticate Admin Account
+                </Button>
+              )}
             </div>
           )}
 
@@ -161,7 +195,7 @@ export default function SetupWizard() {
             <div className="text-center space-y-4 py-6 animate-in zoom-in-95">
               <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto" />
               <h3 className="text-xl font-bold font-headline">Ready for Deployment</h3>
-              <p className="text-sm text-muted-foreground">All parameters have been validated. Click complete to finalize your scholarly environment.</p>
+              <p className="text-sm text-muted-foreground">All parameters have been validated and the root administrator has been verified. Click complete to finalize.</p>
             </div>
           )}
         </CardContent>
@@ -169,11 +203,11 @@ export default function SetupWizard() {
         <CardFooter className="flex justify-between bg-muted/20 p-6 rounded-b-lg border-t">
           <Button variant="ghost" onClick={() => setStep(s => Math.max(1, s - 1))} disabled={step === 1 || loading}>Previous</Button>
           {step < 4 ? (
-            <Button onClick={() => setStep(s => s + 1)}>Continue</Button>
+            <Button onClick={() => setStep(s => s + 1)} disabled={step === 3 && !user}>Continue</Button>
           ) : (
-            <Button onClick={handleComplete} disabled={loading} className="bg-primary hover:bg-primary/90">
+            <Button onClick={handleComplete} disabled={loading || !user} className="bg-primary hover:bg-primary/90">
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Complete Installation
+              Complete Secure Installation
             </Button>
           )}
         </CardFooter>
