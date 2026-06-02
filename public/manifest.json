@@ -1,0 +1,25 @@
+
+{
+  "name": "LexiVerse Explorer",
+  "short_name": "LexiVerse",
+  "description": "Advanced AI-powered Bible study platform for biblical scholars.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5F5DC",
+  "theme_color": "#301934",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://picsum.photos/seed/lexiverse-icon/192/192",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://picsum.photos/seed/lexiverse-icon-large/512/512",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
