@@ -54,7 +54,11 @@ By participating, you agree to maintain a professional and respectful environmen
 - **Localization**: All UI text must be added to the dialect-specific files in `src/lib/locales/`.
 
 ## 🌍 Accessibility
-LexiVerse is committed to WCAG 2.1 AAA standards. Please ensure all UI changes include proper ARIA labels and maintain high contrast ratios.
+LexiVerse is committed to **WCAG 2.1 AAA standards**. All UI contributions MUST:
+- Provide descriptive ARIA labels for all interactive elements.
+- Maintain high contrast ratios for text and iconography.
+- Support full keyboard navigation across complex research tools.
+- Ensure compatibility with screen readers used in academic environments.
 
 ## 📄 License
 By contributing, you agree that your contributions will be licensed under the project's MIT License.
