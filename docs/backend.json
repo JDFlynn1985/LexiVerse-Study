@@ -3,7 +3,7 @@
   "entities": {
     "UserStudyProfile": {
       "title": "User Study Profile",
-      "description": "Metadata about the user's study preferences and linked external accounts. Access is restricted to self and admins.",
+      "description": "Metadata about the user's study preferences and academic status. Access is restricted to self and admins.",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
@@ -22,6 +22,8 @@
           ],
           "description": "The user's primary scholarly role or academic status."
         },
+        "degreeSubject": { "type": "string", "description": "The major or field of study (e.g. Biblical Languages, Systematic Theology)." },
+        "academicLevel": { "type": "string", "description": "The current year or level (e.g. Freshman, Year 1, PhD Level 1)." },
         "bio": { "type": "string", "description": "A brief scholarly biography explaining research interests." },
         "isAdmin": { "type": "boolean", "description": "System administration privilege. Can only be granted by another admin." },
         "isModerator": { "type": "boolean", "description": "Moderator privilege for peer review." },

@@ -99,6 +99,8 @@ interface UserProfile {
   photoURL: string;
   credentials?: string;
   designation?: 'Professor' | 'Undergraduate Seminary Student' | 'Master\'s Degree Candidate' | 'Doctoral Candidate' | 'Non-Seminary Student';
+  degreeSubject?: string;
+  academicLevel?: string;
   bio?: string;
   isAdmin?: boolean;
   isModerator?: boolean;
@@ -151,7 +153,15 @@ export default function Home() {
   const [assistantTerm, setAssistantTerm] = useState('');
   const [lexiconResult, setLexiconResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
   const [assistantResult, setAssistantResult] = useState<AiStudyAssistantOutput | null>(null);
-  const [profileDraft, setProfileDraft] = useState({ displayName: '', credentials: '', designation: '', bio: '', photoURL: '' });
+  const [profileDraft, setProfileDraft] = useState({ 
+    displayName: '', 
+    credentials: '', 
+    designation: '', 
+    degreeSubject: '', 
+    academicLevel: '', 
+    bio: '', 
+    photoURL: '' 
+  });
 
   // Synthesis State
   const [synthesisText, setSynthesisText] = useState('');
@@ -206,6 +216,8 @@ export default function Home() {
             displayName: data.displayName || '',
             credentials: data.credentials || '',
             designation: data.designation || '',
+            degreeSubject: data.degreeSubject || '',
+            academicLevel: data.academicLevel || '',
             bio: data.bio || '',
             photoURL: data.photoURL || ''
           });
@@ -288,6 +300,8 @@ export default function Home() {
         displayName: profileDraft.displayName,
         credentials: profileDraft.credentials,
         designation: profileDraft.designation || null,
+        degreeSubject: profileDraft.degreeSubject,
+        academicLevel: profileDraft.academicLevel,
         bio: profileDraft.bio,
         photoURL: profileDraft.photoURL
       });
@@ -371,7 +385,11 @@ export default function Home() {
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild tooltip="Scholarly Wiki" isActive={activeTab === 'wiki'}>
-                    <Link href="/wiki"><GraduationCap className="h-5 w-5" /> <span>Scholarly Wiki</span></Link>
+                    <Link href="/wiki">
+                      <div className="flex items-center gap-2">
+                        <GraduationCap className="h-5 w-5" /> <span>Scholarly Wiki</span>
+                      </div>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               </SidebarMenu>
@@ -392,7 +410,11 @@ export default function Home() {
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild tooltip="Manuscript Hub" isActive={activeTab === 'manuscripts'}>
-                    <Link href="/manuscripts"><FileSearch2 className="h-5 w-5" /> <span>Manuscript Hub</span></Link>
+                    <Link href="/manuscripts">
+                      <div className="flex items-center gap-2">
+                        <FileSearch2 className="h-5 w-5" /> <span>Manuscript Hub</span>
+                      </div>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
@@ -408,7 +430,9 @@ export default function Home() {
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild tooltip="API Portal">
                     <Link href="/api-keys">
-                      <Code className="h-5 w-5" /> <span>API Portal</span>
+                      <div className="flex items-center gap-2">
+                        <Code className="h-5 w-5" /> <span>API Portal</span>
+                      </div>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -422,14 +446,18 @@ export default function Home() {
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild tooltip="Admin API Management">
                       <Link href="/admin/api">
-                        <Key className="h-5 w-5" /> <span>Admin API Mgmt</span>
+                        <div className="flex items-center gap-2">
+                          <Key className="h-5 w-5" /> <span>Admin API Mgmt</span>
+                        </div>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild tooltip="System Control Panel">
                       <Link href="/admin/settings">
-                        <Settings className="h-5 w-5" /> <span>System Control</span>
+                        <div className="flex items-center gap-2">
+                          <Settings className="h-5 w-5" /> <span>System Control</span>
+                        </div>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -1073,6 +1101,22 @@ export default function Home() {
                         </Select>
                       </div>
                       <div className="space-y-1">
+                        <Label>Degree Subject</Label>
+                        <Input 
+                          value={profileDraft.degreeSubject} 
+                          onChange={e => setProfileDraft({...profileDraft, degreeSubject: e.target.value})} 
+                          placeholder="e.g. Biblical Languages, Theology..." 
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Current Year / Academic Level</Label>
+                        <Input 
+                          value={profileDraft.academicLevel} 
+                          onChange={e => setProfileDraft({...profileDraft, academicLevel: e.target.value})} 
+                          placeholder="e.g. Freshman, Junior, Year 2..." 
+                        />
+                      </div>
+                      <div className="space-y-1">
                         <Label>Academic Titles (e.g. PhD, MDiv)</Label>
                         <Input value={profileDraft.credentials} onChange={e => setProfileDraft({...profileDraft, credentials: e.target.value})} placeholder="PhD, MDiv..." />
                       </div>
@@ -1180,13 +1224,13 @@ export default function Home() {
 
 function QuickToolCard({ title, desc, icon, onClick, asLink }: { title: string, desc: string, icon: React.ReactNode, onClick?: () => void, asLink?: string }) {
   const content = (
-    <>
-      <div className="mb-4 p-3 bg-primary/5 rounded-xl text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors inline-block">
+    <div className="flex flex-col">
+      <div className="mb-4 p-3 bg-primary/5 rounded-xl text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors inline-block w-fit">
         {icon}
       </div>
       <h3 className="font-bold mb-1 group-hover:text-primary transition-colors">{title}</h3>
       <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
-    </>
+    </div>
   );
 
   if (asLink) {
