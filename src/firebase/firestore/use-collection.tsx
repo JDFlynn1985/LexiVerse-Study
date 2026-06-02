@@ -1,6 +1,14 @@
+/**
+ * @fileOverview Real-time Firestore Collection Hook.
+ * 
+ * Provides a standardized way to subscribe to multiple documents in a collection.
+ * Designed to prevent redundant re-subscriptions when stabilized references
+ * are provided via `useMemoFirebase`.
+ */
+
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Query, 
   onSnapshot, 
@@ -11,8 +19,11 @@ import { errorEmitter } from '../error-emitter';
 import { FirestorePermissionError } from '../errors';
 
 /**
- * Optimized hook for fetching Firestore collections.
- * Uses query serialization to prevent redundant re-subscriptions.
+ * Subscribes to a Firestore collection or query and returns an array of documents.
+ * 
+ * @template T - The type of the document data.
+ * @param {Query<T> | null} query - The Firestore query to watch.
+ * @returns {{ data: T[], loading: boolean, error: FirestorePermissionError | null }}
  */
 export function useCollection<T = DocumentData>(query: Query<T> | null) {
   const [data, setData] = useState<T[]>([]);
@@ -38,6 +49,7 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
       },
       async (serverError) => {
         const permissionError = new FirestorePermissionError({
+          // Use internal path identifier for debugging
           path: (query as any)._query?.path?.toString() || 'collection',
           operation: 'list',
         });

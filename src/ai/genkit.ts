@@ -1,12 +1,22 @@
+/**
+ * @fileOverview Central Genkit configuration and initialization for the LexiVerse AI Hub.
+ *
+ * This module exports the global `ai` instance used for all generative tasks.
+ * It is configured with a hybrid architecture supporting both Cloud (Google Gemini)
+ * and Local (Ollama) inference models, enabling researchers to work in 
+ * connected or network-isolated environments.
+ */
 
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 import { ollama } from 'genkitx-ollama';
 
 /**
- * Genkit instance configured with Google AI and Ollama for local inference.
- * Supports multiple local models as specified in system settings.
- * The serverAddress can be configured via environment variables for local network deployments.
+ * The global Genkit instance.
+ * 
+ * Plugins:
+ * - googleAI: Provides access to Gemini 1.5 and 2.5 series models.
+ * - ollama: Provides a bridge to local LLMs via an Ollama server (default: localhost:11434).
  */
 export const ai = genkit({
   plugins: [

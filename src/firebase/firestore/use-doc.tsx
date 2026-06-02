@@ -1,3 +1,10 @@
+/**
+ * @fileOverview Real-time Firestore Document Hook.
+ * 
+ * Provides a standardized way to subscribe to a single document in Firestore.
+ * Includes integrated error handling that surfaces permission violations
+ * to the global LexiVerse error listener.
+ */
 
 'use client';
 
@@ -11,6 +18,13 @@ import {
 import { errorEmitter } from '../error-emitter';
 import { FirestorePermissionError } from '../errors';
 
+/**
+ * Subscribes to a Firestore document reference and returns its data and state.
+ * 
+ * @template T - The type of the document data.
+ * @param {DocumentReference<T> | null} docRef - The reference to the document to watch.
+ * @returns {{ data: T | null, loading: boolean, error: FirestorePermissionError | null }}
+ */
 export function useDoc<T = DocumentData>(docRef: DocumentReference<T> | null) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,6 +48,7 @@ export function useDoc<T = DocumentData>(docRef: DocumentReference<T> | null) {
           path: docRef.path,
           operation: 'get',
         });
+        // Emit for administrative logging and UI feedback
         errorEmitter.emit('permission-error', permissionError);
         setError(permissionError);
         setLoading(false);
