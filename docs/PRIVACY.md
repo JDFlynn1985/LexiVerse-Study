@@ -7,7 +7,7 @@ LexiVerse Explorer is built on the principle of **Scholarly Autonomy**. We belie
 ### 1. Age Restriction (Clause 1.1)
 LexiVerse Explorer enforces a strict **15+ age requirement** for all users. In accordance with international data protection standards and our commitment to a professional research environment, access to scholarly resources and profile creation is restricted to individuals 15 years of age or older.
 
-**Verification Policy**: During registration, we collect and store your date of birth solely to verify compliance with this clause. This measure is mandatory to ensure full compliance with global regulations and international data privacy laws regarding the processing of young adults' personal information. Accounts created with birth dates indicating the user is under 15 will be blocked or terminated upon discovery to safeguard minors and maintain the integrity of the scholarly community.
+**Verification Policy (Clause 1.1)**: During registration, we collect and store your date of birth solely to verify compliance with this clause. This measure is mandatory to ensure full compliance with global regulations and international data privacy laws (such as GDPR and COPPA) regarding the processing of young adults' personal information. Accounts created with birth dates indicating the user is under 15 will be blocked or terminated upon discovery to safeguard minors and maintain the integrity of the scholarly community.
 
 ### 2. Local-First Research (RAG Isolation)
 The most sensitive data a researcher handles—unpublished papers, draft manuscripts, and institutional PDFs—is stored using **IndexedDB** in the user's browser.
@@ -16,7 +16,7 @@ The most sensitive data a researcher handles—unpublished papers, draft manuscr
 
 ### 3. Minimal Data Collection & Age Policy
 We follow the principle of data minimization:
-- **Identity**: We store basic profile data (Name, Email, Photo URL) and **Date of Birth** to enforce the mandatory **15+ age requirement** for scholarly registration and global regulatory compliance.
+- **Identity**: We store basic profile data (Name, Email, Photo URL) and **Date of Birth** to enforce the mandatory **15+ age requirement** and ensure global regulatory compliance.
 - **Academic Context**: Designation and Institution are stored to facilitate peer-review attribution and institutional seminar filtering.
 
 ### 4. Data Ownership & Licensing

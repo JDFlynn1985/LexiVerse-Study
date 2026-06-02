@@ -1,25 +1,21 @@
-
 # LexiVerse Explorer: Technical Roadmap
 
 ## ✅ Completed (Production Foundation)
-- [x] **Scholarly Dialogues (Debate Simulator)**: Integrated a historical dialectic simulation tool for dialectic theology study.
-- [x] **Audio Exegesis Hub (TTS)**: Enabled high-fidelity audio synthesis for research reports using Gemini 2.5 Flash.
-- [x] **Firestore Vector Search**: Transitioned to server-side vector embeddings for semantic precision and "Deep RAG" capabilities.
-- [x] **Ollama Local Network Integration**: Finalized support for on-premise model selection and local-only AI research.
-- [x] **Zotero Bidirectional Sync**: Full API integration for collections, moving beyond one-way BibTeX export.
-- [x] **Institutional SSO (SAML/OIDC)**: Enabled enterprise-grade single sign-on for seminary-wide deployments with custom provider support.
-- [x] **Structured Lexicon Fetching**: Transitioned from AI-simulated Strong's data to a tool-grounded retrieval system with a dedicated API connector.
-- [x] **Verified Commentary Aggregator**: Integrated a structured aggregator for primary historical scholarly works (JFB, Henry, Calvin).
-- [x] **Bible Version Licensing Hub**: Implemented a secure flow for accessing modern copyrighted translations (NIV, ESV, etc.).
-- [x] **Attributed Multi-Document RAG**: Citing specific papers in AI synthesis using filename references.
-- [x] **Notification Engine**: Real-time peer-review alerts and discourse notifications.
-- [x] **Voice Research Hub**: Multimodal voice transcription for dictated theological queries.
-- [x] **Visual Theology Mapper**: Influence density scatter charts and chronological tracking.
-- [x] **Citation Extraction Hub**: AI-powered scanner for structuring raw bibliographic data.
-- [x] **Synoptic Gospel Aligner**: Comparative mapping across Matthew, Mark, Luke, and John.
-- [x] **Research Archive Hub**: Firestore-backed session recovery and management portal.
-- [x] **Governance Audit Dashboard**: Live institutional research trends and stability monitoring.
-- [x] **BibTeX / Zotero Export**: Pro-grade citation manager integration for synthesized results.
+- [x] **Scholarly Dialogues (Debate Simulator)**: Integrated a historical dialectic simulation tool.
+- [x] **Audio Exegesis Hub (TTS)**: Enabled audio synthesis for research reports.
+- [x] **Multi-Provider AI Hub**: Support for Google, OpenAI, Anthropic, and local models.
+- [x] **Age Verification (15+)**: Mandatory Clause 1.1 compliance for global regulations.
+- [x] **Dual-Layer Password Security**: Client/Server verification with identity-component rejection.
+- [x] **Categorized Navigation**: Side navigation sorted into scholarly workflows.
+- [x] **Mobile Responsiveness**: Adaptive layouts for phones, tablets, and desktops.
+- [x] **Firestore Vector Search**: Transitioned to server-side vector embeddings for semantic precision.
+- [x] **Zotero Bidirectional Sync**: Full API integration for collections.
+- [x] **Institutional SSO (SAML/OIDC)**: Enterprise-grade single sign-on support.
+- [x] **Grounded Lexical Data**: Transitioned to verified Strong's Concordance registries.
+- [x] **Bible Version Licensing Hub**: Managed access to modern translations.
+- [x] **Research Archive Hub**: Firestore-backed session recovery.
 
----
-*Last Audit: February 2024. All primary architectural milestones completed.*
+## 🚀 Future Milestones
+- [ ] **Manuscript Paleography Engine**: AI-assisted handwriting recognition for 1st-century papyri.
+- [ ] **Institutional Dashboard**: Aggregated analytics for seminary deans.
+- [ ] **Offline-First Exegesis**: Expanded PWA capabilities for fieldwork.

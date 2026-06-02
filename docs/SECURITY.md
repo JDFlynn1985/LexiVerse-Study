@@ -5,13 +5,15 @@ This document outlines the multi-layered security architecture of LexiVerse Expl
 ## 🛡️ Defense in Depth
 
 ### 1. Authentication & Identity
-- **Provider**: Firebase Authentication (Google OIDC).
-- **Session Security**: Authenticated sessions are managed via secure, signed JWT tokens.
-- **Role-Based Access Control (RBAC)**: Fine-grained permissions based on `UserStudyProfile` designations. Administrative portals (/admin/*) are strictly guarded by `isAdmin` flags checked at both the UI and Firestore Rule level.
+- **Provider**: Firebase Authentication (Google OIDC / Email & Password).
+- **Age Verification**: Mandatory **15+ age requirement** enforced via server-side birthday validation to comply with global data protection regulations.
+- **Password Policy**: LexiVerse enforces a strict non-predictability policy. Passwords cannot contain the user's name, email, or birthday components.
+- **Verification**: Dual-layer verification (Client-side AJAX and Server Action) ensures all credentials meet scholarly security standards before storage.
+- **Salting & Hashing**: Passwords are never stored in plain text; they are hashed and salted using industrial-grade scrypt/argon2 algorithms via Firebase Auth.
 
 ### 2. Data Authorization (Firestore Rules)
 - **Deny-by-Default**: Our security rules follow a strict "zero-trust" model. No data is accessible unless an explicit rule allows it.
-- **Path Isolation**: Researchers can only read/write their own profiles.
+- **Path Isolation**: Researchers can only read/write their own profiles and private library indices.
 - **Governance Rules**: 
   - `wiki_entries`: Publicly readable once "approved", but only writable by the author or moderators.
   - `system_config`: Only writable by verified System Administrators.
@@ -22,11 +24,11 @@ This document outlines the multi-layered security architecture of LexiVerse Expl
 - **Revocation**: Administrators can instantly revoke API tokens through the **API Management** portal.
 
 ### 4. AI Governance
-- **Prompt Sanitization**: System prompts are architected to prevent prompt injection and ensure a formal theological tone.
-- **API Key Handling**: User-provided Gemini keys are stored either in Firestore (encrypted) or Browser LocalStorage, depending on the user's "Network Mode" preference.
+- **Multi-Provider Support**: Scholars can provide their own API keys for Google, OpenAI, Anthropic, etc. These keys are stored encrypted in the user's private Firestore profile.
+- **Network Mode**: Supports "Local Network Only" mode to air-gap research from the public internet.
 
 ### 5. Audit & Oversight
-- **Error Logging**: Every runtime exception and permission violation is caught and persisted to `error_logs`.
+- **Error Logging**: Every runtime exception and permission violation is caught and persisted to `error_logs` for administrative review.
 - **Governance Audit**: Administrators have a dedicated dashboard to monitor system health and investigate legal (DMCA) complaints in real-time.
 
 ## 🚀 Reporting Vulnerabilities
