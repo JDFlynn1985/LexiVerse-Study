@@ -8,6 +8,7 @@
 
 /**
  * @fileOverview Primary Research Dashboard Orchestrator.
+ * Updated with Advanced RAG chunking logic for local documents.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -84,6 +85,7 @@ import { analyzeTheologicalConcept, type TheologicalConceptOutput } from '@/ai/f
 import { runBoilerplateAnalysis, type BoilerplateOutput } from '@/ai/flows/boilerplate-flow';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 import { getAllLocalDocuments, type IDBDocument } from '@/lib/idb';
+import { chunkText, selectRelevantChunks } from '@/lib/rag-engine';
 
 /**
  * Main Home component orchestrating the scholarly workspace.
@@ -242,7 +244,19 @@ export default function Home() {
     if (type !== 'chat') logSearch(db, term, type, user?.uid);
     try {
       if (type === 'lexicon') setLexiconResult(await defineAndAnalyzeTerm({ strongsNumber: term, model: effectiveModel, apiKey: effectiveApiKey || undefined }));
-      else if (type === 'ai-assistant') setAssistantResult(await aiStudyAssistant({ term, researchContext: localDocuments.map(d => d.content), model: effectiveModel, apiKey: effectiveApiKey || undefined }));
+      else if (type === 'ai-assistant') {
+        // Advanced RAG Selection Logic
+        const allChunks = localDocuments.flatMap(d => chunkText(d.content, d.name));
+        const relevantChunks = selectRelevantChunks(term, allChunks, 8);
+        const contextExcerpts = relevantChunks.map(c => `[From Paper: ${c.sourceName}]: ${c.text}`);
+
+        setAssistantResult(await aiStudyAssistant({ 
+          term, 
+          researchContext: contextExcerpts, 
+          model: effectiveModel, 
+          apiKey: effectiveApiKey || undefined 
+        }));
+      }
       else if (type === 'theology') setTheologyResult(await analyzeTheologicalConcept({ concept: term }));
       else if (type === 'boilerplate') setBoilerplateResult(await runBoilerplateAnalysis({ query: term }));
       

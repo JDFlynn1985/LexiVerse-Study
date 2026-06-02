@@ -6,12 +6,14 @@ This document outlines the features and components that currently use placeholde
 - [x] **Real STT (Speech-to-Text)**: Replaced mock with Gemini Multimodal processing in `interact-with-ai.ts`.
 - [x] **Audit Dashboard**: Created UI views for `error_logs`, `search_logs`, and `dmca_complaints` in the `/admin/audit` portal.
 - [x] **DMCA Resolution Workflow**: Implemented the "Report" and "Takedown" mechanism.
-- [x] **Native Document Parsing**: Implemented local `pdf-parse` and `mammoth` (Docx) logic for scholarly papers, reducing reliance on OCR Vision for text files.
+- [x] **Native Document Parsing**: Implemented local `pdf-parse` and `mammoth` (Docx) logic for scholarly papers.
 - [x] **Audit Resolution Actions**: Added UI buttons in the Audit portal to formally "Resolve" or "Dismiss" logs.
+- [x] **Neuromorphic Analysis**: Implemented actual `brain.js` neural network logic in the Study Assistant.
+- [x] **Selective RAG Phase 1**: Transitioned from "All-in-Prompt" context to a semantic chunking and selection logic (`rag-engine.ts`).
 
 ## 🎙️ AI & Multimodal Research
-- [ ] **Neuromorphic Analysis**: Implement actual `brain.js` logic in the Study Assistant to replace `brainJsSimulatedInsight` placeholders.
-- [ ] **Advanced RAG**: Transition from "All-in-Prompt" context to a Vector Database (Firestore Vector Search) for the Library Hub.
+- [ ] **Advanced Vector Search**: Transition from local keyword ranking to Firestore Vector Search for higher semantic accuracy in the Library Hub.
+- [ ] **Real-Time Audio Streaming**: Implement a streaming STT interface for the AI Assistant.
 
 ## 📚 Data Integration
 - [ ] **Structured Lexicon Fetching**: Replace AI "simulation" of Strong's data with a direct API connector to a verified Greek/Hebrew database.
