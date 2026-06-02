@@ -84,6 +84,7 @@ import { aiStudyAssistant, type AiStudyAssistantOutput } from '@/ai/flows/ai-stu
 import { refineWriting, type WritingAssistantOutput } from '@/ai/flows/writing-assistant-ai';
 import { checkIntegrity, type AcademicIntegrityOutput } from '@/ai/flows/academic-integrity-ai';
 import { formatBibliography, type FormatBibliographyOutput } from '@/ai/flows/format-bibliography-ai';
+import { findCovertLinks, type CovertReferenceOutput } from '@/ai/flows/cross-reference-ai';
 import { analyzeTheologicalConcept, type TheologicalConceptOutput } from '@/ai/flows/theological-concept-analysis';
 import { runArchaeologyAnalysis, type ArchaeologyOutput } from '@/ai/flows/archaeology-site-flow';
 import { generateHistoricalTimeline, type HistoricalTimelineOutput } from '@/ai/flows/historical-timeline-flow';
@@ -130,9 +131,11 @@ export default function Home() {
 
   // Module States
   const [chatMode, setChatMode] = useState<'global' | 'institutional'>('global');
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [chatAgreed, setChatAgreed] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  
   const [assistantTerm, setAssistantTerm] = useState('');
   const [lexiconResult, setLexiconResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
   const [assistantResult, setAssistantResult] = useState<AiStudyAssistantOutput | null>(null);
@@ -140,10 +143,13 @@ export default function Home() {
   const [timelineResult, setTimelineResult] = useState<HistoricalTimelineOutput | null>(null);
   const [translationResult, setTranslationResult] = useState<CompareTranslationsOutput | null>(null);
   const [profileDraft, setProfileDraft] = useState({ displayName: '', credentials: '', designation: '', degreeSubject: '', academicLevel: '', institutionId: '', bio: '', photoURL: '' });
+  
   const [synthesisText, setSynthesisText] = useState('');
   const [synthesisResult, setSynthesisResult] = useState<WritingAssistantOutput | null>(null);
   const [integrityResult, setIntegrityResult] = useState<AcademicIntegrityOutput | null>(null);
   const [bibResult, setBibResult] = useState<FormatBibliographyOutput | null>(null);
+  const [crossRefResult, setCrossRefResult] = useState<CovertReferenceOutput | null>(null);
+  
   const [theologyTerm, setTheologyTerm] = useState('');
   const [theologyResult, setTheologyResult] = useState<TheologicalConceptOutput | null>(null);
 
@@ -192,6 +198,27 @@ export default function Home() {
       unsubModules();
     };
   }, [db, refreshLocalDocs]);
+
+  // Real-time Chat Subscription
+  useEffect(() => {
+    if (!db) return;
+    
+    let chatQ;
+    if (chatMode === 'global') {
+      chatQ = query(collection(db, 'messages'), where('mode', '==', 'global'), orderBy('createdAt', 'desc'), limit(50));
+    } else {
+      const instId = userProfile?.institutionId || 'unknown';
+      chatQ = query(collection(db, 'messages'), where('mode', '==', 'institutional'), where('institutionId', '==', instId), orderBy('createdAt', 'desc'), limit(50));
+    }
+
+    const unsubChat = onSnapshot(chatQ, (snap) => {
+      setChatMessages(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      // Scroll to bottom after state update
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    });
+
+    return () => unsubChat();
+  }, [db, chatMode, userProfile?.institutionId]);
 
   useEffect(() => {
     if (userProfile) {
@@ -268,6 +295,31 @@ export default function Home() {
     finally { setIsLoading(false); }
   };
 
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !newMessage.trim() || !chatAgreed) return;
+
+    const messageData = {
+      content: newMessage.trim(),
+      senderUid: user.uid,
+      senderName: userProfile?.displayName || user.displayName,
+      senderPhotoURL: userProfile?.photoURL || user.photoURL,
+      senderDesignation: userProfile?.designation || 'Scholar',
+      senderInstitutionName: userInstitutionName,
+      institutionId: userProfile?.institutionId || 'independent',
+      mode: chatMode,
+      createdAt: serverTimestamp(),
+      status: 'active'
+    };
+
+    setNewMessage('');
+    try {
+      await addDoc(collection(db, 'messages'), messageData);
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: "Message failed to send" });
+    }
+  };
+
   const updateProfile = async () => {
     if (!user || !db) return;
     setIsLoading(true);
@@ -321,7 +373,7 @@ export default function Home() {
   const renderModularContent = () => {
     switch (activeTab) {
       case 'dashboard': return <DashboardView t={t} effectiveApiKey={getEffectiveKey()} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} />;
-      case 'chat': return <ChatView chatMode={chatMode} setChatMode={setChatMode} userProfile={userProfile} userInstitutionName={userInstitutionName} messages={[]} user={user} newMessage={newMessage} setNewMessage={setNewMessage} chatAgreed={chatAgreed} setChatAgreed={setChatAgreed} handleSendMessage={() => {}} chatEndRef={chatEndRef} />;
+      case 'chat': return <ChatView chatMode={chatMode} setChatMode={setChatMode} userProfile={userProfile} userInstitutionName={userInstitutionName} messages={chatMessages} user={user} newMessage={newMessage} setNewMessage={setNewMessage} chatAgreed={chatAgreed} setChatAgreed={setChatAgreed} handleSendMessage={handleSendMessage} chatEndRef={chatEndRef} />;
       case 'library': return <LibraryView documents={localDocuments} onRefresh={refreshLocalDocs} isLoading={isLoading} />;
       case 'synthesis': return <SynthesisView synthesisText={synthesisText} setSynthesisText={setSynthesisText} handleSynthesisAction={async (a) => {
         setIsLoading(true);
@@ -329,9 +381,10 @@ export default function Home() {
           if (a === 'refine') setSynthesisResult(await refineWriting({ text: synthesisText, mode: 'academic' }));
           if (a === 'integrity') setIntegrityResult(await checkIntegrity({ text: synthesisText, style: 'SBL' }));
           if (a === 'bib') setBibResult(await formatBibliography({ items: synthesisText.split('\n'), style: 'SBL' }));
+          if (a === 'cross-ref') setCrossRefResult(await findCovertLinks(synthesisText));
         } catch (e: any) { toast({ variant: 'destructive', title: "Synthesis Error" }); }
         finally { setIsLoading(false); }
-      }} isLoading={isLoading} synthesisResult={synthesisResult} integrityResult={integrityResult} bibResult={bibResult} />;
+      }} isLoading={isLoading} synthesisResult={synthesisResult} integrityResult={integrityResult} bibResult={bibResult} crossRefResult={crossRefResult} />;
       case 'theology': return <TheologyView theologyTerm={theologyTerm} setTheologyTerm={setTheologyTerm} handleSearch={handleSearch} isLoading={isLoading} theologyResult={theologyResult} />;
       case 'lexicon': return <LexiconView handleSearch={handleSearch} isLoading={isLoading} lexiconResult={lexiconResult} />;
       case 'ai-assistant': return <AssistantView assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} assistantResult={assistantResult} />;

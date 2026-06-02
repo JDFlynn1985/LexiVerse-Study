@@ -15,6 +15,8 @@ This document outlines the features and components that currently use placeholde
 - [x] **Archaeology Site Analyzer**: Promoted boilerplate tool to a functional biblical archaeology module.
 - [x] **Historical Timeline Module**: Implemented a dedicated UI for the timeline flow.
 - [x] **Module Inter-Connectivity**: Bridged the Manuscript transcription results to the Writing Hub via shared state.
+- [x] **Real-Time Discourse Logic**: Implemented functional chat persistence and institutional channels in the Chat Hub.
+- [x] **Covert Cross-Reference AI**: Integrated semantic scripture detection in the Writing Hub.
 
 ## 🎙️ AI & Multimodal Research
 - [ ] **Advanced Vector Search**: Transition from local keyword ranking to Firestore Vector Search for higher semantic accuracy in the Library Hub.
