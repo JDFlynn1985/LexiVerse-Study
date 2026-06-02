@@ -9,29 +9,31 @@ If you are a student or scholar, you can contribute directly through the **Schol
 
 ## 💻 Technical Contributions
 
+### Open Source & Licensing
+All code contributions to LexiVerse Explorer MUST be open-source. To maintain the integrity of our scholarly ecosystem, we require:
+- **License**: All new files and modules must be licensed under **CC BY-NC-SA 4.0** (Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International) or a more permissive scholarly license.
+- **File Headers**: Every new file created must include a clear license declaration and copyright notice at the very top, preceding the `@fileOverview` block.
+
 ### Modular Architecture
 LexiVerse Explorer uses a modular view system. Before starting development on a new feature, please review the [Module Development Guide](docs/MODULE_GUIDE.md).
 
 ### Documentation Standards
 All code contributions MUST include full **JSDoc-compliant** documentation. This is critical for our automated SDK and API generation tools. 
 
+- **License Header**: (Required) Declaration of CC BY-NC-SA 4.0 or equivalent.
 - **Files**: Every new file should begin with a `@fileOverview` block.
 - **Functions**: Use `@param`, `@returns`, and `@throws` where applicable.
 - **Types**: Document all interfaces and types explaining their role in the research ecosystem.
 - **AI Flows**: Clearly document the input/output schemas and the prompt logic.
 
-Example:
+Example Header:
 ```typescript
 /**
- * Analyzes a specific scripture fragment for linguistic nuances.
+ * LexiVerse Explorer
+ * Copyright (c) 2024. Licensed under CC BY-NC-SA 4.0.
  * 
- * @param fragment - The raw text of the scripture.
- * @param originalLanguage - The source language (Greek/Hebrew).
- * @returns A promise resolving to the morphological breakdown.
+ * @fileOverview Analyzes a specific scripture fragment for linguistic nuances.
  */
-export async function analyzeFragment(fragment: string, originalLanguage: 'greek' | 'hebrew') {
-  // ...
-}
 ```
 
 ### Code of Conduct
@@ -61,4 +63,4 @@ LexiVerse is committed to **WCAG 2.1 AAA standards**. All UI contributions MUST:
 - Ensure compatibility with screen readers used in academic environments.
 
 ## 📄 License
-By contributing, you agree that your contributions will be licensed under the project's MIT License.
+By contributing, you agree that your contributions will be licensed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)** license.
