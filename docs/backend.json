@@ -24,6 +24,7 @@
         },
         "degreeSubject": { "type": "string", "description": "The major or field of study (e.g. Biblical Languages, Systematic Theology)." },
         "academicLevel": { "type": "string", "description": "The current year or level (e.g. Freshman, Year 1, PhD Level 1)." },
+        "institutionId": { "type": "string", "description": "Reference to the AcademicInstitution entity." },
         "bio": { "type": "string", "description": "A brief scholarly biography explaining research interests." },
         "isAdmin": { "type": "boolean", "description": "System administration privilege. Can only be granted by another admin." },
         "isModerator": { "type": "boolean", "description": "Moderator privilege for peer review." },
@@ -65,6 +66,19 @@
         }
       },
       "required": ["uid"]
+    },
+    "AcademicInstitution": {
+      "title": "Academic Institution",
+      "description": "Details about a seminary, university, or research center.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "website": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name"]
     },
     "APIKey": {
       "title": "API Key",
@@ -142,6 +156,10 @@
     "/wiki_entries/{entryId}": {
       "schema": "#/backend/entities/WikiEntry",
       "description": "Scholarly wiki articles."
+    },
+    "/institutions/{institutionId}": {
+      "schema": "#/backend/entities/AcademicInstitution",
+      "description": "Directory of scholarly institutions."
     }
   }
 }

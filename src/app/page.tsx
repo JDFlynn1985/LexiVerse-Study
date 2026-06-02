@@ -9,7 +9,7 @@ import {
   GoogleAuthProvider, 
   signOut
 } from 'firebase/auth';
-import { doc, setDoc, onSnapshot, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, getDoc, updateDoc, collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { appConfig } from '@/app-config';
 import { useAuth, useFirestore, useUser } from '@/firebase';
 import { logSearch } from '@/lib/search-logging';
@@ -57,7 +57,8 @@ import {
   ListFilter,
   ArrowRight,
   Plus,
-  FileSearch2
+  FileSearch2,
+  School
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -101,6 +102,7 @@ interface UserProfile {
   designation?: 'Professor' | 'Undergraduate Seminary Student' | 'Master\'s Degree Candidate' | 'Doctoral Candidate' | 'Non-Seminary Student';
   degreeSubject?: string;
   academicLevel?: string;
+  institutionId?: string;
   bio?: string;
   isAdmin?: boolean;
   isModerator?: boolean;
@@ -139,6 +141,7 @@ export default function Home() {
   const [historyItems, setHistoryItems] = useState<{id: string, type: string, term: string, date: string}[]>([]);
   const [localDocuments, setLocalDocuments] = useState<IDBDocument[]>([]);
   const [availableVersions, setAvailableVersions] = useState<BibleVersion[]>([]);
+  const [institutions, setInstitutions] = useState<{id: string, name: string}[]>([]);
   const [localApiKey, setLocalApiKey] = useState<string>('');
   
   const [aiPrefs, setAiPrefs] = useState({
@@ -159,6 +162,7 @@ export default function Home() {
     designation: '', 
     degreeSubject: '', 
     academicLevel: '', 
+    institutionId: '',
     bio: '', 
     photoURL: '' 
   });
@@ -189,6 +193,16 @@ export default function Home() {
     refreshLocalDocs();
     getVersions().then(setAvailableVersions);
 
+    async function fetchInstitutions() {
+      try {
+        const snap = await getDocs(query(collection(db, 'institutions'), orderBy('name', 'asc')));
+        setInstitutions(snap.docs.map(d => ({ id: d.id, name: d.data().name })));
+      } catch (e) {
+        console.error("Institution fetch failed");
+      }
+    }
+    fetchInstitutions();
+
     const unsubConfig = onSnapshot(doc(db, 'system', 'config'), (snap) => {
       if (snap.exists()) {
         const data = snap.data();
@@ -218,6 +232,7 @@ export default function Home() {
             designation: data.designation || '',
             degreeSubject: data.degreeSubject || '',
             academicLevel: data.academicLevel || '',
+            institutionId: data.institutionId || '',
             bio: data.bio || '',
             photoURL: data.photoURL || ''
           });
@@ -302,6 +317,7 @@ export default function Home() {
         designation: profileDraft.designation || null,
         degreeSubject: profileDraft.degreeSubject,
         academicLevel: profileDraft.academicLevel,
+        institutionId: profileDraft.institutionId || null,
         bio: profileDraft.bio,
         photoURL: profileDraft.photoURL
       });
@@ -361,6 +377,7 @@ export default function Home() {
 
   if (!mounted) return null;
   const effectiveAvatar = userProfile?.photoURL || (user?.email ? getGravatarUrl(user.email) : '');
+  const userInstitutionName = institutions.find(i => i.id === userProfile?.institutionId)?.name || 'Independent Scholar';
 
   return (
     <SidebarProvider>
@@ -431,7 +448,7 @@ export default function Home() {
                   <SidebarMenuButton asChild tooltip="API Portal">
                     <Link href="/api-keys">
                       <div className="flex items-center gap-2">
-                        <Code className="h-5 w-5" /> <span>API Portal</span>
+                        <Key className="h-5 w-5" /> <span>API Portal</span>
                       </div>
                     </Link>
                   </SidebarMenuButton>
@@ -448,6 +465,15 @@ export default function Home() {
                       <Link href="/admin/api">
                         <div className="flex items-center gap-2">
                           <Key className="h-5 w-5" /> <span>Admin API Mgmt</span>
+                        </div>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild tooltip="Institution Directory">
+                      <Link href="/admin/institutions">
+                        <div className="flex items-center gap-2">
+                          <School className="h-5 w-5" /> <span>Institutions</span>
                         </div>
                       </Link>
                     </SidebarMenuButton>
@@ -488,7 +514,7 @@ export default function Home() {
                       <DropdownMenuLabel>
                         <div className="flex flex-col">
                           <span>{userProfile?.displayName || user.displayName}</span>
-                          <span className="text-[10px] text-muted-foreground font-normal">{userProfile?.credentials}</span>
+                          <span className="text-[10px] text-muted-foreground font-normal truncate">{userInstitutionName}</span>
                         </div>
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />
@@ -1077,7 +1103,7 @@ export default function Home() {
                         </Avatar>
                       </div>
                       <CardTitle className="font-headline">{userProfile.displayName}</CardTitle>
-                      <CardDescription>{userProfile.designation || userProfile.credentials || "Scholar"}</CardDescription>
+                      <CardDescription className="truncate px-4">{userInstitutionName}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="space-y-1">
@@ -1088,7 +1114,7 @@ export default function Home() {
                         <Label>Academic Designation</Label>
                         <Select 
                           value={profileDraft.designation} 
-                          onValueChange={(val) => setProfileDraft({...profileDraft, designation: val})}
+                          onValueChange={(val: any) => setProfileDraft({...profileDraft, designation: val})}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select designation" />
@@ -1097,6 +1123,23 @@ export default function Home() {
                             {DESIGNATIONS.map((d) => (
                               <SelectItem key={d} value={d}>{d}</SelectItem>
                             ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Institution</Label>
+                        <Select 
+                          value={profileDraft.institutionId} 
+                          onValueChange={(val) => setProfileDraft({...profileDraft, institutionId: val})}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select institution" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {institutions.map((inst) => (
+                              <SelectItem key={inst.id} value={inst.id}>{inst.name}</SelectItem>
+                            ))}
+                            <SelectItem value="">Independent Scholar</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
