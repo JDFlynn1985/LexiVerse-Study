@@ -17,6 +17,8 @@
 
 /**
  * @fileOverview Centralized dictionary for LexiVerse localization and internationalization.
+ * To add a new language, copy src/lib/locales/template.ts to a new file in that folder,
+ * translate the values, and register it here.
  */
 
 import { enUS } from './locales/en-US';

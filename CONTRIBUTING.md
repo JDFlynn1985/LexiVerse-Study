@@ -12,7 +12,7 @@ If you are a student or scholar, you can contribute directly through the **Schol
 ### Open Source & Licensing
 All code contributions to LexiVerse Explorer MUST be open-source. To maintain the integrity of our scholarly ecosystem, we require:
 - **License**: All new files and modules must be licensed under **CC BY-NC-SA 4.0** (Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International) or a more permissive scholarly license.
-- **File Headers**: Every new file created must include a clear license declaration and copyright notice at the very top, preceding the `@fileOverview` block.
+- **File Headers**: Every new file created must include a clear license declaration and copyright notice at the very top, preceding the `@fileOverview` block. Use the official LexiVerse header found in existing source files.
 
 ### Modular Architecture
 LexiVerse Explorer uses a modular view system. Before starting development on a new feature, please review the [Module Development Guide](docs/MODULE_GUIDE.md).
@@ -26,15 +26,11 @@ All code contributions MUST include full **JSDoc-compliant** documentation. This
 - **Types**: Document all interfaces and types explaining their role in the research ecosystem.
 - **AI Flows**: Clearly document the input/output schemas and the prompt logic.
 
-Example Header:
-```typescript
-/**
- * LexiVerse Explorer
- * Copyright (c) 2024. Licensed under CC BY-NC-SA 4.0.
- * 
- * @fileOverview Analyzes a specific scripture fragment for linguistic nuances.
- */
-```
+### 🌍 Localization (i18n)
+LexiVerse supports multiple dialects. When adding new features or language support:
+1. **New Keys**: Add translation keys to all files in `src/lib/locales/`.
+2. **New Languages**: To add support for a new language, copy `src/lib/locales/template.ts` to a new file (e.g., `fr-FR.ts`), provide the translations, and register it in `src/lib/locales.ts`.
+3. **Consistency**: Ensure terminology matches the scholarly and formal tone of the platform.
 
 ### Code of Conduct
 By participating, you agree to maintain a professional and respectful environment suitable for academic collaboration.
@@ -53,9 +49,8 @@ By participating, you agree to maintain a professional and respectful environmen
 - **Tone**: Formal, academic, and rigorous.
 - **Components**: Use Radix-based ShadCN components located in `src/components/ui/`.
 - **Icons**: Use `lucide-react`.
-- **Localization**: All UI text must be added to the dialect-specific files in `src/lib/locales/`.
 
-## 🌍 Accessibility
+## ♿ Accessibility
 LexiVerse is committed to **WCAG 2.1 AAA standards**. All UI contributions MUST:
 - Provide descriptive ARIA labels for all interactive elements.
 - Maintain high contrast ratios for text and iconography.
