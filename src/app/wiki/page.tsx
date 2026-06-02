@@ -1,4 +1,16 @@
 
+/*
+ * Title: LexiVerse
+ * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
+ * Source: https://github.com/JDFlynn1985/LexiVerse
+ *
+ * This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 
+ * International License. To view a copy of this license, visit:
+ * http://creativecommons.org
+ *
+ * @fileOverview Scholarly Wiki Hub with peer-reviewed articles and DMCA reporting.
+ */
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -14,11 +26,10 @@ import {
   Loader2, 
   ArrowLeft, 
   BookOpen, 
-  MessageSquare,
-  ChevronRight,
-  ShieldCheck,
+  ChevronRight, 
   User,
-  ExternalLink
+  ExternalLink,
+  ShieldAlert
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
@@ -29,6 +40,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import { useLanguage } from '@/components/language-provider';
+import { DMCADialog } from '@/components/dmca-dialog';
 
 export default function ScholarlyWiki() {
   const db = useFirestore();
@@ -199,9 +211,16 @@ export default function ScholarlyWiki() {
             <div className="flex justify-center py-20"><Loader2 className="animate-spin text-primary" /></div>
           ) : selectedEntry ? (
             <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-              <Button variant="ghost" onClick={() => setSelectedEntry(null)} className="mb-4">
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Archive
-              </Button>
+              <div className="flex justify-between items-center mb-4">
+                <Button variant="ghost" onClick={() => setSelectedEntry(null)}>
+                  <ArrowLeft className="mr-2 h-4 w-4" /> Back to Archive
+                </Button>
+                <DMCADialog 
+                  contentId={selectedEntry.id} 
+                  contentType="wiki" 
+                  onTakedownComplete={() => setSelectedEntry(null)} 
+                />
+              </div>
               <Card className="shadow-xl border-primary/10 overflow-hidden">
                 <div className="h-1 bg-primary w-full" />
                 <CardHeader>

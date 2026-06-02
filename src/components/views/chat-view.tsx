@@ -1,8 +1,20 @@
 
+/*
+ * Title: LexiVerse
+ * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
+ * Source: https://github.com/JDFlynn1985/LexiVerse
+ *
+ * This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 
+ * International License. To view a copy of this license, visit:
+ * http://creativecommons.org
+ *
+ * @fileOverview Modular Chat Hub for scholarly discourse with automated DMCA reporting.
+ */
+
 'use client';
 
 import React, { memo } from 'react';
-import { MessageSquare, Users, Building2, Send, Loader2, Info } from 'lucide-react';
+import { MessageSquare, Users, Building2, Send, ShieldAlert } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +25,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { UserProfile } from '@/types/scholarly';
 import { useLanguage } from '@/components/language-provider';
+import { DMCADialog } from '@/components/dmca-dialog';
 
 interface ChatViewProps {
   chatMode: 'global' | 'institutional';
@@ -79,9 +92,19 @@ export const ChatView = memo(({
           <ScrollArea className="h-full px-6 py-6">
             <div className="space-y-6">
               {[...(messages || [])].reverse().map((msg, i) => {
+                if (msg.status === 'removed_dmca') {
+                  return (
+                    <div key={msg.id || i} className="flex justify-center py-2">
+                      <Badge variant="outline" className="text-[10px] text-muted-foreground italic border-dashed px-4 py-1">
+                        Content removed for copyright review
+                      </Badge>
+                    </div>
+                  );
+                }
+
                 const isOwn = msg.senderUid === user?.uid;
                 return (
-                  <div key={msg.id || i} className={cn("flex gap-3", isOwn ? "flex-row-reverse" : "flex-row")}>
+                  <div key={msg.id || i} className={cn("flex gap-3 group", isOwn ? "flex-row-reverse" : "flex-row")}>
                     <Avatar className="h-9 w-9 shrink-0 border-2 border-background shadow-sm">
                       <AvatarImage src={msg.senderPhotoURL} />
                       <AvatarFallback className="bg-primary/10 text-primary text-xs">{msg.senderName?.[0]}</AvatarFallback>
@@ -93,8 +116,19 @@ export const ChatView = memo(({
                           {msg.senderDesignation}
                         </Badge>
                       </div>
-                      <div className={cn("p-3 rounded-2xl text-sm shadow-sm border", isOwn ? "bg-primary text-primary-foreground rounded-tr-none border-primary" : "bg-background rounded-tl-none border-border")}>
+                      <div className={cn("p-3 rounded-2xl text-sm shadow-sm border relative", isOwn ? "bg-primary text-primary-foreground rounded-tr-none border-primary" : "bg-background rounded-tl-none border-border")}>
                         <p className="leading-relaxed">{msg.content}</p>
+                        
+                        {/* Inline DMCA Report Tool */}
+                        {!isOwn && (
+                          <div className="absolute top-0 -right-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                             <DMCADialog 
+                               contentId={msg.id} 
+                               contentType="chat" 
+                               trigger={<Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-destructive"><ShieldAlert className="h-3 w-3" /></Button>}
+                             />
+                          </div>
+                        )}
                       </div>
                       <span className="text-[9px] text-muted-foreground px-1">
                         {msg.createdAt?.seconds ? new Date(msg.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending...'}

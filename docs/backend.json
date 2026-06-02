@@ -94,7 +94,8 @@
         "senderInstitutionName": { "type": "string" },
         "type": { "type": "string", "enum": ["global", "institutional"] },
         "institutionId": { "type": "string", "description": "Target institution ID for filtered chat." },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["active", "removed_dmca"], "default": "active" }
       },
       "required": ["content", "senderUid", "type", "createdAt"]
     },
@@ -139,12 +140,30 @@
         "title": { "type": "string" },
         "content": { "type": "string" },
         "worksCited": { "type": "string" },
-        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "removed_dmca"] },
         "authorUid": { "type": "string" },
         "authorName": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["title", "content", "status", "authorUid"]
+    },
+    "DMCAComplaint": {
+      "title": "DMCA Complaint",
+      "description": "A formal notice of copyright infringement requiring investigation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "contentId": { "type": "string" },
+        "contentType": { "type": "string", "enum": ["wiki", "chat"] },
+        "complainantName": { "type": "string" },
+        "complainantEmail": { "type": "string" },
+        "complainantAddress": { "type": "string" },
+        "infringementDescription": { "type": "string" },
+        "digitalSignature": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "investigated", "resolved"] }
+      },
+      "required": ["contentId", "contentType", "complainantName", "complainantEmail", "digitalSignature"]
     },
     "ErrorLog": {
       "title": "Error Log",
@@ -205,6 +224,10 @@
     "/error_logs/{logId}": {
         "schema": "#/backend/entities/ErrorLog",
         "description": "Application error logs."
+    },
+    "/dmca_complaints/{complaintId}": {
+        "schema": "#/backend/entities/DMCAComplaint",
+        "description": "Formal copyright infringement notices."
     },
     "/api_keys/{keyId}": {
       "schema": "#/backend/entities/APIKey",
