@@ -1,13 +1,14 @@
-
 # LexiVerse Explorer: Technical Roadmap & Pending Functionalities
 
 This document outlines the features and components that require further development to reach full scholarly production standards.
 
 ## ✅ Completed (Recent Build)
+- [x] **Voice Research Hub**: Integrated real-time voice transcription into the primary research engine via Gemini Multimodal.
+- [x] **Visual Theology Mapper**: Developed a scatter-plot density map using Recharts to visualize concept evolution.
+- [x] **Advanced BibTeX Export**: Implemented Zotero-compliant citation exports with abstract and abstract metadata.
 - [x] **Grounded Synthesis Hub**: Integrated Digital Library RAG into the Writing Hub for integrity scans and tone refinement.
 - [x] **Codebase Sanitization**: Removed obsolete boilerplate templates and duplicate AI flows.
 - [x] **Notification Engine**: Implemented an in-app Notification Center for status changes and peer review alerts.
-- [x] **BibTeX Export**: Integrated BibTeX support in the Export Hub for Zotero and EndNote compatibility.
 - [x] **Wiki Moderation Flow**: Automated triggers for author alerts upon article approval/rejection.
 - [x] **Real STT (Speech-to-Text)**: Replaced mock with Gemini Multimodal processing.
 - [x] **Audit Dashboard**: Created UI views for system governance monitoring.
@@ -22,7 +23,7 @@ This document outlines the features and components that require further developm
 
 ## 🎙️ AI & Multimodal Research
 - [ ] **Advanced Vector Search**: Transition from keyword ranking to Firestore Vector Search for semantic accuracy.
-- [ ] **Real-Time Audio Streaming**: Streaming STT interface for the AI Assistant.
+- [ ] **Multi-Document Synthesis**: Allow the RAG engine to combine multiple library papers into a single synthesized summary.
 
 ## 🛡️ Governance & Administration
 - [ ] **Ollama Streaming Downloads**: Implement streaming for `pullOllamaModel` to prevent action timeouts.

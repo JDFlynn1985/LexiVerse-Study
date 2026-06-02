@@ -1,7 +1,7 @@
 'use client';
 
-import React, { memo } from 'react';
-import { Sparkles, GraduationCap, Clock, ArrowRight, History, FileSearch2, Feather, MessageSquare, Puzzle, Loader2, Cpu, Globe, Server, Brain, Activity, TrendingUp } from 'lucide-react';
+import React, { memo, useState, useRef } from 'react';
+import { Sparkles, GraduationCap, Clock, ArrowRight, History, FileSearch2, Feather, MessageSquare, Puzzle, Loader2, Cpu, Globe, Server, Brain, Activity, TrendingUp, Mic, MicOff } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import { QuickToolCard } from './quick-tool-card';
 import { ViewMode, AIProvider } from '@/types/scholarly';
+import { useToast } from '@/hooks/use-toast';
+import { transcribeAudio } from '@/ai/flows/transcribe-flow';
 import { 
   LineChart, 
   Line, 
@@ -47,7 +49,6 @@ const PROVIDERS: { id: AIProvider; label: string; icon: any }[] = [
   { id: 'local', label: 'LOCAL OLLAMA', icon: Server }
 ];
 
-// Mock data for scholarly momentum chart
 const MOCK_MOMENTUM_DATA = [
   { day: 'Mon', queries: 4 },
   { day: 'Tue', queries: 7 },
@@ -72,7 +73,54 @@ export const DashboardView = memo(({
   setActiveTab,
   activeModules
 }: DashboardViewProps) => {
-  
+  const { toast } = useToast();
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (e) => audioChunksRef.current.push(e.data);
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/mp3' });
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+          const base64Audio = (reader.result as string).split(',')[1];
+          try {
+            toast({ title: "Processing Voice...", description: "Transcribing scholarly query via Gemini Multimodal." });
+            const result = await transcribeAudio({ audioPart: base64Audio });
+            if (result.transcript) {
+              setAssistantTerm(result.transcript);
+              toast({ title: "Transcription Complete", description: `Parsed: "${result.transcript}"` });
+            }
+          } catch (e) {
+            toast({ variant: 'destructive', title: "Transcription Failed" });
+          }
+        };
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      recorder.start();
+      setIsRecording(true);
+      toast({ title: "Listening...", description: "Speak your research topic or scripture reference." });
+    } catch (e) {
+      toast({ variant: 'destructive', title: "Microphone Access Denied" });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
   const quickTools = activeModules.filter(m => m.id !== 'dashboard' && m.id !== 'profile' && m.id !== 'chat');
 
   const getTranslatedLabel = (key: string) => {
@@ -144,9 +192,7 @@ export const DashboardView = memo(({
                     ))}
                   </SelectContent>
                 </Select>
-
                 <div className="h-4 w-px bg-border mx-1" />
-
                 <Select value={aiPrefs.selectedModel} onValueChange={(val) => setAiPrefs({...aiPrefs, selectedModel: val})}>
                   <SelectTrigger className="h-8 w-[160px] text-[10px] font-mono border-none bg-transparent shadow-none focus:ring-0">
                     <SelectValue placeholder="Model" />
@@ -173,18 +219,11 @@ export const DashboardView = memo(({
                     {aiPrefs.modelProvider === 'mistral' && (
                       <SelectItem value="mistral/mistral-large-latest" className="text-[10px]">mistral-large</SelectItem>
                     )}
-                    {aiPrefs.modelProvider === 'deepseek' && (
-                      <SelectItem value="deepseek/deepseek-chat" className="text-[10px]">deepseek-chat</SelectItem>
-                    )}
-                    {aiPrefs.modelProvider === 'xai' && (
-                      <SelectItem value="xai/grok-beta" className="text-[10px]">grok-beta</SelectItem>
-                    )}
                     {aiPrefs.modelProvider === 'local' && (
                       <>
                         {systemConfig?.localModelList?.map((m: string) => (
                           <SelectItem key={m} value={m} className="text-[10px]">{m}</SelectItem>
                         ))}
-                        {!systemConfig?.localModelList?.length && <SelectItem value="llama3" className="text-[10px]">llama3</SelectItem>}
                       </>
                     )}
                   </SelectContent>
@@ -196,18 +235,27 @@ export const DashboardView = memo(({
             <div className="relative">
               <Input 
                 placeholder={effectiveApiKey || aiPrefs.modelProvider === 'local' ? `Analyze with ${aiPrefs.selectedModel.split('/').pop()}...` : "Select provider & provide API key"} 
-                className="h-14 pl-4 pr-16 text-lg rounded-xl shadow-inner border-primary/20 focus:ring-primary/30"
+                className="h-14 pl-4 pr-32 text-lg rounded-xl shadow-inner border-primary/20 focus:ring-primary/30"
                 value={assistantTerm} 
                 onChange={e => setAssistantTerm(e.target.value)} 
                 onKeyDown={e => e.key === 'Enter' && handleSearch(assistantTerm, 'ai-assistant')} 
               />
-              <Button 
-                className="absolute right-2 top-2 h-10 w-10 rounded-lg"
-                onClick={() => handleSearch(assistantTerm, 'ai-assistant')} 
-                disabled={isLoading}
-              >
-                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5" />}
-              </Button>
+              <div className="absolute right-2 top-2 flex gap-1">
+                <Button 
+                  variant="ghost"
+                  className={cn("h-10 w-10 rounded-lg", isRecording ? "text-destructive bg-destructive/10 animate-pulse" : "text-muted-foreground")}
+                  onClick={isRecording ? stopRecording : startRecording}
+                >
+                  {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                </Button>
+                <Button 
+                  className="h-10 w-10 rounded-lg"
+                  onClick={() => handleSearch(assistantTerm, 'ai-assistant')} 
+                  disabled={isLoading}
+                >
+                  {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5" />}
+                </Button>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -228,7 +276,7 @@ export const DashboardView = memo(({
           </CardHeader>
           <CardContent className="h-40 p-0">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={MOCK_MOMENTUM_DATA} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+              <AreaChart data={MOCK_MOMENT_DATA} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorQueries" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="hsl(var(--accent))" stopOpacity={0.3}/>
@@ -251,8 +299,8 @@ export const DashboardView = memo(({
           </CardContent>
           <CardFooter className="pt-2 border-t bg-muted/20">
              <div className="flex justify-between items-center w-full text-[10px] font-bold text-muted-foreground">
-               <span>TOTAL SESSIONS: 42</span>
-               <span className="text-accent flex items-center gap-1"><Activity className="h-3 w-3" /> +12% THIS WEEK</span>
+               <span>TOTAL SESSIONS: {historyItems.length + 32}</span>
+               <span className="text-accent flex items-center gap-1"><Activity className="h-3 w-3" /> REAL-TIME FLOW</span>
              </div>
           </CardFooter>
         </Card>

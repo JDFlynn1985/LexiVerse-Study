@@ -1,6 +1,6 @@
-
 /**
  * @fileOverview Centralized service for exporting research results to various formats.
+ * Enhanced with professional BibTeX formatting and scholarly metadata.
  */
 
 import { jsPDF } from 'jspdf';
@@ -179,22 +179,31 @@ export async function exportToText(data: AiStudyAssistantOutput, highlights: str
 
 /**
  * Generates and triggers a browser download for a BibTeX file.
- * Optimized for Zotero and academic citation managers.
+ * Optimized for Zotero, Mendeley, and standard academic citation managers.
  */
 export async function exportToBibTeX(data: AiStudyAssistantOutput) {
   const citeKey = data.originalWord.toLowerCase().replace(/\s+/g, '') + new Date().getFullYear();
+  
+  // Create a robust BibTeX entry with scholarly metadata
   const content = `@article{${citeKey},
-  author = {LexiVerse AI Hub},
-  title = {Scholarly Analysis of ${data.originalWord}},
-  journal = {LexiVerse Explorer},
+  author = {LexiVerse AI Engine},
+  title = {Synthesized Scholarly Analysis of: ${data.originalWord}},
+  journal = {LexiVerse Explorer: Research Laboratory},
   year = {${new Date().getFullYear()}},
-  note = {${data.transliteration} | ${data.pronunciation}. ${data.aiInsights.substring(0, 150).replace(/\n/g, ' ')}...},
-  url = {https://lexiverse.app}
+  month = {${new Date().toLocaleString('default', { month: 'long' })}},
+  note = {Original Alphabet: ${data.originalWord}. Transliteration: ${data.transliteration}. Pronunciation: ${data.pronunciation}. Grounded in ${data.verseUsages.length} scriptural references. Synthesis Note: ${data.aiInsights.substring(0, 200).replace(/\n/g, ' ')}...},
+  url = {https://lexiverse.app},
+  abstract = {${data.aiInsights.replace(/\n/g, ' ')}},
+  keywords = {biblical-studies, AI-synthesis, ${data.originalWord.toLowerCase()}}
 }`;
+
   const blob = new Blob([content], { type: 'text/plain' });
   const url = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = `${citeKey}.bib`;
   a.click();
+  
+  // Cleanup
+  setTimeout(() => window.URL.revokeObjectURL(url), 100);
 }
