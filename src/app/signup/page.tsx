@@ -3,18 +3,19 @@
 /**
  * @fileOverview Dedicated Signup Portal for LexiVerse Explorer.
  * Supports Email/Password registration and Social Providers.
+ * Enhanced with strict password validation against user identity components.
  */
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInWithPopup, GoogleAuthProvider, SAMLAuthProvider, OAuthProvider, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth, useFirestore, useUser } from '@/firebase';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Globe, Building2, Loader2, ArrowLeft, ShieldCheck, Sparkles, Mail, User, Key } from 'lucide-react';
+import { Globe, Building2, Loader2, ArrowLeft, ShieldCheck, Sparkles, Mail, User, Key, Calendar } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 
@@ -31,6 +32,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [birthday, setBirthday] = useState('');
 
   useEffect(() => {
     if (user && !authLoading) {
@@ -44,6 +46,40 @@ export default function SignupPage() {
       if (snap.exists()) setSystemConfig(snap.data());
     });
   }, [db]);
+
+  const validatePassword = (pass: string, name: string, emailAddr: string, bday: string) => {
+    const normalizedPass = pass.toLowerCase();
+    
+    // 1. Name check (split into words, check for those longer than 2 chars)
+    const nameParts = name.toLowerCase().split(/\s+/).filter(p => p.length > 2);
+    for (const part of nameParts) {
+      if (normalizedPass.includes(part)) {
+        return `Password cannot contain components of your name ("${part}").`;
+      }
+    }
+
+    // 2. Email check
+    const emailPrefix = emailAddr.toLowerCase().split('@')[0];
+    if (emailPrefix.length > 2 && normalizedPass.includes(emailPrefix)) {
+      return "Password cannot contain your email username.";
+    }
+    if (normalizedPass.includes(emailAddr.toLowerCase())) {
+      return "Password cannot contain your full email address.";
+    }
+
+    // 3. Birthday check
+    if (bday) {
+      const [year, month, day] = bday.split('-');
+      if (normalizedPass.includes(year)) return "Password cannot contain your birth year.";
+      if (normalizedPass.includes(month) && month.length > 1) return "Password cannot contain your birth month.";
+      if (normalizedPass.includes(day) && day.length > 1) return "Password cannot contain your birth day.";
+    }
+
+    // 4. Basic strength check
+    if (pass.length < 8) return "Password must be at least 8 characters long.";
+
+    return null;
+  };
 
   const handleSocialSignup = async (providerType: 'google' | 'institutional' = 'google') => {
     setIsAuthLoading(true);
@@ -69,12 +105,35 @@ export default function SignupPage() {
 
   const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !displayName) return;
+    if (!email || !password || !displayName || !birthday) return;
+
+    const validationError = validatePassword(password, displayName, email, birthday);
+    if (validationError) {
+      toast({
+        variant: "destructive",
+        title: "Insecure Password",
+        description: validationError
+      });
+      return;
+    }
 
     setIsAuthLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName });
+      
+      // Initialize the user profile in Firestore
+      await setDoc(doc(db, 'users', userCredential.user.uid), {
+        uid: userCredential.user.uid,
+        displayName,
+        email,
+        birthday,
+        createdAt: serverTimestamp(),
+        isAdmin: false,
+        isModerator: false,
+        licensedVersions: []
+      });
+
       toast({ title: "Account Created", description: `Welcome, ${displayName}. Your research workstation is ready.` });
       router.push('/');
     } catch (error: any) {
@@ -119,6 +178,21 @@ export default function SignupPage() {
                 </div>
               </div>
               <div className="space-y-2">
+                <Label htmlFor="birthday">Date of Birth</Label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    id="birthday" 
+                    type="date"
+                    className="pl-10" 
+                    value={birthday} 
+                    onChange={e => setBirthday(e.target.value)} 
+                    required 
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground italic px-1">Required for identity-based security validation.</p>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -140,12 +214,14 @@ export default function SignupPage() {
                   <Input 
                     id="password" 
                     type="password" 
+                    placeholder="Minimum 8 characters"
                     className="pl-10" 
                     value={password} 
                     onChange={e => setPassword(e.target.value)} 
                     required 
                   />
                 </div>
+                <p className="text-[10px] text-muted-foreground italic px-1">Must not contain your name, email, or birthday.</p>
               </div>
               <Button type="submit" className="w-full h-11 shadow-lg" disabled={isAuthLoading}>
                 {isAuthLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
