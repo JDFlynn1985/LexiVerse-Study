@@ -12,6 +12,7 @@ export type ViewMode =
   | 'theology' 
   | 'manuscripts' 
   | 'chat'
+  | 'library'
   | 'boilerplate'; // Added for module development assistance
 
 export interface UserProfile {

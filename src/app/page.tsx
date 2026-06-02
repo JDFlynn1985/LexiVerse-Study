@@ -1,19 +1,7 @@
-
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
  * Source: https://github.com/JDFlynn1985/LexiVerse
- *
- * This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 
- * International License. To view a copy of this license, visit:
- * http://creativecommons.org
- *
- * Under this license, you are free to copy, redistribute, and adapt this code,
- * provided you follow these conditions:
- *  - Attribution: You must give appropriate credit to Joshua Flynn.
- *  - NonCommercial: You may not use this material for commercial purposes.
- *  - ShareAlike: If you alter, transform, or build upon this code, you must 
- *    distribute your contributions under the same license as the original.
  */
 
 'use client';
@@ -83,6 +71,7 @@ import { TheologyView } from '@/components/views/theology-view';
 import { LexiconView } from '@/components/views/lexicon-view';
 import { AssistantView } from '@/components/views/assistant-view';
 import { ProfileView } from '@/components/views/profile-view';
+import { LibraryView } from '@/components/views/library-view';
 import { BoilerplateView } from '@/components/views/boilerplate-view';
 
 // AI & API Imports
@@ -306,15 +295,11 @@ export default function Home() {
 
   const getActiveModules = (group: string) => {
     const staticGroup = [...DEFAULT_MODULES, ...GOVERNANCE_MODULES].filter(m => m.group === group);
-    
-    // Default to statically defined modules while Firestore is loading
     if (modulesLoading) return staticGroup;
-
-    // Filter statically defined modules based on dynamic "enabled" status from Firestore
     return staticGroup.filter(m => {
       const dynamic = dynamicModules.find(dm => dm.id === m.id);
       if (dynamic) return dynamic.enabled === true;
-      return true; // Enabled by default logic
+      return true;
     });
   };
 
@@ -324,6 +309,7 @@ export default function Home() {
     switch (activeTab) {
       case 'dashboard': return <DashboardView t={t} effectiveApiKey={effectiveApiKey} isLocalMode={isLocalMode} aiPrefs={aiPrefs} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} />;
       case 'chat': return <ChatView chatMode={chatMode} setChatMode={setChatMode} userProfile={userProfile} userInstitutionName={userInstitutionName} messages={messages} user={user} newMessage={newMessage} setNewMessage={setNewMessage} chatAgreed={chatAgreed} setChatAgreed={setChatAgreed} handleSendMessage={handleSendMessage} chatEndRef={chatEndRef} />;
+      case 'library': return <LibraryView documents={localDocuments} onRefresh={refreshLocalDocs} isLoading={isLoading} />;
       case 'synthesis': return <SynthesisView synthesisText={synthesisText} setSynthesisText={setSynthesisText} handleSynthesisAction={async (a) => {
         setIsLoading(true);
         try {

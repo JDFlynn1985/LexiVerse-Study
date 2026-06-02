@@ -1,13 +1,8 @@
-
 /**
  * LexiVerse Explorer
  * Copyright (c) 2024. Licensed under CC BY-NC-SA 4.0.
  * 
  * @fileOverview Declarative Module Registry for LexiVerse Explorer.
- * 
- * This registry defines the baseline scholarly tools available in the platform.
- * It is consumed by the dashboard orchestrator to render the navigation and
- * interactive features.
  */
 
 import { 
@@ -24,7 +19,8 @@ import {
   School,
   Settings,
   Layers,
-  Activity
+  Activity,
+  Library
 } from 'lucide-react';
 import { ViewMode } from '@/types/scholarly';
 
@@ -48,11 +44,11 @@ export interface ModuleDefinition {
 
 /**
  * DEFAULT_MODULES - The baseline set of scholarly tools.
- * In a managed environment, these are seeded into Firestore for administrative control.
  */
 export const DEFAULT_MODULES: ModuleDefinition[] = [
   { id: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard, group: 'general' },
   { id: 'chat', labelKey: 'nav.chat_hub', icon: MessageSquare, group: 'general' },
+  { id: 'library', labelKey: 'nav.library', icon: Library, group: 'general' },
   { id: 'wiki', labelKey: 'nav.wiki', icon: GraduationCap, group: 'general', path: '/wiki' },
   
   { id: 'ai-assistant', labelKey: 'nav.study_assistant', icon: Sparkles, group: 'ai_hub' },
