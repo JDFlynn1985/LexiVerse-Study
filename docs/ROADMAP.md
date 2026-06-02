@@ -16,16 +16,12 @@
 - [x] **Governance Audit Dashboard**: Live institutional research trends and stability monitoring.
 - [x] **BibTeX / Zotero Export**: Pro-grade citation manager integration for synthesized results.
 
-## 📚 Data Integration (High Priority - Missing)
-- [ ] **Bible Version Production Access**: Finalize real-world API handshakes for licensed modern translations beyond simulation.
-
 ## 📄 Document Management (Advanced RAG)
 - [ ] **Firestore Vector Search**: Migrate from browser-side keyword ranking to server-side vector embeddings for semantic precision.
-- [ ] **Zotero Bidirectional Sync**: Full API integration for collections, moving beyond one-way BibTeX export.
 
 ## 🧪 Advanced Infrastructure
 - [ ] **Ollama Progress Streaming**: Implement WebSockets for real-time pull progress of local models to prevent UI timeouts.
-- [ ] **Offline PWA Sync**: Service worker optimization for weak network environments, allowing local exegesis to buffer and sync.
+- [ ] **Zotero Bidirectional Sync**: Full API integration for collections, moving beyond one-way BibTeX export.
 
 ---
 *Last Audit: February 2024. This roadmap defines the path forward for the 3 primary unfinished features.*

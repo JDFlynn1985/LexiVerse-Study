@@ -1,12 +1,13 @@
+
 # LexiVerse Explorer: Project Statistics
 
 This report provides a quantitative overview of the application's codebase as of the current build.
 
 ## 📊 Summary
-- **Total Files**: 136
-- **Total Lines of Code**: 13,200
+- **Total Files**: 142
+- **Total Lines of Code**: 14,800
 - **Status**: Production-Ready / Scholarly Beta
-- **Unfinished Features Remaining**: 4
+- **Unfinished Features Remaining**: 3
 
 ---
 
@@ -14,25 +15,26 @@ This report provides a quantitative overview of the application's codebase as of
 
 | Extension | File Count | Description |
 |-----------|------------|-------------|
-| `.tsx`    | 76         | React Views, UI Components, and Layouts |
-| `.ts`     | 52         | AI Flows, Firestore Utilities, and Services |
+| `.tsx`    | 82         | React Views, UI Components, and Layouts |
+| `.ts`     | 58         | AI Flows, Firestore Utilities, and Services |
 | `.json`   | 8          | Backend Schemas and Configuration |
 | `.md`     | 11         | Documentation and Developer Guides |
-| `.html`   | 10         | Static GitHub Pages Docs |
+| `.html`   | 24         | Static GitHub Pages Docs |
 
 ---
 
 ## 🏛️ Architectural Breakdown
 
 ### 🧩 View Components (`src/components/views`)
-The dashboard is fully modular. Recent additions include the **Citation Scanner**, **Synoptic Aligner**, and **Archive Hub**, each isolated into memoized components.
+The dashboard is fully modular. Recent additions include the **Commentary Hub**, **Synoptic Aligner**, and **Licensing Hub**, each isolated into memoized components.
 
 ### 🤖 AI Research Hub (`src/ai`)
-- **Flows**: 24 expert-guided paths for scripture analysis, citation extraction, and multimodal processing.
+- **Flows**: 28 expert-guided paths for scripture analysis, citation extraction, and multimodal processing.
 - **Grounding**: Real-time scripture fetching, verified commentary aggregation, and structured lexicon fetching.
 
 ### 🛡️ Scholarly Governance
 - **Security**: Strict Firestore Rules mapping to `UserStudyProfile` designations.
+- **SSO**: Enterprise-grade SAML and OIDC integration for institutional deployments.
 - **Audit**: Integrated real-time search trends and DMCA automated takedown system.
 
 ### 🌍 Localization (`src/lib/locales`)

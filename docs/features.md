@@ -1,3 +1,4 @@
+
 # LexiVerse Explorer: Feature Catalog
 
 LexiVerse Explorer is an integrated research environment designed for biblical scholars, seminary students, and theological researchers.
@@ -13,13 +14,13 @@ The platform leverages a multi-engine AI orchestration layer (Firebase Genkit) t
 - **RAG Integration**: Automatically incorporates excerpts from your locally stored research papers.
 - **Attributed Synthesis**: Identifies specific documents in responses (e.g., `[Ref: Paper.pdf]`).
 
-### 2. Interactive Verse Explorer
-- **Deep Exegesis**: Engage in a real-time dialogue focused on a specific scripture reference.
-- **Grounding Tool**: Uses a specialized tool to quote scripture precisely during the conversation.
+### 2. Synoptic Aligner
+- **Gospel Mapping**: Compare narrative events across Matthew, Mark, Luke, and John.
+- **Theological Nuance**: Identifies unique details and emphases in each Evangelist's account.
 
 ### 3. Lexicon Explorer
-- **Original Languages**: Morphological analysis using Strong’s Greek and Hebrew numbers.
-- **Deep Commentary**: Trigger "Commentary Analysis" to pull insights from historical works like JFB.
+- **Verified Grounding**: Morphological analysis using Strong’s Greek and Hebrew numbers, grounded in a structured lexical registry.
+- **Commentary Integration**: Trigger "Commentary Analysis" to pull insights from historical works like JFB or Keil & Delitzsch.
 
 ### 4. Theological Concept Mapper
 - **Influence Density**: Visualizes the evolution of terms (e.g., *Justification*) across historical eras.
@@ -31,18 +32,18 @@ The platform leverages a multi-engine AI orchestration layer (Firebase Genkit) t
 
 A specialized workspace for refining scholarly drafts and ensuring academic integrity.
 
+- **Citation Scanner**: Automatically extracts and structures raw bibliographic data from your draft.
 - **Tone Refinement**: Adjusts drafts for academic, pastoral, or concise tones.
 - **Integrity Scanner**: Scans text for uncredited scholarly phrasing and suggests citations.
-- **Cross-Reference AI**: Identifies semantic allusions to scripture that aren't explicitly named.
 - **BibTeX Export**: Generate Zotero-ready citations for your synthesized results.
 
 ---
 
 ## 📚 Data & Archive (Workspace Management)
 
-### 5. Digital Library (Local RAG)
-- **Network Isolation**: Papers (PDF/Docx) are stored locally in IndexedDB.
-- **Secure Parsing**: Filenames and content are sanitized to prevent script injection.
+### 5. Bible Version Licensing Hub
+- **Protected Access**: Securely link institutional or individual licenses to unlock modern copyrighted translations (NIV, ESV, etc.).
+- **SSO Integration**: Automatically unlocks versions for students signed in via institutional SAML/OIDC.
 
 ### 6. Research Archive
 - **Session Recovery**: Browse and restore cloud-synced exegesis and synthesis reports.
@@ -50,26 +51,15 @@ A specialized workspace for refining scholarly drafts and ensuring academic inte
 
 ---
 
-## 💬 Scholarly Discourse
-
-### 7. Social Chat Hub
-- **Global & Institutional**: Real-time channels for general discussion or institutional seminars.
-- **Peer Discovery**: Search the registry to initiate private Direct Messages with colleagues.
-
----
-
 ## 🛡️ Governance & Administration
 
-### 8. System Control Panel
+### 7. System Control Panel
+- **Institutional SSO**: Configure SAML and OIDC identity providers for seminary-wide login.
 - **AI Orchestration**: Manage cloud API keys and local Ollama models.
-- **Network Topology**: Toggle between "Internet" and "Local-Only" air-gapped modes.
 
-### 9. Governance Audit
+### 8. Governance Audit
 - **Research Trends**: Visual analytics to identify high-demand scholarly topics.
 - **Legal Queue**: Automated DMCA reporting and content takedown system.
-
-### 10. API Portal
-- **Tiered Access**: Provision `lv_` tokens for external research integration with daily quotas.
 
 ---
 *© 2026 LexiVerse Explorer. Supporting the scholarly community through technology.*
