@@ -75,7 +75,8 @@ import {
   Send,
   Lock,
   CloudOff,
-  WifiOff
+  WifiOff,
+  Map as MapIcon
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -156,16 +157,6 @@ interface BlogPost {
   authorName: string;
   createdAt: string;
   tags?: string[];
-}
-
-interface BlogComment {
-  id: string;
-  postId: string;
-  authorUid: string;
-  authorName: string;
-  authorCredentials: string;
-  content: string;
-  createdAt: string;
 }
 
 const BLOG_CATEGORIES = ["Linguistics", "Theology", "History", "Archaeology", "Hermeneutics", "General"];
@@ -278,7 +269,7 @@ export default function Home() {
     if (!term.trim()) return;
     
     // Safety check for AI availability
-    if (!effectiveApiKey && aiPrefs.modelProvider === 'google' && ['lexicon', 'ai-assistant'].includes(type)) {
+    if (!effectiveApiKey && aiPrefs.modelProvider === 'google' && ['lexicon', 'ai-assistant', 'verse-explorer', 'compare-translations', 'writing-assistant', 'academic-integrity', 'theology-map', 'timeline'].includes(type)) {
       toast({ 
         variant: 'destructive', 
         title: "AI Key Required", 
@@ -425,6 +416,11 @@ export default function Home() {
                     <GraduationCap className="h-5 w-5" /> <span>Scholarly Wiki</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'blog'} onClick={() => setActiveTab('blog')} tooltip="Journal (Blog)">
+                    <Newspaper className="h-5 w-5" /> <span>Scholar's Journal</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
 
@@ -445,6 +441,42 @@ export default function Home() {
                     <BookOpen className="h-5 w-5" /> <span>Lexicon</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'verse-explorer'} onClick={() => setActiveTab('verse-explorer')} tooltip="Verse Explorer">
+                    <Highlighter className="h-5 w-5" /> <span>Verse Explorer</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'compare-translations'} onClick={() => setActiveTab('compare-translations')} tooltip="Compare Translations">
+                    <ArrowLeftRight className="h-5 w-5" /> <span>Compare Versions</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
+
+            <SidebarGroup>
+              <SidebarGroupLabel>Scholarly Synthesis</SidebarGroupLabel>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'writing-assistant'} onClick={() => setActiveTab('writing-assistant')} tooltip="Writing Assistant">
+                    <PenTool className="h-5 w-5" /> <span>Writing Assistant</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'academic-integrity'} onClick={() => setActiveTab('academic-integrity')} tooltip="Academic Integrity">
+                    <ShieldCheck className="h-5 w-5" /> <span>Integrity Scanner</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'theology-map'} onClick={() => setActiveTab('theology-map')} tooltip="Theology Map">
+                    <MapIcon className="h-5 w-5" /> <span>Theology Map</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive={activeTab === 'timeline'} onClick={() => setActiveTab('timeline')} tooltip="Historical Timeline">
+                    <Milestone className="h-5 w-5" /> <span>Historical Timeline</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
 
@@ -458,6 +490,19 @@ export default function Home() {
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
+
+            {(userProfile?.isAdmin || userProfile?.isModerator) && (
+              <SidebarGroup>
+                <SidebarGroupLabel>Administration</SidebarGroupLabel>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton isActive={activeTab === 'moderation'} onClick={() => setActiveTab('moderation')} tooltip="Moderation Queue">
+                      <ShieldAlert className="h-5 w-5" /> <span>Moderation</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroup>
+            )}
           </SidebarContent>
           <SidebarFooter className="p-4 border-t flex flex-col gap-2">
             {networkMode === 'local-only' && (
@@ -679,6 +724,22 @@ export default function Home() {
                       </Card>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* View Components Placeholders (to be populated by AI Flows/Features) */}
+              {!['dashboard', 'profile'].includes(activeTab) && (
+                <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4 text-center">
+                  <div className="p-6 bg-primary/5 rounded-full border-2 border-primary/10">
+                    <Sparkles className="h-12 w-12 text-primary opacity-20" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold font-headline">{activeTab.replace('-', ' ').toUpperCase()}</h2>
+                    <p className="text-muted-foreground">Select a term or passage to begin scholarly analysis in this module.</p>
+                  </div>
+                  {!effectiveApiKey && aiPrefs.modelProvider === 'google' && (
+                     <Badge variant="destructive">AI CONFIGURATION REQUIRED</Badge>
+                  )}
                 </div>
               )}
             </div>
