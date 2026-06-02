@@ -1,3 +1,4 @@
+
 /**
  * LexiVerse Explorer
  * Copyright (c) 2024. Licensed under CC BY-NC-SA 4.0.
@@ -14,14 +15,15 @@ import {
   FileSearch2, 
   BookOpen, 
   Feather, 
-  Puzzle,
+  Map as MapIcon,
   Key,
   School,
   Settings,
   Layers,
   Activity,
   Library,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Clock
 } from 'lucide-react';
 import { ViewMode } from '@/types/scholarly';
 
@@ -56,9 +58,10 @@ export const DEFAULT_MODULES: ModuleDefinition[] = [
   { id: 'translation-compare', labelKey: 'nav.translation_compare', icon: ArrowLeftRight, group: 'ai_hub' },
   { id: 'theology', labelKey: 'nav.theology_map', icon: History, group: 'ai_hub' },
   { id: 'manuscripts', labelKey: 'nav.manuscript_hub', icon: FileSearch2, group: 'ai_hub', path: '/manuscripts' },
+  { id: 'timeline', labelKey: 'nav.timeline', icon: Clock, group: 'ai_hub' },
   { id: 'lexicon', labelKey: 'nav.lexicon', icon: BookOpen, group: 'ai_hub' },
   { id: 'synthesis', labelKey: 'nav.synthesis', icon: Feather, group: 'ai_hub' },
-  { id: 'boilerplate', labelKey: 'nav.boilerplate', icon: Puzzle, group: 'ai_hub' }
+  { id: 'archaeology', labelKey: 'nav.archaeology', icon: MapIcon, group: 'ai_hub' }
 ];
 
 /**

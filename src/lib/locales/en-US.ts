@@ -27,7 +27,7 @@ export const enUS = {
     help: "Help Center",
     logout: "Logout",
     login_google: "Link Google",
-    boilerplate: "Module Boilerplate",
+    archaeology: "Archaeology Hub",
     api_portal: "API Access",
     admin_api: "Provision Keys",
     institutions: "Institutions",
@@ -50,26 +50,32 @@ export const enUS = {
     stats_title: "Bibliographic Overview",
     wiki_articles: "Wiki Articles",
     logs: "Analytic Logs",
-    upload_paper: "Upload Paper",
-    tools: {
-      boilerplate: {
-        title: "Module Boilerplate",
-        desc: "Template for new research tools."
-      }
+    upload_paper: "Upload Paper"
+  },
+  archaeology: {
+    title: "Archaeology Hub",
+    description: "Analyze biblical sites, excavations, and historical artifacts.",
+    placeholder: "Enter a site or artifact (e.g. Qumran, Dead Sea Scrolls)...",
+    action: "Run Site Analysis",
+    empty_state: "Uncover the Past",
+    empty_sub: "\"The stones of the earth bear witness to the Word.\"",
+    sections: {
+      summary: "Archaeological Summary",
+      findings: "Significant Discoveries",
+      nuance: "Linguistic & Cultural Context",
+      sources: "Cataloged References"
     }
   },
-  boilerplate: {
-    title: "Boilerplate Research Tool",
-    description: "Template for developing new scholarly modules and AI flows.",
-    placeholder: "Enter research topic...",
-    action: "Run Analysis",
-    empty_state: "Ready for Development",
-    empty_sub: "\"Every great tool begins with a clean template.\"",
+  timeline: {
+    title: "Historical Context Mapper",
+    description: "Map the chronology of biblical events alongside external historical data.",
+    placeholder: "Enter a period or event (e.g. Life of Paul, Babylonian Exile)...",
+    action: "Map Timeline",
     sections: {
-      summary: "Analysis Summary",
-      findings: "Key Findings",
-      nuance: "Theological Nuance",
-      sources: "Suggested Sources"
+      summary: "Historical Overview",
+      milestones: "Timeline Milestones",
+      archaeology: "Archaeological Context",
+      analysis: "Scholarly Analysis"
     }
   },
   settings: {
@@ -80,13 +86,13 @@ export const enUS = {
     scripture_prefs: "Scripture Preferences",
     scripture_desc: "Default translations and academic settings for primary sources.",
     interface_prefs: "Interface Preferences",
-    interface_desc: "Customize how you interact with the platform.",
+    interface_desc: "Customization for interaction with the platform.",
     privacy_title: "Privacy & Data Rights",
-    privacy_desc: "Manage your data, cookie preferences, and account deletion in compliance with GDPR/CCPA.",
+    privacy_desc: "Manage your data, cookie preferences, and account deletion.",
     manage_cookies: "Manage Cookie Preferences",
     request_data: "Request Copy of Records",
     delete_account: "Delete Account & Data",
-    delete_confirm: "Are you sure? This action is permanent and compliant with all data retention requirements.",
+    delete_confirm: "Are you sure? This action is permanent.",
     language: "Interface Language & Dialect",
     bible_version: "Preferred Bible Version",
     api_key: "Google AI API Key",
@@ -96,7 +102,7 @@ export const enUS = {
   },
   cookies: {
     title: "Privacy & Scholarly Research",
-    description: "We use cookies to enhance your research experience. Some are essential for the site to function, while others help us understand how you use our tools.",
+    description: "We use cookies to enhance your research experience.",
     accept_all: "Accept All",
     reject_all: "Reject All",
     customize: "Customize",
@@ -104,27 +110,27 @@ export const enUS = {
     categories: {
       necessary: {
         title: "Strictly Necessary",
-        desc: "Essential for authentication and core platform security. Cannot be disabled."
+        desc: "Essential for authentication and security."
       },
       analytics: {
         title: "Research Analytics",
-        desc: "Helps us identify high-demand research topics and optimize tool performance."
+        desc: "Helps us identify high-demand research topics."
       },
       functional: {
         title: "Study Preferences",
-        desc: "Allows us to remember your language, theme, and AI engine settings."
+        desc: "Allows us to remember your settings."
       },
       marketing: {
         title: "Sponsorship Engagement",
-        desc: "Anonymously tracks interactions with scholarly resource sponsors to support the platform."
+        desc: "Anonymously tracks interactions with resource sponsors."
       }
     }
   },
   privacy: {
     local_only: "Local-Only Storage",
-    local_desc: "Your credentials will be stored only in your browser's local storage and will never be uploaded to Google servers or any external network.",
+    local_desc: "Credentials stored in your browser's local storage.",
     cloud_sync: "Cloud Synchronization",
-    cloud_desc: "Sync your preferences across devices via your authenticated scholarly account."
+    cloud_desc: "Sync preferences via your scholarly account."
   },
   contribution: {
     license_agreement: "I agree to make this content available under the terms of the CC BY 4.0 license.",
@@ -132,20 +138,20 @@ export const enUS = {
   },
   dmca: {
     title: "Copyright Infringement Notice",
-    description: "Please provide the following information to file a formal DMCA complaint. Filing a false report may result in legal consequences. Upon submission, the content will be automatically removed pending review.",
+    description: "Please provide info for a formal DMCA complaint.",
     form: {
       name: "Full Legal Name",
       email: "Email Address",
-      address: "Physical Address / Contact Info",
+      address: "Physical Address",
       description: "Description of Infringement",
-      signature: "Digital Signature (Type Full Name)",
-      accuracy_check: "I have a good faith belief that use of the material in the manner complained of is not authorized by the copyright owner, its agent, or the law.",
-      ownership_check: "The information in this notification is accurate, and under penalty of perjury, I am authorized to act on behalf of the owner of an exclusive right that is allegedly infringed.",
+      signature: "Digital Signature",
+      accuracy_check: "I have a good faith belief that use is not authorized.",
+      ownership_check: "Information is accurate and I am authorized to act.",
       submit: "File Complaint & Remove Content"
     },
     success: {
       title: "Complaint Submitted",
-      description: "Content has been automatically removed pending administrative investigation."
+      description: "Content removed pending investigation."
     }
   },
   common: {

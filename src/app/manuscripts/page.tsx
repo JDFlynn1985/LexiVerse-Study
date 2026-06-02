@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -15,7 +16,8 @@ import {
   Languages, 
   Search,
   Info,
-  FileSearch2
+  FileSearch2,
+  PenTool
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { extractTextFromImage } from '@/ai/flows/ocr-flow';
@@ -24,9 +26,11 @@ import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 export default function ManuscriptHub() {
   const { toast } = useToast();
+  const router = useRouter();
   const [isProcessing, setIsProcessing] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [ocrResult, setOcrResult] = useState<string | null>(null);
@@ -63,6 +67,13 @@ export default function ManuscriptHub() {
     navigator.clipboard.writeText(ocrResult);
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const moveToWritingHub = () => {
+    if (!ocrResult) return;
+    sessionStorage.setItem('lexiverse_pending_synthesis', ocrResult);
+    router.push('/');
+    toast({ title: "Transferred", description: "Text moved to Writing Hub for refinement." });
   };
 
   return (
@@ -187,33 +198,12 @@ export default function ManuscriptHub() {
                 <Button variant="outline" size="sm" asChild>
                   <Link href="/"><Search className="mr-2 h-3 w-3" /> Lexicon Look-up</Link>
                 </Button>
-                <Button size="sm">
-                  Save to Research Library
+                <Button size="sm" onClick={moveToWritingHub}>
+                  <PenTool className="mr-2 h-4 w-4" /> Move to Writing Hub
                 </Button>
               </CardFooter>
             )}
           </Card>
-
-          {ocrResult && (
-            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
-               <Card className="bg-primary text-primary-foreground">
-                 <CardHeader className="pb-3">
-                   <CardTitle className="text-sm flex items-center gap-2">
-                     <Sparkles className="h-4 w-4 text-accent" /> Scholarly Next Steps
-                   </CardTitle>
-                 </CardHeader>
-                 <CardContent className="space-y-3">
-                    <p className="text-xs opacity-90 leading-relaxed">
-                      Now that you have transcribed this text, you can move it to the <strong>Writing Hub</strong> to analyze its theological integrity or <strong>format a bibliography</strong> entry for the source manuscript.
-                    </p>
-                    <div className="flex gap-2 pt-2">
-                       <Button variant="secondary" size="sm" className="text-[10px] h-7 font-bold">MOVE TO WRITING HUB</Button>
-                       <Button variant="ghost" size="sm" className="text-[10px] h-7 hover:bg-white/10">DISMISS</Button>
-                    </div>
-                 </CardContent>
-               </Card>
-            </div>
-          )}
         </div>
       </div>
     </div>

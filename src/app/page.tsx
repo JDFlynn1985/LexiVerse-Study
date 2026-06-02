@@ -74,7 +74,8 @@ import { LexiconView } from '@/components/views/lexicon-view';
 import { AssistantView } from '@/components/views/assistant-view';
 import { ProfileView } from '@/components/views/profile-view';
 import { LibraryView } from '@/components/views/library-view';
-import { BoilerplateView } from '@/components/views/boilerplate-view';
+import { ArchaeologyView } from '@/components/views/archaeology-view';
+import { TimelineView } from '@/components/views/timeline-view';
 import { TranslationCompareView } from '@/components/views/translation-compare-view';
 
 // AI & API Imports
@@ -84,7 +85,8 @@ import { refineWriting, type WritingAssistantOutput } from '@/ai/flows/writing-a
 import { checkIntegrity, type AcademicIntegrityOutput } from '@/ai/flows/academic-integrity-ai';
 import { formatBibliography, type FormatBibliographyOutput } from '@/ai/flows/format-bibliography-ai';
 import { analyzeTheologicalConcept, type TheologicalConceptOutput } from '@/ai/flows/theological-concept-analysis';
-import { runBoilerplateAnalysis, type BoilerplateOutput } from '@/ai/flows/boilerplate-flow';
+import { runArchaeologyAnalysis, type ArchaeologyOutput } from '@/ai/flows/archaeology-site-flow';
+import { generateHistoricalTimeline, type HistoricalTimelineOutput } from '@/ai/flows/historical-timeline-flow';
 import { compareTranslations, type CompareTranslationsOutput } from '@/ai/flows/compare-translations-ai';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 import { getAllLocalDocuments, type IDBDocument } from '@/lib/idb';
@@ -134,7 +136,8 @@ export default function Home() {
   const [assistantTerm, setAssistantTerm] = useState('');
   const [lexiconResult, setLexiconResult] = useState<DefineAndAnalyzeTermOutput | null>(null);
   const [assistantResult, setAssistantResult] = useState<AiStudyAssistantOutput | null>(null);
-  const [boilerplateResult, setBoilerplateResult] = useState<BoilerplateOutput | null>(null);
+  const [archaeologyResult, setArchaeologyResult] = useState<ArchaeologyOutput | null>(null);
+  const [timelineResult, setTimelineResult] = useState<HistoricalTimelineOutput | null>(null);
   const [translationResult, setTranslationResult] = useState<CompareTranslationsOutput | null>(null);
   const [profileDraft, setProfileDraft] = useState({ displayName: '', credentials: '', designation: '', degreeSubject: '', academicLevel: '', institutionId: '', bio: '', photoURL: '' });
   const [synthesisText, setSynthesisText] = useState('');
@@ -155,6 +158,14 @@ export default function Home() {
     if (savedHistory) setHistoryItems(JSON.parse(savedHistory));
     refreshLocalDocs();
     getVersions().then(setAvailableVersions);
+
+    // Cross-module state check (e.g. from Manuscripts OCR)
+    const pendingSynthesis = sessionStorage.getItem('lexiverse_pending_synthesis');
+    if (pendingSynthesis) {
+      setSynthesisText(pendingSynthesis);
+      sessionStorage.removeItem('lexiverse_pending_synthesis');
+      setActiveTab('synthesis');
+    }
 
     async function fetchInstitutions() {
       if (!db) return;
@@ -245,7 +256,8 @@ export default function Home() {
         }));
       }
       else if (type === 'theology') setTheologyResult(await analyzeTheologicalConcept({ concept: term }));
-      else if (type === 'boilerplate') setBoilerplateResult(await runBoilerplateAnalysis({ query: term }));
+      else if (type === 'archaeology') setArchaeologyResult(await runArchaeologyAnalysis({ query: term }));
+      else if (type === 'timeline') setTimelineResult(await generateHistoricalTimeline({ topic: term }));
       
       if (type !== 'chat') {
         const newHistory = [{id: Date.now().toString(), type, term, date: new Date().toLocaleString()}, ...historyItems];
@@ -309,7 +321,7 @@ export default function Home() {
   const renderModularContent = () => {
     switch (activeTab) {
       case 'dashboard': return <DashboardView t={t} effectiveApiKey={getEffectiveKey()} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} />;
-      case 'chat': return <ChatView chatMode={chatMode} setChatMode={setChatMode} userProfile={userProfile} userInstitutionName={userInstitutionName} messages={messages} user={user} newMessage={newMessage} setNewMessage={setNewMessage} chatAgreed={chatAgreed} setChatAgreed={setChatAgreed} handleSendMessage={handleSendMessage} chatEndRef={chatEndRef} />;
+      case 'chat': return <ChatView chatMode={chatMode} setChatMode={setChatMode} userProfile={userProfile} userInstitutionName={userInstitutionName} messages={[]} user={user} newMessage={newMessage} setNewMessage={setNewMessage} chatAgreed={chatAgreed} setChatAgreed={setChatAgreed} handleSendMessage={() => {}} chatEndRef={chatEndRef} />;
       case 'library': return <LibraryView documents={localDocuments} onRefresh={refreshLocalDocs} isLoading={isLoading} />;
       case 'synthesis': return <SynthesisView synthesisText={synthesisText} setSynthesisText={setSynthesisText} handleSynthesisAction={async (a) => {
         setIsLoading(true);
@@ -329,7 +341,8 @@ export default function Home() {
         catch (e: any) { toast({ variant: 'destructive', title: "Comparison Error" }); }
         finally { setIsLoading(false); }
       }} />;
-      case 'boilerplate': return <BoilerplateView isLoading={isLoading} result={boilerplateResult} onSearch={(term) => handleSearch(term, 'boilerplate')} />;
+      case 'archaeology': return <ArchaeologyView isLoading={isLoading} result={archaeologyResult} onSearch={(term) => handleSearch(term, 'archaeology')} />;
+      case 'timeline': return <TimelineView isLoading={isLoading} result={timelineResult} onSearch={(term) => handleSearch(term, 'timeline')} />;
       case 'profile': return userProfile ? <ProfileView userProfile={userProfile} effectiveAvatar={effectiveAvatar} userInstitutionName={userInstitutionName} profileDraft={profileDraft} setProfileDraft={setProfileDraft} institutions={institutions} updateProfile={updateProfile} isLoading={isLoading} aiPrefs={aiPrefs} saveAiPreferences={saveAiPreferences} systemConfig={systemConfig} historyItems={historyItems} handleSearch={handleSearch} /> : null;
       default: return <DashboardView t={t} effectiveApiKey={getEffectiveKey()} aiPrefs={aiPrefs} setAiPrefs={setAiPrefs} systemConfig={systemConfig} assistantTerm={assistantTerm} setAssistantTerm={setAssistantTerm} handleSearch={handleSearch} isLoading={isLoading} historyItems={historyItems} setActiveTab={setActiveTab} activeModules={activeModulesList} />;
     }

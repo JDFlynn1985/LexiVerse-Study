@@ -17,7 +17,8 @@ export type ViewMode =
   | 'chat'
   | 'library'
   | 'translation-compare'
-  | 'boilerplate';
+  | 'archaeology'
+  | 'timeline';
 
 export interface UserProfile {
   uid: string;

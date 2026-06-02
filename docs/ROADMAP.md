@@ -1,3 +1,4 @@
+
 # LexiVerse Explorer: Technical Roadmap & Pending Functionalities
 
 This document outlines the features and components that currently use placeholders, mocks, or simulations and require further development to reach full scholarly production standards.
@@ -11,6 +12,9 @@ This document outlines the features and components that currently use placeholde
 - [x] **Neuromorphic Analysis**: Implemented actual linguistic heuristic logic in the Study Assistant.
 - [x] **Selective RAG Phase 1**: Transitioned from "All-in-Prompt" context to a semantic chunking and selection logic (`rag-engine.ts`).
 - [x] **Translation Comparison Hub**: Fully implemented the AI-driven translation analysis module.
+- [x] **Archaeology Site Analyzer**: Promoted boilerplate tool to a functional biblical archaeology module.
+- [x] **Historical Timeline Module**: Implemented a dedicated UI for the timeline flow.
+- [x] **Module Inter-Connectivity**: Bridged the Manuscript transcription results to the Writing Hub via shared state.
 
 ## 🎙️ AI & Multimodal Research
 - [ ] **Advanced Vector Search**: Transition from local keyword ranking to Firestore Vector Search for higher semantic accuracy in the Library Hub.
