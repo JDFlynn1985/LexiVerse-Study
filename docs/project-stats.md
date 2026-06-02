@@ -4,8 +4,8 @@
 This report provides a quantitative overview of the application's codebase as of the current build.
 
 ## 📊 Summary
-- **Total Files**: 142
-- **Total Lines of Code**: 14,800
+- **Total Files**: 146
+- **Total Lines of Code**: 15,200
 - **Status**: Production-Ready / Scholarly Beta
 - **Unfinished Features Remaining**: 3
 
@@ -15,8 +15,8 @@ This report provides a quantitative overview of the application's codebase as of
 
 | Extension | File Count | Description |
 |-----------|------------|-------------|
-| `.tsx`    | 82         | React Views, UI Components, and Layouts |
-| `.ts`     | 58         | AI Flows, Firestore Utilities, and Services |
+| `.tsx`    | 86         | React Views, UI Components, and Layouts |
+| `.ts`     | 62         | AI Flows, Firestore Utilities, and Services |
 | `.json`   | 8          | Backend Schemas and Configuration |
 | `.md`     | 11         | Documentation and Developer Guides |
 | `.html`   | 24         | Static GitHub Pages Docs |
