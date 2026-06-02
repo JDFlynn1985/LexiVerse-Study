@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { memo, useState, useRef, useEffect } from 'react';
@@ -70,7 +69,8 @@ export const DashboardView = memo(({
         const data = await getTermOfTheDay();
         setVocab(data);
       } catch (e) {
-        console.error("Vocab fetch failed");
+        // Silently fail to avoid triggering error overlays in dev mode
+        // Falling back to empty state managed by setVocabLoading
       } finally {
         setVocabLoading(false);
       }
@@ -131,7 +131,7 @@ export const DashboardView = memo(({
 
   const handleProviderChange = (val: AIProvider) => {
     let defaultModel = '';
-    if (val === 'google') defaultModel = 'googleai/gemini-2.5-flash';
+    if (val === 'google') defaultModel = 'googleai/gemini-1.5-flash';
     else if (val === 'openai') defaultModel = 'openai/gpt-4o';
     else if (val === 'anthropic') defaultModel = 'anthropic/claude-3-5-sonnet';
     else if (val === 'mistral') defaultModel = 'mistral/mistral-large-latest';

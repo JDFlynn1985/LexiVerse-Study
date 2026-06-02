@@ -1,4 +1,3 @@
-
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
@@ -19,13 +18,14 @@ import { mistral } from 'genkitx-mistral';
 
 /**
  * The global Genkit instance.
+ * Configured with stable model identifiers for the scholarly workstation.
  */
 export const ai = genkit({
   plugins: [
     googleAI(),
-    openAI(), // Corrected from openai() to openAI()
-    anthropic(), // Claude 3.5 series
-    mistral(), // Mistral Large, etc
+    openAI(),
+    anthropic(),
+    mistral(),
     ollama({
       models: [
         { name: 'llama3' },
@@ -39,7 +39,6 @@ export const ai = genkit({
       ],
       serverAddress: process.env.OLLAMA_URL || 'http://localhost:11434',
     }),
-    // OpenAI Compatible plugin instances for DeepSeek and xAI
     openAI({
       name: 'deepseek',
       apiKey: process.env.DEEPSEEK_API_KEY,
@@ -51,5 +50,5 @@ export const ai = genkit({
       baseURL: 'https://api.x.ai/v1'
     })
   ],
-  model: 'googleai/gemini-2.5-flash',
+  model: 'googleai/gemini-1.5-flash',
 });

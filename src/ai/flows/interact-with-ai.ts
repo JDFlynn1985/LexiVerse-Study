@@ -1,4 +1,3 @@
-
 'use server';
 
 /*
@@ -41,7 +40,7 @@ const InteractWithAIInputSchema = z.object({
   history: z.array(z.object({ role: z.enum(['user', 'model']), content: z.string() })).describe('The conversation history to maintain context.').optional(),
   question: z.string().describe('The follow-up question from the user.'),
   audioBase64: z.string().describe('Optional base64 audio string for voice interaction.').optional(),
-  model: z.string().optional().default('googleai/gemini-2.5-flash').describe('The AI model to use for this interaction.'),
+  model: z.string().optional().default('googleai/gemini-1.5-flash').describe('The AI model to use for this interaction.'),
 });
 
 export type InteractWithAIInput = z.infer<typeof InteractWithAIInputSchema>;
@@ -64,7 +63,7 @@ const interactWithAIFlow = ai.defineFlow(
     // Perform real transcription if audio is provided
     if (input.audioBase64) {
       try {
-        userQuestion = await transcribeScholarlyAudio(input.audioBase64, input.model || 'googleai/gemini-2.5-flash'); 
+        userQuestion = await transcribeScholarlyAudio(input.audioBase64, input.model || 'googleai/gemini-1.5-flash'); 
       } catch (error) {
         return { response: "I encountered an error processing your voice input. Please try again or type your question." };
       }
@@ -87,7 +86,7 @@ const interactWithAIFlow = ai.defineFlow(
    The current term of focus is: '${input.term}'.`;
 
     const response = await ai.chat({ 
-      model: input.model as any, 
+      model: (input.model || 'googleai/gemini-1.5-flash') as any, 
       messages: [
         { role: 'system', content: systemPrompt },
         ...messages

@@ -1,4 +1,3 @@
-
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
@@ -139,7 +138,7 @@ Format your response strictly as JSON adhering to the AiStudyAssistantOutputSche
 });
 
 export async function aiStudyAssistant(input: AiStudyAssistantInput): Promise<AiStudyAssistantOutput> {
-  const selectedModel = input.model || 'googleai/gemini-2.5-flash';
+  const selectedModel = input.model || 'googleai/gemini-1.5-flash';
   
   // Set API Key if provided (only for cloud models)
   if (input.apiKey && !selectedModel.startsWith('ollama/')) {

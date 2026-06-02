@@ -17,13 +17,26 @@ const VocabularyOutputSchema = z.object({
 
 export type VocabularyOutput = z.infer<typeof VocabularyOutputSchema>;
 
+const termOfTheDayFlow = ai.defineFlow(
+  {
+    name: 'termOfTheDayFlow',
+    outputSchema: VocabularyOutputSchema,
+  },
+  async () => {
+    const { output } = await ai.generate({
+      model: 'googleai/gemini-1.5-flash',
+      prompt: `Generate a unique "Theological Term of the Day" for a seminary student. 
+      Choose a term from biblical studies, systematic theology, or original languages.
+      Return strictly valid JSON adhering to the VocabularyOutputSchema.`,
+      output: { schema: VocabularyOutputSchema }
+    });
+    return output!;
+  }
+);
+
+/**
+ * Public wrapper function for fetching the term of the day.
+ */
 export async function getTermOfTheDay(): Promise<VocabularyOutput> {
-  const { output } = await ai.generate({
-    model: 'googleai/gemini-2.5-flash',
-    prompt: `Generate a "Theological Term of the Day" for a seminary student. 
-    Choose a term from biblical studies, systematic theology, or original languages.
-    Return ONLY JSON adhering to VocabularyOutputSchema.`,
-    output: { schema: VocabularyOutputSchema }
-  });
-  return output!;
+  return termOfTheDayFlow();
 }

@@ -64,7 +64,7 @@ const fetchStrongsDataTool = ai.defineTool({
 });
 
 export async function defineAndAnalyzeTerm(input: DefineAndAnalyzeTermInput): Promise<DefineAndAnalyzeTermOutput> {
-  const selectedModel = input.model || 'googleai/gemini-2.5-flash';
+  const selectedModel = input.model || 'googleai/gemini-1.5-flash';
 
   if (input.apiKey) {
     const provider = selectedModel.split('/')[0];
