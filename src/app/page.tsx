@@ -15,6 +15,7 @@ import { useAuth, useFirestore, useUser, useCollection } from '@/firebase';
 import { logSearch } from '@/lib/search-logging';
 import { useLanguage } from '@/components/language-provider';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { cn, getGravatarUrl } from '@/lib/utils';
 
 import { 
   Sidebar, 
@@ -67,7 +68,8 @@ import {
   User as UserIcon,
   Save,
   Camera,
-  Award
+  Award,
+  AlertTriangle
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -95,6 +97,7 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 // AI Flow Imports
 import { defineAndAnalyzeTerm, type DefineAndAnalyzeTermOutput } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
@@ -265,7 +268,7 @@ export default function Home() {
             displayName: data.displayName || '',
             credentials: data.credentials || '',
             bio: data.bio || '',
-            photoURL: data.photoURL || user.photoURL || ''
+            photoURL: data.photoURL || ''
           });
           if (data.preferences) {
             setAiPrefs({
@@ -293,7 +296,7 @@ export default function Home() {
           uid: result.user.uid, 
           displayName: result.user.displayName, 
           email: result.user.email,
-          photoURL: result.user.photoURL,
+          photoURL: '',
           isAdmin: false,
           isModerator: false,
           isTrustedContributor: false
@@ -403,6 +406,18 @@ export default function Home() {
 
   const submitBlogPost = async () => {
     if (!user || !blogDraft.title || !blogDraft.content) return;
+    
+    // REQUIREMENT: Actual picture must be set in Firestore to contribute to the blog
+    if (!userProfile?.photoURL) {
+      toast({ 
+        variant: 'destructive', 
+        title: "Scholarly Photo Required", 
+        description: "To maintain academic accountability, researchers must have a verified profile photo before publishing to the Journal." 
+      });
+      setActiveTab('profile');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const status = userProfile?.isAdmin || userProfile?.isTrustedContributor ? 'approved' : 'pending';
@@ -463,8 +478,8 @@ export default function Home() {
 
   if (!mounted) return null;
 
-  const defaultAvatar = PlaceHolderImages.find(img => img.id === 'default-avatar');
   const hasDesignerAccess = userProfile?.isAdmin || userProfile?.isModerator || userProfile?.isTrustedContributor;
+  const effectiveAvatar = userProfile?.photoURL || (user?.email ? getGravatarUrl(user.email) : '');
 
   return (
     <SidebarProvider>
@@ -604,7 +619,7 @@ export default function Home() {
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" className="p-0 h-8 w-8 rounded-full overflow-hidden border">
                         <Avatar className="h-full w-full">
-                          <AvatarImage src={userProfile?.photoURL || user.photoURL || defaultAvatar?.imageUrl} />
+                          <AvatarImage src={effectiveAvatar} />
                           <AvatarFallback><UserIcon /></AvatarFallback>
                         </Avatar>
                       </Button>
@@ -700,7 +715,7 @@ export default function Home() {
                       <CardHeader className="text-center pb-2">
                         <div className="relative mx-auto w-32 h-32 mb-4 group">
                           <Avatar className="w-full h-full border-4 border-background shadow-xl">
-                            <AvatarImage src={profileDraft.photoURL} />
+                            <AvatarImage src={effectiveAvatar} />
                             <AvatarFallback><UserIcon className="h-12 w-12" /></AvatarFallback>
                           </Avatar>
                           <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
@@ -722,6 +737,12 @@ export default function Home() {
                           <span>Account Status</span>
                           <span className="text-primary">{userProfile.isAdmin ? "Administrator" : userProfile.isModerator ? "Moderator" : userProfile.isTrustedContributor ? "Trusted Contributor" : "Scholar"}</span>
                         </div>
+                        {!userProfile.photoURL && (
+                          <div className="w-full mt-2 flex items-center gap-2 text-[10px] text-accent p-2 bg-accent/10 rounded-md">
+                            <AlertTriangle className="h-3 w-3" />
+                            <span>A custom profile photo is required to publish to the Journal.</span>
+                          </div>
+                        )}
                       </CardFooter>
                     </Card>
 
@@ -742,7 +763,7 @@ export default function Home() {
                           </div>
                         </div>
                         <div className="space-y-2">
-                          <Label>Photo URL</Label>
+                          <Label>Photo URL (Required for Journal publication)</Label>
                           <Input placeholder="https://..." value={profileDraft.photoURL} onChange={e => setProfileDraft({...profileDraft, photoURL: e.target.value})} />
                         </div>
                         <div className="space-y-2">
@@ -969,6 +990,16 @@ export default function Home() {
                     </div>
                   </header>
 
+                  {!userProfile?.photoURL && (
+                    <Alert variant="destructive" className="bg-destructive/10 border-destructive/20 text-destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>Profile Incomplete</AlertTitle>
+                      <AlertDescription>
+                        You must set an actual profile picture in your <Button variant="link" className="p-0 h-auto font-bold text-destructive underline" onClick={() => setActiveTab('profile')}>profile settings</Button> before you can submit research to the journal.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
                   <div className="grid gap-8">
                     {blogDesignerTab === 'editor' ? (
                       <Card className="shadow-xl">
@@ -1038,7 +1069,7 @@ export default function Home() {
                            <p className="text-xs text-muted-foreground italic">
                              {userProfile?.isTrustedContributor || userProfile?.isAdmin ? "Status: Instant Publishing Enabled" : "Status: Submission requires Peer Review"}
                            </p>
-                           <Button onClick={submitBlogPost} disabled={isLoading || !blogDraft.title || !blogDraft.content}>
+                           <Button onClick={submitBlogPost} disabled={isLoading || !blogDraft.title || !blogDraft.content || !userProfile?.photoURL}>
                              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
                              Submit Research Post
                            </Button>
