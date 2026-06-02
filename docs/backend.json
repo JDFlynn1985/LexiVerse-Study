@@ -27,6 +27,10 @@
               "type": "string",
               "description": "The specific model name (e.g. gemini-2.5-flash, llama3)."
             },
+            "customApiKey": {
+              "type": "string",
+              "description": "The user's personal Google AI API key."
+            },
             "ollamaUrl": {
               "type": "string",
               "description": "Custom endpoint for local Ollama inference."
