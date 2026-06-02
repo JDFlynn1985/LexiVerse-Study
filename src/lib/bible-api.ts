@@ -1,50 +1,39 @@
-/**
- * LexiVerse Explorer
- * Copyright (c) 2026 Joshua Flynn (joshuaflynn040@gmail.com).
- * Licensed under CC BY-NC-SA 4.0.
- * 
- * @fileOverview Client library for interacting with the bible.helloao.org (Free Use Bible API).
- * 
- * This module provides the core data fetching logic for scriptures, translations,
- * and book metadata. It serves as the primary grounding source for the AI Study
- * Assistant, ensuring that all synthesized insights are backed by verified 
- * scriptural text.
+/*
+ * Title: LexiVerse
+ * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
+ * Source: https://github.com
+ *
+ * This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 
+ * International License. To view a copy of this license, visit:
+ * http://creativecommons.org
+ *
+ * Under this license, you are free to copy, redistribute, and adapt this code,
+ * provided you follow these conditions:
+ *  - Attribution: You must give appropriate credit to Joshua Flynn.
+ *  - NonCommercial: You may not use this material for commercial purposes.
+ *  - ShareAlike: If you alter, transform, or build upon this code, you must 
+ *    distribute your contributions under the same license as the original.
  */
 
 /**
- * Represents a specific Bible translation available via the API.
+ * @fileOverview Client library for interacting with the bible.helloao.org (Free Use Bible API).
  */
+
 export interface BibleVersion {
-  /** Unique ID for the translation (e.g., 'kjv', 'net'). */
   id: string;
-  /** Full descriptive name of the translation. */
   name: string;
-  /** Primary language of the translation (ISO format). */
   language: string;
-  /** Short abbreviation for display purposes. */
   abbreviation: string;
 }
 
-/**
- * Represents the structure of a chapter response from the Bible API.
- */
 export interface BibleChapter {
-  /** The translation ID. */
   version: string;
-  /** The full name of the biblical book. */
   bookName: string;
-  /** The USFM 3-letter book code. */
   bookCode: string;
-  /** The chapter number. */
   chapterNumber: number;
-  /** Array of block-level nodes representing scripture text and metadata. */
   chapter: Array<any>;
 }
 
-/**
- * Internal mapping of full book names to their standard 3-letter USFM codes.
- * This is used to construct API requests to the Bible provider.
- */
 const BOOK_CODES: Record<string, string> = {
   "Genesis": "GEN", "Exodus": "EXO", "Leviticus": "LEV", "Numbers": "NUM", "Deuteronomy": "DEU",
   "Joshua": "JOS", "Judges": "JDG", "Ruth": "RUT", "1 Samuel": "1SA", "2 Samuel": "2SA",
@@ -63,11 +52,6 @@ const BOOK_CODES: Record<string, string> = {
   "Revelation": "REV"
 };
 
-/**
- * Fetches the list of all available Bible translations from the remote provider.
- * 
- * @returns {Promise<BibleVersion[]>} A promise that resolves to an array of BibleVersion objects.
- */
 export async function getVersions(): Promise<BibleVersion[]> {
   try {
     const res = await fetch('https://bible.helloao.org/api/available_versions.json');
@@ -85,13 +69,6 @@ export async function getVersions(): Promise<BibleVersion[]> {
   }
 }
 
-/**
- * Parses a natural language scripture reference string into its constituent parts.
- * Supported format: "BookName Chapter:Verse" or "BookName Chapter".
- * 
- * @param {string} reference - The raw reference string (e.g., "John 3:16").
- * @returns {object | null} Object containing bookName, chapter, and optional verse, or null if invalid.
- */
 export function parseReference(reference: string) {
   const match = reference.match(/^(\d?\s?[a-zA-Z\s]+)\s(\d+)(?::(\d+))?$/);
   if (!match) return null;
@@ -102,14 +79,6 @@ export function parseReference(reference: string) {
   };
 }
 
-/**
- * Fetches the complete JSON content for a specific Bible chapter.
- * 
- * @param {string} version - The version ID (e.g., 'kjv').
- * @param {string} bookName - The full book name (e.g., 'John').
- * @param {number} chapter - The chapter number.
- * @returns {Promise<BibleChapter | null>} A promise resolving to the BibleChapter object or null if not found.
- */
 export async function getChapterContent(version: string, bookName: string, chapter: number): Promise<BibleChapter | null> {
   const bookCode = BOOK_CODES[bookName] || bookName.toUpperCase().substring(0, 3);
   try {

@@ -1,12 +1,25 @@
-/**
- * LexiVerse Explorer
- * Copyright (c) 2026 Joshua Flynn (joshuaflynn040@gmail.com).
- * Licensed under CC BY-NC-SA 4.0.
- * 
- * @fileOverview Comprehensive AI Study Assistant for in-depth biblical research.
+/*
+ * Title: LexiVerse
+ * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
+ * Source: https://github.com
+ *
+ * This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 
+ * International License. To view a copy of this license, visit:
+ * http://creativecommons.org
+ *
+ * Under this license, you are free to copy, redistribute, and adapt this code,
+ * provided you follow these conditions:
+ *  - Attribution: You must give appropriate credit to Joshua Flynn.
+ *  - NonCommercial: You may not use this material for commercial purposes.
+ *  - ShareAlike: If you alter, transform, or build upon this code, you must 
+ *    distribute your contributions under the same license as the original.
  */
 
 'use server';
+
+/**
+ * @fileOverview Comprehensive AI Study Assistant for in-depth biblical research.
+ */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';

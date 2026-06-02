@@ -1,12 +1,25 @@
-/**
- * @fileOverview Real-time Firestore Document Hook.
- * 
- * Provides a standardized way to subscribe to a single document in Firestore.
- * Includes integrated error handling that surfaces permission violations
- * to the global LexiVerse error listener.
+/*
+ * Title: LexiVerse
+ * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
+ * Source: https://github.com
+ *
+ * This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 
+ * International License. To view a copy of this license, visit:
+ * http://creativecommons.org
+ *
+ * Under this license, you are free to copy, redistribute, and adapt this code,
+ * provided you follow these conditions:
+ *  - Attribution: You must give appropriate credit to Joshua Flynn.
+ *  - NonCommercial: You may not use this material for commercial purposes.
+ *  - ShareAlike: If you alter, transform, or build upon this code, you must 
+ *    distribute your contributions under the same license as the original.
  */
 
 'use client';
+
+/**
+ * @fileOverview Real-time Firestore Document Hook.
+ */
 
 import { useState, useEffect } from 'react';
 import { 
@@ -20,10 +33,6 @@ import { FirestorePermissionError } from '../errors';
 
 /**
  * Subscribes to a Firestore document reference and returns its data and state.
- * 
- * @template T - The type of the document data.
- * @param {DocumentReference<T> | null} docRef - The reference to the document to watch.
- * @returns {{ data: T | null, loading: boolean, error: FirestorePermissionError | null }}
  */
 export function useDoc<T = DocumentData>(docRef: DocumentReference<T> | null) {
   const [data, setData] = useState<T | null>(null);
@@ -48,7 +57,6 @@ export function useDoc<T = DocumentData>(docRef: DocumentReference<T> | null) {
           path: docRef.path,
           operation: 'get',
         });
-        // Emit for administrative logging and UI feedback
         errorEmitter.emit('permission-error', permissionError);
         setError(permissionError);
         setLoading(false);

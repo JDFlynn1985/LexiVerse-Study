@@ -1,13 +1,22 @@
+/*
+ * Title: LexiVerse
+ * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
+ * Source: https://github.com
+ *
+ * This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 
+ * International License. To view a copy of this license, visit:
+ * http://creativecommons.org
+ *
+ * Under this license, you are free to copy, redistribute, and adapt this code,
+ * provided you follow these conditions:
+ *  - Attribution: You must give appropriate credit to Joshua Flynn.
+ *  - NonCommercial: You may not use this material for commercial purposes.
+ *  - ShareAlike: If you alter, transform, or build upon this code, you must 
+ *    distribute your contributions under the same license as the original.
+ */
+
 /**
- * LexiVerse Explorer
- * Copyright (c) 2026 Joshua Flynn (joshuaflynn040@gmail.com).
- * Licensed under CC BY-NC-SA 4.0.
- * 
  * @fileOverview Centralized dictionary for LexiVerse localization and internationalization.
- * 
- * This module aggregates all language files and provides a unified interface
- * for the LanguageProvider. It supports dialect-specific terminology
- * required for accurate theological research in various regions.
  */
 
 import { enUS } from './locales/en-US';
@@ -15,9 +24,6 @@ import { enGB } from './locales/en-GB';
 import { esES } from './locales/es-ES';
 import { esMX } from './locales/es-MX';
 
-/**
- * The consolidated locales object mapping language codes to their dictionaries.
- */
 export const locales = {
   'en-US': enUS,
   'en-GB': enGB,
@@ -25,14 +31,8 @@ export const locales = {
   'es-MX': esMX,
 };
 
-/**
- * Derived type representing supported locale identifiers.
- */
 export type LocaleType = keyof typeof locales;
 
-/**
- * Metadata for available languages used in the UI (e.g., profile settings).
- */
 export const availableLanguages = [
   { id: 'en-US', name: 'English (US)' },
   { id: 'en-GB', name: 'English (UK)' },
