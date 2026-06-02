@@ -4,10 +4,10 @@
 This report provides a quantitative overview of the application's codebase as of the current build.
 
 ## 📊 Summary
-- **Total Files**: 146
-- **Total Lines of Code**: 15,200
+- **Total Files**: 151
+- **Total Lines of Code**: 15,800
 - **Status**: Production-Ready / Scholarly Beta
-- **Unfinished Features Remaining**: 3
+- **Unfinished Features Remaining**: 2
 
 ---
 
@@ -15,8 +15,8 @@ This report provides a quantitative overview of the application's codebase as of
 
 | Extension | File Count | Description |
 |-----------|------------|-------------|
-| `.tsx`    | 86         | React Views, UI Components, and Layouts |
-| `.ts`     | 62         | AI Flows, Firestore Utilities, and Services |
+| `.tsx`    | 88         | React Views, UI Components, and Layouts |
+| `.ts`     | 64         | AI Flows, Firestore Utilities, and Services |
 | `.json`   | 8          | Backend Schemas and Configuration |
 | `.md`     | 11         | Documentation and Developer Guides |
 | `.html`   | 24         | Static GitHub Pages Docs |
@@ -26,7 +26,7 @@ This report provides a quantitative overview of the application's codebase as of
 ## 🏛️ Architectural Breakdown
 
 ### 🧩 View Components (`src/components/views`)
-The dashboard is fully modular. Recent additions include the **Commentary Hub**, **Synoptic Aligner**, and **Licensing Hub**, each isolated into memoized components.
+The dashboard is fully modular. Recent additions include the **Zotero Hub**, **Commentary Hub**, and **Licensing Hub**, each isolated into memoized components.
 
 ### 🤖 AI Research Hub (`src/ai`)
 - **Flows**: 28 expert-guided paths for scripture analysis, citation extraction, and multimodal processing.

@@ -3,6 +3,7 @@
 
 ## ✅ Completed (Production Foundation)
 - [x] **Institutional SSO (SAML/OIDC)**: Enabled enterprise-grade single sign-on for seminary-wide deployments with custom provider support.
+- [x] **Zotero Bidirectional Sync**: Full API integration for collections, moving beyond one-way BibTeX export.
 - [x] **Structured Lexicon Fetching**: Transitioned from AI-simulated Strong's data to a tool-grounded retrieval system with a dedicated API connector.
 - [x] **Verified Commentary Aggregator**: Integrated a structured aggregator for primary historical scholarly works (JFB, Henry, Calvin).
 - [x] **Bible Version Licensing Hub**: Implemented a secure flow for accessing modern copyrighted translations (NIV, ESV, etc.).
@@ -21,7 +22,6 @@
 
 ## 🧪 Advanced Infrastructure
 - [ ] **Ollama Progress Streaming**: Implement WebSockets for real-time pull progress of local models to prevent UI timeouts.
-- [ ] **Zotero Bidirectional Sync**: Full API integration for collections, moving beyond one-way BibTeX export.
 
 ---
-*Last Audit: February 2024. This roadmap defines the path forward for the 3 primary unfinished features.*
+*Last Audit: February 2024. Only 2 primary architectural features remain.*

@@ -9,7 +9,7 @@
 
 /**
  * @fileOverview Primary Research Dashboard Orchestrator.
- * Enhanced with Institutional SSO (SAML/OIDC) support.
+ * Enhanced with Institutional SSO (SAML/OIDC) and Zotero Bidirectional Sync.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -53,7 +53,8 @@ import {
   User,
   Loader2,
   Building2,
-  ShieldCheck
+  ShieldCheck,
+  Database
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -91,6 +92,7 @@ import { CitationScannerView } from '@/components/views/citation-scanner-view';
 import { SynopticView } from '@/components/views/synoptic-view';
 import { LicensingHubView } from '@/components/views/licensing-hub-view';
 import { CommentaryView } from '@/components/views/commentary-view';
+import { ZoteroHubView } from '@/components/views/zotero-hub-view';
 
 // AI & API Imports
 import { defineAndAnalyzeTerm } from '@/ai/flows/define-and-analyze-greek-hebrew-term';
@@ -233,6 +235,7 @@ export default function Home() {
       case 'direct-messages': return <DirectMessageView initialRecipient={dmRecipient} />;
       case 'library': return <LibraryView documents={localDocuments} onRefresh={refreshLocalDocs} isLoading={isLoading} />;
       case 'archive': return <ArchiveView onRestore={(type, data) => { setActiveTab(type); if(type === 'assistant') setAssistantResult(data); }} />;
+      case 'zotero': return <ZoteroHubView />;
       case 'synthesis': return <SynthesisView synthesisText={""} setSynthesisText={() => {}} handleSynthesisAction={() => {}} handleSaveDraftToLibrary={() => {}} handleExportText={() => {}} isLoading={isLoading} synthesisResult={null} integrityResult={null} bibResult={null} crossRefResult={null} />;
       case 'theology': return <TheologyView theologyTerm={""} setTheologyTerm={() => {}} handleSearch={handleSearch} isLoading={isLoading} theologyResult={theologyResult} />;
       case 'lexicon': return <LexiconView handleSearch={handleSearch} handleSaveSession={() => {}} handleExport={() => {}} isLoading={isLoading} lexiconResult={lexiconResult} isUserSignedIn={!!user} />;

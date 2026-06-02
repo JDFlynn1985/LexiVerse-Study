@@ -54,6 +54,8 @@
             "deepseekKey": { "type": "string" },
             "xaiKey": { "type": "string" },
             "ollamaUrl": { "type": "string" },
+            "zoteroUserId": { "type": "string" },
+            "zoteroApiKey": { "type": "string" },
             "preferredBibleVersion": { "type": "string" },
             "language": { "type": "string" },
             "storagePreference": { "type": "string", "enum": ["cloud", "local"] }

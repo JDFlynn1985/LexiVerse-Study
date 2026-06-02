@@ -1,3 +1,4 @@
+
 /**
  * LexiVerse Explorer
  * Copyright (c) 2024. Licensed under CC BY-NC-SA 4.0.
@@ -29,12 +30,13 @@ import {
   UserCheck,
   Archive,
   ListFilter,
-  ShieldCheck
+  ShieldCheck,
+  Database
 } from 'lucide-react';
 import { ViewMode } from '@/types/scholarly';
 
 export interface ModuleDefinition {
-  id: ViewMode | 'synoptic' | 'citation-scanner' | 'licensing-hub' | 'commentaries';
+  id: ViewMode | 'synoptic' | 'citation-scanner' | 'licensing-hub' | 'commentaries' | 'zotero';
   labelKey: string; 
   icon: any;
   group: 'general' | 'ai_hub' | 'governance' | 'profile';
@@ -51,6 +53,7 @@ export const DEFAULT_MODULES: ModuleDefinition[] = [
   { id: 'wiki', labelKey: 'nav.wiki', icon: GraduationCap, group: 'general', path: '/wiki' },
   
   { id: 'ai-assistant', labelKey: 'nav.study_assistant', icon: Sparkles, group: 'ai_hub' },
+  { id: 'zotero', labelKey: 'nav.zotero_hub', icon: Database, group: 'ai_hub' },
   { id: 'verse-explorer', labelKey: 'nav.verse_explorer', icon: NotebookPen, group: 'ai_hub' },
   { id: 'commentaries', labelKey: 'nav.commentaries', icon: BookOpen, group: 'ai_hub' },
   { id: 'synoptic', labelKey: 'nav.synoptic', icon: Layers, group: 'ai_hub' },
