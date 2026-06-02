@@ -2,37 +2,33 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useFirestore, useUser, useDoc } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
 import { 
   ShieldCheck, 
   Settings, 
-  Key, 
-  UserCheck, 
   Loader2, 
   Save, 
-  ShieldAlert, 
-  CheckCircle2, 
   Server,
   Network,
   Plus,
   Trash2,
-  ExternalLink,
   Globe,
   WifiOff,
   RefreshCw,
   Download,
-  AlertTriangle,
   Database,
   Cpu,
   Brain,
   Sparkles,
-  XCircle
+  Fingerprint,
+  Building2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -67,7 +63,13 @@ export default function AdminSettings() {
     defaultModelProvider: 'google',
     defaultModel: 'googleai/gemini-2.5-flash',
     localModelList: ['llama3', 'mistral', 'gemma'],
-    networkMode: 'internet'
+    networkMode: 'internet',
+    ssoConfig: {
+      enabled: false,
+      providerId: '',
+      type: 'saml',
+      label: 'Seminary Login'
+    }
   });
   const [pullModelName, setPullModelName] = useState('');
 
@@ -80,10 +82,10 @@ export default function AdminSettings() {
         const snap = await getDoc(doc(db, 'system', 'config'));
         if (snap.exists()) {
           const data = snap.data();
-          setConfig({
-            ...config,
+          setConfig((prev: any) => ({
+            ...prev,
             ...data
-          });
+          }));
         }
         // Check Ollama status
         const ping = await pingOllama(config.ollamaUrl);
@@ -95,7 +97,7 @@ export default function AdminSettings() {
       }
     }
     if (!authLoading && !profileLoading) fetchConfig();
-  }, [db, isAdmin, authLoading, profileLoading]);
+  }, [db, isAdmin, authLoading, profileLoading, config.ollamaUrl]);
 
   const handleSave = async () => {
     if (!isAdmin) return;
@@ -186,9 +188,10 @@ export default function AdminSettings() {
       </header>
 
       <Tabs defaultValue="ai" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-8">
+        <TabsList className="grid w-full grid-cols-4 mb-8">
           <TabsTrigger value="ai" className="gap-2"><Globe className="h-4 w-4" /> Cloud Tiers</TabsTrigger>
           <TabsTrigger value="local" className="gap-2"><Server className="h-4 w-4" /> Local Ollama</TabsTrigger>
+          <TabsTrigger value="auth" className="gap-2"><Fingerprint className="h-4 w-4" /> Authentication</TabsTrigger>
           <TabsTrigger value="network" className="gap-2"><Network className="h-4 w-4" /> Network Mode</TabsTrigger>
         </TabsList>
 
@@ -278,7 +281,7 @@ export default function AdminSettings() {
                     <Database className="h-4 w-4" /> Installed Library
                   </h4>
                   <div className="border rounded-lg p-4 bg-muted/20 min-h-[100px] space-y-2">
-                    {config.localModelList.map((m: string) => (
+                    {(config.localModelList || []).map((m: string) => (
                       <div key={m} className="flex items-center justify-between p-2 bg-background rounded border group">
                         <span className="text-xs font-mono">{m}</span>
                         <Button 
@@ -292,13 +295,89 @@ export default function AdminSettings() {
                         </Button>
                       </div>
                     ))}
-                    {config.localModelList.length === 0 && (
+                    {!config.localModelList?.length && (
                       <p className="text-center text-[10px] text-muted-foreground italic py-8">No models detected.</p>
                     )}
                   </div>
                 </div>
               </div>
             </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="auth" className="space-y-6">
+          <Card className="shadow-md">
+            <CardHeader>
+              <CardTitle className="font-headline text-lg flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-primary" /> Institutional SSO (SAML/OIDC)
+              </CardTitle>
+              <CardDescription>Configure enterprise-grade single sign-on for your institution.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/20">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Enable Institutional SSO</Label>
+                  <p className="text-xs text-muted-foreground">Allow researchers to sign in via seminary identity providers.</p>
+                </div>
+                <Switch 
+                  checked={config.ssoConfig?.enabled} 
+                  onCheckedChange={val => setConfig({
+                    ...config, 
+                    ssoConfig: { ...(config.ssoConfig || {}), enabled: val }
+                  })} 
+                />
+              </div>
+
+              <div className={cn("grid gap-6 md:grid-cols-2", !config.ssoConfig?.enabled && "opacity-50 pointer-events-none")}>
+                <div className="space-y-2">
+                  <Label>SSO Provider Type</Label>
+                  <Select 
+                    value={config.ssoConfig?.type || 'saml'} 
+                    onValueChange={val => setConfig({
+                      ...config, 
+                      ssoConfig: { ...(config.ssoConfig || {}), type: val }
+                    })}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="saml">SAML (Generic / Azure / Okta)</SelectItem>
+                      <SelectItem value="oidc">OpenID Connect (OIDC)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Provider ID</Label>
+                  <Input 
+                    placeholder="e.g. saml.my-seminary" 
+                    value={config.ssoConfig?.providerId || ''} 
+                    onChange={e => setConfig({
+                      ...config, 
+                      ssoConfig: { ...(config.ssoConfig || {}), providerId: e.target.value }
+                    })}
+                  />
+                  <p className="text-[10px] text-muted-foreground italic">Match this with the ID configured in Firebase Console.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Button Label</Label>
+                  <Input 
+                    placeholder="e.g. Sign in with Oxford ID" 
+                    value={config.ssoConfig?.label || ''} 
+                    onChange={e => setConfig({
+                      ...config, 
+                      ssoConfig: { ...(config.ssoConfig || {}), label: e.target.value }
+                    })}
+                  />
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="bg-muted/30 border-t p-4">
+               <div className="flex items-start gap-2">
+                 <ShieldCheck className="h-4 w-4 text-primary mt-0.5" />
+                 <p className="text-[10px] text-muted-foreground leading-relaxed">
+                   <strong>Security Note:</strong> SSO requires active configuration in the Firebase Project settings. Ensure you have added the corresponding SAML/OIDC provider and authorized the redirect URIs.
+                 </p>
+               </div>
+            </CardFooter>
           </Card>
         </TabsContent>
 

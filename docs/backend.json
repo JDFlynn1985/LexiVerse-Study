@@ -134,6 +134,15 @@
         "gaMeasurementId": { "type": "string" },
         "matomoSiteId": { "type": "string" },
         "matomoUrl": { "type": "string" },
+        "ssoConfig": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "providerId": { "type": "string", "description": "The SAML or OIDC provider ID from Firebase console." },
+            "type": { "type": "string", "enum": ["saml", "oidc"] },
+            "label": { "type": "string", "description": "Label for the institutional login button." }
+          }
+        },
         "apiTiers": {
           "type": "array",
           "items": {
@@ -150,7 +159,7 @@
     }
   },
   "auth": {
-    "providers": ["google.com"]
+    "providers": ["google.com", "saml.custom", "oidc.custom"]
   },
   "firestore": {
     "/users/{userId}": {

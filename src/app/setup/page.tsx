@@ -10,9 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ShieldCheck, Database, Sparkles, Activity, Key, CheckCircle2, Loader2, LogIn, Globe, WifiOff, Layers, ShieldAlert } from 'lucide-react';
+import { ShieldCheck, Database, Sparkles, Activity, Key, CheckCircle2, Loader2, LogIn, Globe, WifiOff, Layers, ShieldAlert, Building2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithPopup, GoogleAuthProvider, SAMLAuthProvider, OAuthProvider } from 'firebase/auth';
 import { useAuth } from '@/firebase';
 import { cn } from '@/lib/utils';
 import { DEFAULT_MODULES, GOVERNANCE_MODULES } from '@/config/modules';
@@ -25,6 +25,7 @@ export default function SetupWizard() {
   const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
 
   const [formData, setFormData] = useState({
@@ -35,31 +36,47 @@ export default function SetupWizard() {
     networkMode: 'internet',
   });
 
+  const [systemConfig, setSystemConfig] = useState<any>(null);
+
   useEffect(() => {
     async function checkConfig() {
       const configRef = doc(db, 'system', 'config');
       const snap = await getDoc(configRef);
-      if (snap.exists() && snap.data().isConfigured) {
-        router.push('/admin/settings');
+      if (snap.exists()) {
+        setSystemConfig(snap.data());
+        if (snap.data().isConfigured) {
+          router.push('/admin/settings');
+        }
       }
       setIsChecking(false);
     }
     checkConfig();
   }, [db, router]);
 
-  const handleLogin = async () => {
-    const provider = new GoogleAuthProvider();
+  const handleLogin = async (providerType: 'google' | 'institutional' = 'google') => {
+    setIsAuthLoading(true);
     try {
+      let provider;
+      if (providerType === 'google') {
+        provider = new GoogleAuthProvider();
+      } else {
+        const sso = systemConfig?.ssoConfig;
+        if (!sso?.providerId) throw new Error("Institutional SSO not configured.");
+        provider = sso.type === 'saml' ? new SAMLAuthProvider(sso.providerId) : new OAuthProvider(sso.providerId);
+      }
+      
       await signInWithPopup(auth, provider);
       toast({ title: "Authenticated", description: "You are now eligible to become the first System Admin." });
     } catch (error: any) {
       toast({ variant: "destructive", title: "Authentication Failed", description: error.message });
+    } finally {
+      setIsAuthLoading(false);
     }
   };
 
   const handleComplete = async () => {
     if (!user) {
-      toast({ variant: 'destructive', title: "Authentication Required", description: "Please sign in with Google to claim ownership of the first admin account." });
+      toast({ variant: 'destructive', title: "Authentication Required", description: "Please sign in to claim ownership of the first admin account." });
       setStep(4);
       return;
     }
@@ -78,9 +95,9 @@ export default function SetupWizard() {
           { name: "Institution", requestsPerDay: 5000 }
         ],
         updatedAt: new Date().toISOString()
-      });
+      }, { merge: true });
 
-      // 2. Comprehensive Module Seeding (Filtered to real modules only)
+      // 2. Comprehensive Module Seeding
       const allModules = [...DEFAULT_MODULES, ...GOVERNANCE_MODULES];
       
       allModules.forEach(mod => {
@@ -253,7 +270,7 @@ export default function SetupWizard() {
                 <Key className="h-5 w-5" />
                 <h3>Admin Ownership</h3>
               </div>
-              <p className="text-sm text-muted-foreground">To secure the platform, the first System Administrator must be linked to a verified Google account.</p>
+              <p className="text-sm text-muted-foreground">To secure the platform, the first System Administrator must be linked to a verified account.</p>
               
               {user ? (
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3 justify-center">
@@ -264,9 +281,18 @@ export default function SetupWizard() {
                   </div>
                 </div>
               ) : (
-                <Button onClick={handleLogin} className="w-full h-12">
-                  <LogIn className="mr-2 h-5 w-5" /> Authenticate Admin Account
-                </Button>
+                <div className="grid gap-3">
+                  <Button onClick={() => handleLogin('google')} className="w-full h-12" disabled={isAuthLoading}>
+                    {isAuthLoading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Globe className="mr-2 h-5 w-5" />}
+                    Authenticate with Google
+                  </Button>
+                  {systemConfig?.ssoConfig?.enabled && (
+                    <Button variant="outline" onClick={() => handleLogin('institutional')} className="w-full h-12 border-primary/20" disabled={isAuthLoading}>
+                      <Building2 className="mr-2 h-5 w-5 text-primary" />
+                      {systemConfig.ssoConfig.label}
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
           )}

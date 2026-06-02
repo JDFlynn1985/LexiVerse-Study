@@ -1,3 +1,4 @@
+
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
@@ -8,6 +9,7 @@
 
 /**
  * @fileOverview Primary Research Dashboard Orchestrator.
+ * Enhanced with Institutional SSO (SAML/OIDC) support.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -16,7 +18,9 @@ import Link from 'next/link';
 import { 
   signInWithPopup, 
   GoogleAuthProvider, 
-  signOut
+  signOut,
+  SAMLAuthProvider,
+  OAuthProvider
 } from 'firebase/auth';
 import { doc, onSnapshot, getDocs, collection, query, orderBy, addDoc, limit, where, serverTimestamp, updateDoc, setDoc } from 'firebase/firestore';
 import { useAuth, useFirestore, useUser, useDoc, useMemoFirebase } from '@/firebase';
@@ -47,7 +51,9 @@ import {
   Moon, 
   Sun, 
   User,
-  Loader2
+  Loader2,
+  Building2,
+  ShieldCheck
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -97,13 +103,12 @@ import { runGeographyAnalysis } from '@/ai/flows/geography-flow';
 import { getVersions, type BibleVersion } from '@/lib/bible-api';
 import { getAllLocalDocuments, type IDBDocument } from '@/lib/idb';
 import { chunkText, selectRelevantChunks } from '@/lib/rag-engine';
-import { exportToPDF, exportToWord, exportToBibTeX } from '@/lib/export-service';
-import { exportToGoogleDrive, exportToGoogleDocs } from '@/lib/google-export';
 
 export default function Home() {
   const { language, t } = useLanguage();
   const [activeTab, setActiveTab] = useState<any>('dashboard');
   const [isLoading, setIsLoading] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const { toast } = useToast();
@@ -171,6 +176,27 @@ export default function Home() {
     return () => {};
   }, [db, refreshLocalDocs]);
 
+  const handleLogin = async (providerType: 'google' | 'institutional' = 'google') => {
+    setIsAuthLoading(true);
+    try {
+      let provider;
+      if (providerType === 'google') {
+        provider = new GoogleAuthProvider();
+      } else {
+        const sso = systemConfig?.ssoConfig;
+        if (!sso?.providerId) throw new Error("Institutional SSO not configured.");
+        provider = sso.type === 'saml' ? new SAMLAuthProvider(sso.providerId) : new OAuthProvider(sso.providerId);
+      }
+      
+      const result = await signInWithPopup(auth, provider);
+      toast({ title: "Authenticated", description: `Welcome, ${result.user.displayName || 'Scholar'}.` });
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Authentication Failed", description: error.message });
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
   const handleSearch = async (term: string, type: ViewMode) => {
     const sanitizedTerm = sanitizeHtml(term);
     if (!sanitizedTerm.trim()) return;
@@ -182,6 +208,7 @@ export default function Home() {
 
     setIsLoading(true);
     setActiveTab(activeType);
+    logSearch(db, sanitizedTerm, activeType, user?.uid);
     
     try {
       if (activeType === 'lexicon') setLexiconResult(await defineAndAnalyzeTerm({ strongsNumber: sanitizedTerm }));
@@ -238,40 +265,93 @@ export default function Home() {
             </div>
           </SidebarHeader>
           <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupLabel>General</SidebarGroupLabel>
-              <SidebarMenu>
-                {DEFAULT_MODULES.filter(m => m.group === 'general').map(m => (
-                  <SidebarMenuItem key={m.id}>
-                    <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)}>
-                      <m.icon className="h-5 w-5" /> 
-                      <span>{t.nav[m.id] || m.id}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroup>
-            <SidebarGroup>
-              <SidebarGroupLabel>{t.nav.ai_hub}</SidebarGroupLabel>
-              <SidebarMenu>
-                {DEFAULT_MODULES.filter(m => m.group === 'ai_hub').map(m => (
-                  <SidebarMenuItem key={m.id}>
-                    <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)}>
-                      <m.icon className="h-5 w-5" /> 
-                      <span>{t.nav[m.id] || m.id}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroup>
+            {user ? (
+              <>
+                <SidebarGroup>
+                  <SidebarGroupLabel>General</SidebarGroupLabel>
+                  <SidebarMenu>
+                    {DEFAULT_MODULES.filter(m => m.group === 'general').map(m => (
+                      <SidebarMenuItem key={m.id}>
+                        <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)}>
+                          <m.icon className="h-5 w-5" /> 
+                          <span>{t.nav[m.id] || m.id}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroup>
+                <SidebarGroup>
+                  <SidebarGroupLabel>{t.nav.ai_hub}</SidebarGroupLabel>
+                  <SidebarMenu>
+                    {DEFAULT_MODULES.filter(m => m.group === 'ai_hub').map(m => (
+                      <SidebarMenuItem key={m.id}>
+                        <SidebarMenuButton isActive={activeTab === m.id} onClick={() => setActiveTab(m.id)}>
+                          <m.icon className="h-5 w-5" /> 
+                          <span>{t.nav[m.id] || m.id}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroup>
+              </>
+            ) : (
+              <div className="p-6 space-y-4">
+                 <div className="flex flex-col items-center text-center gap-2 opacity-60">
+                   <ShieldCheck className="h-10 w-10 text-primary" />
+                   <p className="text-[10px] font-bold uppercase tracking-widest">Authentication Required</p>
+                 </div>
+                 <Button className="w-full text-xs h-11" onClick={() => handleLogin('google')} disabled={isAuthLoading}>
+                   {isAuthLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Globe className="h-4 w-4 mr-2" />}
+                   {t.nav.login_google}
+                 </Button>
+                 {systemConfig?.ssoConfig?.enabled && (
+                   <Button variant="outline" className="w-full text-xs h-11 border-primary/20" onClick={() => handleLogin('institutional')} disabled={isAuthLoading}>
+                     <Building2 className="h-4 w-4 mr-2 text-primary" />
+                     {systemConfig.ssoConfig.label}
+                   </Button>
+                 )}
+              </div>
+            )}
           </SidebarContent>
           <SidebarFooter className="p-4 border-t">
-             <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+             {user && (
+               <DropdownMenu>
+                 <DropdownMenuTrigger asChild>
+                    <SidebarMenuButton className="h-12">
+                       <Avatar className="h-6 w-6 border">
+                          <AvatarImage src={user.photoURL || getGravatarUrl(user.email || '')} />
+                          <AvatarFallback>{user.displayName?.[0]}</AvatarFallback>
+                       </Avatar>
+                       <span className="truncate">{user.displayName}</span>
+                    </SidebarMenuButton>
+                 </DropdownMenuTrigger>
+                 <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>Account</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => setActiveTab('profile')}>
+                       <User className="h-4 w-4 mr-2" /> Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => signOut(auth)}>
+                       <LogOut className="h-4 w-4 mr-2" /> Sign Out
+                    </DropdownMenuItem>
+                 </DropdownMenuContent>
+               </DropdownMenu>
+             )}
+             <Button variant="ghost" size="icon" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="mt-2">
                {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
              </Button>
           </SidebarFooter>
         </Sidebar>
         <SidebarInset>
+          <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-2 bg-background/80 backdrop-blur-md px-4 border-b">
+             <div className="flex items-center gap-4 w-full">
+                <NotificationCenter />
+                <div className="h-4 w-[1px] bg-border mx-2" />
+                <div className="flex-1 flex items-center gap-2">
+                   <Badge variant="secondary" className="bg-primary/5 text-primary text-[10px] uppercase font-bold tracking-tighter">Scholarly Beta</Badge>
+                </div>
+             </div>
+          </header>
           <main className="container max-w-5xl mx-auto py-10 px-6 min-h-screen" id="main-content">
             {renderModularContent()}
           </main>
