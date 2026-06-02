@@ -1,6 +1,6 @@
 
 /**
- * @fileOverview English (US) localization strings.
+ * @fileOverview English (US) localization strings for LexiVerse Explorer.
  */
 
 export const enUS = {
@@ -18,6 +18,7 @@ export const enUS = {
     wiki: "Scholarly Wiki",
     synthesis: "Writing Hub",
     theology_map: "Theology Map",
+    manuscript_hub: "Manuscript Analysis",
     timeline: "Historical Timeline",
     writing_editor: "Writing Editor",
     integrity: "Academic Integrity",
@@ -31,7 +32,8 @@ export const enUS = {
     admin_api: "Provision Keys",
     institutions: "Institutions",
     system_control: "System Control",
-    module_governance: "Modules"
+    module_governance: "Modules",
+    chat_hub: "Social Chat"
   },
   dashboard: {
     title: "Research Workspace",
@@ -126,6 +128,24 @@ export const enUS = {
   contribution: {
     license_agreement: "I agree to make this content available under the terms of the CC BY 4.0 license.",
     license_link: "View License Details"
+  },
+  dmca: {
+    title: "Copyright Infringement Notice",
+    description: "Please provide the following information to file a formal DMCA complaint. Filing a false report may result in legal consequences. Upon submission, the content will be automatically removed pending review.",
+    form: {
+      name: "Full Legal Name",
+      email: "Email Address",
+      address: "Physical Address / Contact Info",
+      description: "Description of Infringement",
+      signature: "Digital Signature (Type Full Name)",
+      accuracy_check: "I have a good faith belief that use of the material in the manner complained of is not authorized by the copyright owner, its agent, or the law.",
+      ownership_check: "The information in this notification is accurate, and under penalty of perjury, I am authorized to act on behalf of the owner of an exclusive right that is allegedly infringed.",
+      submit: "File Complaint & Remove Content"
+    },
+    success: {
+      title: "Complaint Submitted",
+      description: "Content has been automatically removed pending administrative investigation."
+    }
   },
   common: {
     search_placeholder: "Lexicon (G3056) or AI query...",

@@ -1,5 +1,6 @@
+
 /**
- * @fileOverview English (UK) localization strings.
+ * @fileOverview English (UK) localization strings for LexiVerse Explorer.
  */
 
 export const enGB = {
@@ -17,6 +18,7 @@ export const enGB = {
     wiki: "Scholarly Wiki",
     synthesis: "Academic Synthesis",
     theology_map: "Theology Map",
+    manuscript_hub: "Manuscript Analysis",
     timeline: "Historical Timeline",
     writing_editor: "Writing Editor",
     integrity: "Academic Integrity",
@@ -24,7 +26,14 @@ export const enGB = {
     settings: "Settings",
     help: "Help Centre",
     logout: "Logout",
-    login_google: "Link Google"
+    login_google: "Link Google",
+    boilerplate: "Module Boilerplate",
+    api_portal: "API Access",
+    admin_api: "Provision Keys",
+    institutions: "Institutions",
+    system_control: "System Control",
+    module_governance: "Modules",
+    chat_hub: "Social Chat"
   },
   dashboard: {
     title: "Research Laboratory",
@@ -40,7 +49,27 @@ export const enGB = {
     stats_title: "Bibliographic Overview",
     wiki_articles: "Wiki Articles",
     logs: "Analytic Logs",
-    upload_paper: "Upload Paper"
+    upload_paper: "Upload Paper",
+    tools: {
+      boilerplate: {
+        title: "Module Boilerplate",
+        desc: "Template for new research tools."
+      }
+    }
+  },
+  boilerplate: {
+    title: "Boilerplate Research Tool",
+    description: "Template for developing new scholarly modules and AI flows.",
+    placeholder: "Enter research topic...",
+    action: "Run Analysis",
+    empty_state: "Ready for Development",
+    empty_sub: "\"Every great tool begins with a clean template.\"",
+    sections: {
+      summary: "Analysis Summary",
+      findings: "Key Findings",
+      nuance: "Theological Nuance",
+      sources: "Suggested Sources"
+    }
   },
   settings: {
     title: "Scholar Preferences & Settings",
@@ -51,10 +80,72 @@ export const enGB = {
     scripture_desc: "Default translations and academic settings for primary sources.",
     interface_prefs: "Interface Preferences",
     interface_desc: "Customise how you interact with the platform.",
+    privacy_title: "Privacy & Data Rights",
+    privacy_desc: "Manage your data, cookie preferences, and account deletion in compliance with GDPR.",
+    manage_cookies: "Manage Cookie Preferences",
+    request_data: "Request Copy of Records",
+    delete_account: "Delete Account & Data",
+    delete_confirm: "Are you sure? This action is permanent and compliant with all data retention requirements.",
     language: "Interface Language & Dialect",
     bible_version: "Preferred Bible Version",
     api_key: "Google AI API Key",
-    save: "Save All Preferences"
+    save: "Save All Preferences",
+    cookie_settings: "Privacy & Cookie Settings",
+    cookie_manage: "Manage Cookie Preferences"
+  },
+  cookies: {
+    title: "Privacy & Scholarly Research",
+    description: "We use cookies to enhance your research experience. Some are essential for the site to function, while others help us understand how you use our tools.",
+    accept_all: "Accept All",
+    reject_all: "Reject All",
+    customize: "Customise",
+    save: "Save Preferences",
+    categories: {
+      necessary: {
+        title: "Strictly Necessary",
+        desc: "Essential for authentication and core platform security. Cannot be disabled."
+      },
+      analytics: {
+        title: "Research Analytics",
+        desc: "Helps us identify high-demand research topics and optimise tool performance."
+      },
+      functional: {
+        title: "Study Preferences",
+        desc: "Allows us to remember your language, theme, and AI engine settings."
+      },
+      marketing: {
+        title: "Sponsorship Engagement",
+        desc: "Anonymously tracks interactions with scholarly resource sponsors to support the platform."
+      }
+    }
+  },
+  privacy: {
+    local_only: "Local-Only Storage",
+    local_desc: "Your credentials will be stored only in your browser's local storage and will never be uploaded to Google servers or any external network.",
+    cloud_sync: "Cloud Synchronisation",
+    cloud_desc: "Sync your preferences across devices via your authenticated scholarly account."
+  },
+  contribution: {
+    license_agreement: "I agree to make this content available under the terms of the CC BY 4.0 licence.",
+    license_link: "View Licence Details"
+  },
+  dmca: {
+    title: "Copyright Infringement Notice",
+    description: "Please provide the following information to file a formal DMCA complaint. Filing a false report may result in legal consequences. Upon submission, the content will be automatically removed pending review.",
+    form: {
+      name: "Full Legal Name",
+      email: "Email Address",
+      address: "Physical Address / Contact Info",
+      description: "Description of Infringement",
+      signature: "Digital Signature (Type Full Name)",
+      accuracy_check: "I have a good faith belief that use of the material in the manner complained of is not authorised by the copyright owner, its agent, or the law.",
+      ownership_check: "The information in this notification is accurate, and under penalty of perjury, I am authorised to act on behalf of the owner of an exclusive right that is allegedly infringed.",
+      submit: "File Complaint & Remove Content"
+    },
+    success: {
+      title: "Complaint Submitted",
+      description: "Content has been automatically removed pending administrative investigation."
+    }
   },
   common: {
     search_placeholder: "Lexicon (G3056) or AI query...",

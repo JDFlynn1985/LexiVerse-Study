@@ -1,6 +1,6 @@
 
 /**
- * @fileOverview Spanish (Spain) localization strings.
+ * @fileOverview Spanish (Spain) localization strings for LexiVerse Explorer.
  */
 
 export const esES = {
@@ -17,6 +17,7 @@ export const esES = {
     commentaries: "Comentarios",
     wiki: "Wiki Erudita",
     synthesis: "Centro de Escritura",
+    manuscript_hub: "Análisis de Manuscritos",
     theology_map: "Mapa Teológico",
     timeline: "Línea de Tiempo",
     writing_editor: "Editor de Escritura",
@@ -25,7 +26,14 @@ export const esES = {
     settings: "Configuración",
     help: "Centro de Ayuda",
     logout: "Cerrar Sesión",
-    login_google: "Vincular Google"
+    login_google: "Vincular Google",
+    boilerplate: "Plantilla de Módulo",
+    api_portal: "Acceso API",
+    admin_api: "Provisión de Claves",
+    institutions: "Instituciones",
+    system_control: "Control del Sistema",
+    module_governance: "Módulos",
+    chat_hub: "Chat Social"
   },
   dashboard: {
     title: "Espacio de Trabajo",
@@ -41,7 +49,27 @@ export const esES = {
     stats_title: "Resumen Bibliográfico",
     wiki_articles: "Artículos Wiki",
     logs: "Registros Analíticos",
-    upload_paper: "Subir Documento"
+    upload_paper: "Subir Documento",
+    tools: {
+      boilerplate: {
+        title: "Plantilla de Módulo",
+        desc: "Plantilla para nuevas herramientas de investigación."
+      }
+    }
+  },
+  boilerplate: {
+    title: "Herramienta de Investigación Base",
+    description: "Plantilla para desarrollar nuevos módulos académicos y flujos de IA.",
+    placeholder: "Ingrese tema de investigación...",
+    action: "Ejecutar Análisis",
+    empty_state: "Listo para Desarrollo",
+    empty_sub: "\"Cada gran herramienta comienza con una plantilla limpia.\"",
+    sections: {
+      summary: "Resumen del Análisis",
+      findings: "Hallazgos Clave",
+      nuance: "Matiz Teológico",
+      sources: "Fuentes Sugeridas"
+    }
   },
   settings: {
     title: "Preferencias del Erudito",
@@ -52,6 +80,12 @@ export const esES = {
     scripture_desc: "Traducciones predeterminadas y ajustes académicos.",
     interface_prefs: "Preferencias de Interfaz",
     interface_desc: "Personalice cómo interactúa con la plataforma.",
+    privacy_title: "Privacidad y Derechos de Datos",
+    privacy_desc: "Gestione sus datos, preferencias de cookies y eliminación de cuenta en cumplimiento con el RGPD.",
+    manage_cookies: "Gestionar Preferencias de Cookies",
+    request_data: "Solicitar Copia de Registros",
+    delete_account: "Eliminar Cuenta y Datos",
+    delete_confirm: "¿Está seguro? Esta acción es permanente y cumple con todos los requisitos de retención de datos.",
     language: "Idioma e Dialecto de Interfaz",
     bible_version: "Versión Bíblica Preferida",
     api_key: "Clave API de Google AI",
@@ -83,6 +117,34 @@ export const esES = {
         title: "Interacción con Patrocinios",
         desc: "Rastrea de forma anónima las interacciones con patrocinadores de recursos académicos para apoyar la plataforma."
       }
+    }
+  },
+  privacy: {
+    local_only: "Almacenamiento Local",
+    local_desc: "Sus credenciales se guardarán solo en el almacenamiento local de su navegador y nunca se subirán a servidores de Google.",
+    cloud_sync: "Sincronización en la Nube",
+    cloud_desc: "Sincronice sus preferencias en todos los dispositivos a través de su cuenta académica."
+  },
+  contribution: {
+    license_agreement: "Acepto poner este contenido a disposición bajo los términos de la licencia CC BY 4.0.",
+    license_link: "Ver Detalles de la Licencia"
+  },
+  dmca: {
+    title: "Aviso de Infracción de Derechos de Autor",
+    description: "Proporcione la siguiente información para presentar una queja formal de la DMCA. Presentar un informe falso puede tener consecuencias legales. Tras el envío, el contenido se eliminará automáticamente en espera de revisión.",
+    form: {
+      name: "Nombre Legal Completo",
+      email: "Correo Electrónico",
+      address: "Dirección Física / Info de Contacto",
+      description: "Descripción de la Infracción",
+      signature: "Firma Digital (Escriba Nombre Completo)",
+      accuracy_check: "Creo de buena fe que el uso del material de la manera reclamada no está autorizado por el propietario de los derechos de autor, su agente o la ley.",
+      ownership_check: "La información en esta notificación es precisa y, bajo pena de perjurio, estoy autorizado a actuar en nombre del propietario de un derecho exclusivo que presuntamente se ha infringido.",
+      submit: "Presentar Queja y Eliminar Contenido"
+    },
+    success: {
+      title: "Queja Enviada",
+      description: "el contenido ha sido eliminado automáticamente en espera de una investigación administrativa."
     }
   },
   common: {
