@@ -1,8 +1,8 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, ShieldCheck, Megaphone } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { ArrowLeft, ShieldCheck, Megaphone, Database, Lock, EyeOff, Info } from 'lucide-react';
 import Link from 'next/link';
 import { trackAdClick } from '@/components/analytics';
 
@@ -13,73 +13,97 @@ export default function PrivacyPolicy() {
 
   return (
     <div className="min-h-screen bg-background p-6 md:p-12">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
         <header className="flex items-center justify-between border-b pb-6">
           <div className="flex items-center gap-4">
             <Link href="/" prefetch={false}>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="rounded-full">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-bold font-headline">Privacy Policy</h1>
-              <p className="text-muted-foreground italic">Last Updated: May 2024</p>
+              <h1 className="text-3xl font-bold font-headline">Privacy Standards</h1>
+              <p className="text-muted-foreground italic">LexiVerse Scholarly Privacy Policy (v2.0)</p>
             </div>
           </div>
-          <ShieldCheck className="h-10 w-10 text-primary opacity-20" />
+          <div className="p-3 bg-primary text-primary-foreground rounded-xl shadow-lg">
+             <ShieldCheck className="h-8 w-8" />
+          </div>
         </header>
 
-        <Card className="shadow-sm border-primary/10">
+        <Card className="shadow-lg border-primary/10 overflow-hidden">
+          <div className="h-1.5 bg-primary w-full" />
           <CardHeader>
-            <CardTitle className="font-headline text-xl">1. Data Collection and Usage</CardTitle>
+            <CardTitle className="font-headline text-2xl flex items-center gap-2">
+              <Lock className="h-6 w-6 text-primary" /> 1. Scholarly Data Minimization
+            </CardTitle>
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
             <p>
-              LexiVerse Explorer ("the App") collects basic profile information through Google Authentication, including your name, email address, and profile picture. This data is used solely to provide a personalized study environment and manage your research profile.
+              LexiVerse Explorer follows the principle of data minimization. We collect:
             </p>
-            <p>
-              We use <strong>Firebase (Google Cloud)</strong> to store your study preferences, research history, and any notes or papers you choose to upload to your digital library.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm border-primary/10">
-          <CardHeader>
-            <CardTitle className="font-headline text-xl">2. Google Workspace Integration</CardTitle>
-          </CardHeader>
-          <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
-            <p>
-              The App requests specific scopes to interact with your Google Drive, Google Docs, and Google Sheets. These permissions are used exclusively to:
-            </p>
-            <ul className="list-disc pl-5">
-              <li>Create and manage a "LexiVerse Research" folder.</li>
-              <li>Sync your research notes and papers to your personal Google Drive.</li>
-              <li>Export bibliographies and study logs to Google Docs and Sheets.</li>
+            <ul className="list-disc pl-5 space-y-2">
+              <li><strong>Basic Identity</strong>: Name, Email, and Birth Date to verify the 15+ age requirement and manage your workstation profile.</li>
+              <li><strong>Scholarly Metadata</strong>: Your academic designation, tradition, and institution for accurate peer-review attribution.</li>
+              <li><strong>Auth Credentials</strong>: All passwords are stored as industrial-grade salted hashes via Firebase Authentication.</li>
             </ul>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg border-primary/10">
+          <CardHeader>
+            <CardTitle className="font-headline text-2xl flex items-center gap-2">
+               <EyeOff className="h-6 w-6 text-primary" /> 2. Local-First Research (RAG Isolation)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
             <p>
-              The App does not access, modify, or delete files outside of the "LexiVerse Research" folder or files explicitly created by the App.
+              Your most sensitive data—unpublished papers and research drafts—is stored using <strong>IndexedDB</strong> in your local browser.
+            </p>
+            <div className="p-4 bg-muted/50 rounded-lg border flex gap-3 items-start">
+               <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+               <p className="text-sm italic text-muted-foreground">
+                 "Local RAG processing ensures that your personal digital library never touches LexiVerse servers unless you explicitly choose to 'Sync to Cloud' for high-dimensional Vector Search indexing."
+               </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg border-primary/10">
+          <CardHeader>
+            <CardTitle className="font-headline text-2xl flex items-center gap-2">
+              <Database className="h-6 w-6 text-primary" /> 3. AI Providers & API Keys
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
+            <p>
+              LexiVerse provides a gateway to multiple AI engines. 
+            </p>
+            <ul className="list-disc pl-5 space-y-2">
+              <li><strong>Encrypted Storage</strong>: Custom API keys (OpenAI, Anthropic, Gemini) provided in your profile are stored in your encrypted Firebase profile.</li>
+              <li><strong>Ollama Integration</strong>: For maximum privacy, researchers can use Local Network Mode, routing all inference to a server within their own intranet.</li>
+            </ul>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-lg border-primary/10">
+          <CardHeader>
+            <CardTitle className="font-headline text-2xl">4. Communication & Peer Interaction</CardTitle>
+          </CardHeader>
+          <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
+            <p>
+              Direct Messages and Social Chat records are stored in Firestore to enable cross-device synchronization. While we implement strict Rule-Based Access Control (RBAC), scholars should avoid sharing passwords or sensitive personal identifying information in these channels.
             </p>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-primary/10">
+        <Card className="shadow-lg border-primary/10">
           <CardHeader>
-            <CardTitle className="font-headline text-xl">3. AI Processing and Content</CardTitle>
+            <CardTitle className="font-headline text-2xl">5. Erasure & Retention</CardTitle>
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
             <p>
-              When using the Scholar AI Engine, the text of your queries and context from your uploaded papers is processed via <strong>Google Gemini API</strong>. This data is handled according to Google's Enterprise Privacy standards. If you provide a custom API key, your usage is subject to the terms of your individual Google AI account.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm border-primary/10">
-          <CardHeader>
-            <CardTitle className="font-headline text-xl">4. Your Rights</CardTitle>
-          </CardHeader>
-          <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
-            <p>
-              You maintain full ownership of your research data. You may delete your account and associated data from the App at any time through the settings panel. Deleting your account from LexiVerse will not delete your files in Google Drive, which must be managed through Google services.
+              You maintain the right to access and erase your data at any time. Terminating your account will permanently delete all Firestore records. Wiki contributions will be attributed to "Anonymous Scholar" to maintain the integrity of the community knowledge base.
             </p>
           </CardContent>
         </Card>
@@ -97,8 +121,8 @@ export default function PrivacyPolicy() {
           </div>
         </div>
 
-        <footer className="text-center text-muted-foreground text-xs pt-8">
-          <p>© 2024 LexiVerse Explorer. Dedicated to Academic Excellence and Privacy.</p>
+        <footer className="text-center text-muted-foreground text-xs pt-8 pb-12">
+          <p>© 2026 LexiVerse Explorer. Committed to Scholarly Autonomy and Privacy.</p>
         </footer>
       </div>
     </div>

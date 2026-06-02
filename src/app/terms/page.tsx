@@ -1,10 +1,11 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Scale, Megaphone, ExternalLink } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { ArrowLeft, Scale, Megaphone, ExternalLink, ShieldCheck, Users, Gavel } from 'lucide-react';
 import Link from 'next/link';
 import { trackAdClick } from '@/components/analytics';
+import { Separator } from '@/components/ui/separator';
 
 export default function TermsOfUse() {
   const handleAdClick = (id: string, position: string) => {
@@ -13,129 +14,116 @@ export default function TermsOfUse() {
 
   return (
     <div className="min-h-screen bg-background p-6 md:p-12">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-500">
         <header className="flex items-center justify-between border-b pb-6">
           <div className="flex items-center gap-4">
             <Link href="/" prefetch={false}>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="rounded-full">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             </Link>
             <div>
               <h1 className="text-3xl font-bold font-headline">Terms of Use</h1>
-              <p className="text-muted-foreground italic">Standard Scholarly Agreement</p>
+              <p className="text-muted-foreground italic">Official Scholarly Agreement (v2.0)</p>
             </div>
           </div>
-          <Scale className="h-10 w-10 text-primary opacity-20" />
+          <div className="p-3 bg-primary text-primary-foreground rounded-xl shadow-lg">
+             <Scale className="h-8 w-8" />
+          </div>
         </header>
 
-        <Card className="shadow-sm border-primary/10">
+        <Card className="shadow-lg border-primary/10 overflow-hidden">
+          <div className="h-1.5 bg-primary w-full" />
           <CardHeader>
-            <CardTitle className="font-headline text-xl">1. Acceptance of Terms</CardTitle>
+            <CardTitle className="font-headline text-2xl flex items-center gap-2">
+               <ShieldCheck className="h-6 w-6 text-primary" /> 1. Scholarly Access & Eligibility
+            </CardTitle>
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
             <p>
-              By accessing or using LexiVerse Explorer ("the App"), you agree to be bound by these Terms of Use and all applicable academic integrity standards. This platform is designed for seminary students, biblical scholars, and theological researchers.
+              LexiVerse Explorer ("the Platform") is a professional research environment designed for biblical scholars, seminary students, and theological institutions. 
             </p>
+            <div className="p-4 bg-muted/50 rounded-lg border-l-4 border-primary">
+              <p className="font-bold text-primary mb-1">Minimum Age Requirement</p>
+              <p className="text-sm">You must be at least <strong>15 years of age</strong> to register for a scholar account. Accounts created by individuals under this age will be terminated to ensure compliance with international data safety standards.</p>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-primary/10">
+        <Card className="shadow-lg border-primary/10">
           <CardHeader>
-            <CardTitle className="font-headline text-xl">2. AI Accuracy and Disclaimer</CardTitle>
+            <CardTitle className="font-headline text-2xl flex items-center gap-2">
+               <Users className="h-6 w-6 text-primary" /> 2. Community Conduct & Discourse
+            </CardTitle>
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
             <p>
-              The App utilizes GenAI (Generative Artificial Intelligence) to synthesize data from lexicons, commentaries, and research papers. While the App strives for academic rigor:
+              The **Social Chat Hub** and **Scholarly Wiki** are governed by principles of academic rigor and mutual respect. Users agree to:
             </p>
-            <ul className="list-disc pl-5">
-              <li>AI-generated insights may contain inaccuracies or "hallucinations."</li>
-              <li>Users are responsible for verifying all scripture citations and linguistic data against primary sources.</li>
-              <li>AI responses should be treated as a research aid, not as definitive theological dogma.</li>
+            <ul className="list-disc pl-5 space-y-2">
+              <li>Engage in evidence-based theological dialogue.</li>
+              <li>Avoid ad hominem attacks, inflammatory language, or sectarian intolerance.</li>
+              <li>Maintain the confidentiality of private peer-to-peer discourse in Direct Messages.</li>
+              <li>Abstain from posting uncredited scholarly echoes or infringing on third-party intellectual property.</li>
             </ul>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-primary/10">
+        <Card className="shadow-lg border-primary/10">
           <CardHeader>
-            <CardTitle className="font-headline text-xl">3. Academic Integrity</CardTitle>
+            <CardTitle className="font-headline text-2xl">3. AI Synthesis & Accuracy</CardTitle>
           </CardHeader>
           <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
             <p>
-              Users must adhere to the plagiarism policies of their respective academic institutions. The AI Integrity Scanner is a tool to assist with proper attribution, but the ultimate responsibility for citation accuracy and originality rests with the user.
+              The Platform utilizes multiple Generative AI providers (including Google Gemini, OpenAI, and Anthropic). While we employ **Grounded Tool Calling** for linguistic precision:
             </p>
+            <ul className="list-disc pl-5 space-y-2 text-muted-foreground italic">
+              <li>AI-generated exegesis may contain inaccuracies or "hallucinations."</li>
+              <li>Users are legally and academically responsible for verifying all scripture citations against primary sources.</li>
+              <li>AI responses are designed as a research aid and do not constitute definitive theological dogma.</li>
+            </ul>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm border-primary/10">
+        <Card className="shadow-lg border-primary/10">
           <CardHeader>
-            <CardTitle className="font-headline text-xl">4. Ownership and Licensing of Your Content</CardTitle>
+            <CardTitle className="font-headline text-2xl flex items-center gap-2">
+               <Gavel className="h-6 w-6 text-primary" /> 4. Ownership & Licensing
+            </CardTitle>
           </CardHeader>
-          <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
-            <div className="space-y-6">
-              <div>
-                <h5 className="font-bold text-primary mb-2">1. Ownership and Licensing of Your Content</h5>
-                <p>
-                  You retain ownership of all text, images, videos, or other materials you submit to our platform ("User Content"). However, by submitting User Content to the platform, you agree to make it available to the public under the terms of the Creative Commons Attribution 4.0 International License (CC BY 4.0).
-                </p>
-              </div>
+          <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-6">
+            <div>
+              <h5 className="font-bold text-primary mb-2">Public Contributions (Wiki/Chat)</h5>
+              <p>
+                By submitting content to the Wiki or Social Hub, you grant LexiVerse and its users a perpetual, worldwide, royalty-free license to share and adapt your work under the <strong>Creative Commons Attribution 4.0 International License (CC BY 4.0)</strong>. 
+              </p>
+            </div>
 
-              <div>
-                <h5 className="font-bold text-primary mb-2">2. What This Means for You and Others</h5>
-                <div className="space-y-3">
-                  <p>
-                    <strong className="text-foreground">Grant to the Platform and Public:</strong> You grant us, and all other users of this platform, a worldwide, royalty-free, non-exclusive, perpetual license to share, copy, distribute, transmit, adapt, and build upon your content for any purpose, including commercial purposes.
-                  </p>
-                  <p>
-                    <strong className="text-foreground">Attribution Required:</strong> Anyone who uses, remixes, or distributes your content must give you appropriate credit, provide a link to the CC BY 4.0 license, and indicate if changes were made.
-                  </p>
-                </div>
-              </div>
+            <div>
+              <h5 className="font-bold text-primary mb-2">Private Research (Library/Direct Messages)</h5>
+              <p>
+                You retain 100% ownership of your private research library, unpublished papers, and direct messages. LexiVerse does not claim any license or ownership over your private data.
+              </p>
+            </div>
 
-              <div>
-                <h5 className="font-bold text-primary mb-2">3. Your Warranties</h5>
-                <p>
-                  By submitting content, you represent and warrant that you own the rights to the content, or have obtained all necessary permissions, to grant this CC BY 4.0 license. You agree not to submit any content that infringes upon the copyright, trademark, or intellectual property rights of any third party.
-                </p>
-              </div>
+            <Separator />
 
-              <div className="pt-4 border-t">
-                <p className="italic text-xs text-muted-foreground flex items-center gap-1">
-                  For full details on how this license operates, please review the 
-                  <a 
-                    href="https://creativecommons.org/licenses/by/4.0/legalcode" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="text-primary font-bold underline inline-flex items-center gap-1"
-                  >
-                    Creative Commons CC BY 4.0 Legal Code <ExternalLink className="h-3 w-3" />
-                  </a>.
-                </p>
-              </div>
+            <div className="pt-2">
+              <h5 className="font-bold text-primary mb-2 uppercase text-xs tracking-widest">DMCA Takedown Procedure</h5>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                We respect intellectual property rights. If you believe your copyrighted work is being infringed upon, you must use our standardized **DMCA Reporting Dialog** available within the Platform. Valid reports will trigger an automatic temporary removal pending administrative review.
+              </p>
             </div>
           </CardContent>
-        </Card>
-
-        <Card className="shadow-sm border-primary/10">
-          <CardHeader>
-            <CardTitle className="font-headline text-xl">5. Prohibited Uses</CardTitle>
-          </CardHeader>
-          <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
-            <p>
-              Users may not use the App to generate hate speech, promote religious intolerance, or engage in any activity that violates the ethical standards of scholarly theological research.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm border-primary/10">
-          <CardHeader>
-            <CardTitle className="font-headline text-xl">6. Limitation of Liability</CardTitle>
-          </CardHeader>
-          <CardContent className="prose prose-sm dark:prose-invert max-w-none space-y-4">
-            <p>
-              LexiVerse Explorer is provided "as is." We are not liable for any loss of research data, academic consequences resulting from AI use, or service interruptions.
-            </p>
-          </CardContent>
+          <CardFooter className="bg-muted/30 border-t p-4 flex justify-center">
+             <Link 
+                href="https://creativecommons.org/licenses/by/4.0/" 
+                target="_blank" 
+                className="text-[10px] font-bold text-primary uppercase flex items-center gap-1 hover:underline"
+              >
+                View CC BY 4.0 Legal Code <ExternalLink className="h-3 w-3" />
+             </Link>
+          </CardFooter>
         </Card>
 
         <div className="mt-12 pt-8 border-t">
@@ -151,8 +139,8 @@ export default function TermsOfUse() {
           </div>
         </div>
 
-        <footer className="text-center text-muted-foreground text-xs pt-8">
-          <p>© 2026 Joshua Flynn. Supporting the Scholarly Community.</p>
+        <footer className="text-center text-muted-foreground text-xs pt-8 pb-12">
+          <p>© 2026 LexiVerse Explorer. Dedicated to the advancement of theological research.</p>
         </footer>
       </div>
     </div>

@@ -1,4 +1,3 @@
-
 /**
  * @fileOverview English (US) localization strings for LexiVerse Explorer.
  */
@@ -117,11 +116,11 @@ export const enUS = {
     interface_prefs: "Interface Preferences",
     interface_desc: "Customization for interaction with the platform.",
     privacy_title: "Privacy & Data Rights",
-    privacy_desc: "Manage your data, cookie preferences, and account deletion.",
+    privacy_desc: "Manage your data, cookie preferences, and account deletion in accordance with scholarly autonomy principles.",
     manage_cookies: "Manage Cookie Preferences",
     request_data: "Request Copy of Records",
     delete_account: "Delete Account & Data",
-    delete_confirm: "Are you sure? This action is permanent.",
+    delete_confirm: "Are you sure? This action is permanent and complies with all data erasure requirements.",
     language: "Interface Language & Dialect",
     bible_version: "Preferred Bible Version",
     api_key: "Google AI API Key",
@@ -131,7 +130,7 @@ export const enUS = {
   },
   cookies: {
     title: "Privacy & Scholarly Research",
-    description: "We use cookies to enhance your research experience.",
+    description: "We use cookies to enhance your research experience. Some are strictly necessary for authentication, while others help us understand high-demand scholarly topics.",
     accept_all: "Accept All",
     reject_all: "Reject All",
     customize: "Customize",
@@ -139,27 +138,27 @@ export const enUS = {
     categories: {
       necessary: {
         title: "Strictly Necessary",
-        desc: "Essential for authentication and security."
+        desc: "Essential for authentication and core platform security."
       },
       analytics: {
         title: "Research Analytics",
-        desc: "Helps us identify high-demand research topics."
+        desc: "Helps us identify high-demand research topics and optimize tool performance."
       },
       functional: {
         title: "Study Preferences",
-        desc: "Allows us to remember your settings."
+        desc: "Allows us to remember your settings and workstation configuration."
       },
       marketing: {
         title: "Sponsorship Engagement",
-        desc: "Anonymously tracks interactions with resource sponsors."
+        desc: "Anonymously tracks interactions with scholarly resource sponsors."
       }
     }
   },
   privacy: {
     local_only: "Local-Only Storage",
-    local_desc: "Credentials stored in your browser's local storage.",
+    local_desc: "Your credentials will be stored only in your browser's local storage.",
     cloud_sync: "Cloud Synchronization",
-    cloud_desc: "Sync preferences via your scholarly account."
+    cloud_desc: "Sync preferences via your authenticated scholarly account."
   },
   contribution: {
     license_agreement: "I agree to make this content available under the terms of the CC BY 4.0 license.",
@@ -167,20 +166,20 @@ export const enUS = {
   },
   dmca: {
     title: "Copyright Infringement Notice",
-    description: "Please provide info for a formal DMCA complaint.",
+    description: "Please provide the following information to file a formal DMCA complaint. Filing a false report may result in legal consequences. Upon submission, the content will be automatically removed pending review.",
     form: {
       name: "Full Legal Name",
       email: "Email Address",
-      address: "Physical Address",
+      address: "Physical Address / Contact Info",
       description: "Description of Infringement",
-      signature: "Digital Signature",
-      accuracy_check: "I have a good faith belief that use is not authorized.",
-      ownership_check: "Information is accurate and I am authorized to act.",
+      signature: "Digital Signature (Type Full Name)",
+      accuracy_check: "I have a good faith belief that use of the material is not authorized.",
+      ownership_check: "The information is accurate and I am authorized to act on behalf of the owner.",
       submit: "File Complaint & Remove Content"
     },
     success: {
       title: "Complaint Submitted",
-      description: "Content removed pending investigation."
+      description: "Content has been automatically removed pending administrative investigation."
     }
   },
   common: {
