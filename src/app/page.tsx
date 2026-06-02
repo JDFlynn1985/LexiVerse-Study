@@ -11,7 +11,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, onSnapshot, collection, query, orderBy, addDoc, updateDoc, where, getDoc } from 'firebase/firestore';
 import { appConfig } from '@/app-config';
-import { useAuth, useFirestore, useUser, useCollection } from '@/firebase';
+import { useAuth, useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { logSearch } from '@/lib/search-logging';
 import { useLanguage } from '@/components/language-provider';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -72,7 +72,8 @@ import {
   AlertTriangle,
   Info,
   Server,
-  Key
+  Key,
+  Send
 } from 'lucide-react'; 
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -156,6 +157,16 @@ interface BlogPost {
   tags?: string[];
 }
 
+interface BlogComment {
+  id: string;
+  postId: string;
+  authorUid: string;
+  authorName: string;
+  authorCredentials: string;
+  content: string;
+  createdAt: string;
+}
+
 const BLOG_CATEGORIES = ["Linguistics", "Theology", "History", "Archaeology", "Hermeneutics", "General"];
 
 function HighlightedText({ text, highlights }: { text: string; highlights: string[] }) {
@@ -224,10 +235,11 @@ export default function Home() {
   const [blogDraft, setBlogDraft] = useState({ title: '', excerpt: '', content: '', category: 'General', tagInput: '' });
   const [blogFilter, setBlogFilter] = useState({ category: 'All', tag: '' });
   const [blogDesignerTab, setBlogDesignerTab] = useState<'editor' | 'preview'>('editor');
+  const [selectedBlogPost, setSelectedBlogPost] = useState<BlogPost | null>(null);
+  const [commentInput, setCommentInput] = useState('');
 
   const blogQuery = useMemo(() => {
-    let q = query(collection(db, 'blog_posts'), where('status', '==', 'approved'), orderBy('createdAt', 'desc'));
-    return q;
+    return query(collection(db, 'blog_posts'), where('status', '==', 'approved'), orderBy('createdAt', 'desc'));
   }, [db]);
 
   const { data: rawBlogPosts } = useCollection<BlogPost>(blogQuery);
@@ -239,6 +251,14 @@ export default function Home() {
       return categoryMatch && tagMatch;
     });
   }, [rawBlogPosts, blogFilter]);
+
+  // Dynamic Comment Query
+  const commentsQuery = useMemoFirebase(() => {
+    if (!db || !selectedBlogPost) return null;
+    return query(collection(db, 'blog_posts', selectedBlogPost.id, 'comments'), orderBy('createdAt', 'asc'));
+  }, [db, selectedBlogPost]);
+
+  const { data: activeComments } = useCollection<BlogComment>(commentsQuery);
 
   const allAvailableTags = useMemo(() => {
     const tags = new Set<string>();
@@ -304,7 +324,6 @@ export default function Home() {
               preferredBibleVersion: data.preferences.preferredBibleVersion || 'kjv',
               language: data.preferences.language || language
             });
-            // If user has their own key, they are "AI enabled" locally
             if (data.preferences.customApiKey) {
               setIsAiEnabled(true);
             }
@@ -320,7 +339,6 @@ export default function Home() {
   const handleSearch = async (term: string, type: ViewMode) => {
     if (!term.trim()) return;
     
-    // Check if AI is available (either system key or user personal key)
     if (!effectiveApiKey && aiPrefs.modelProvider === 'google' && ['lexicon', 'theology-map', 'timeline', 'ai-assistant', 'verse-explorer', 'writing-assistant', 'academic-integrity'].includes(type)) {
       toast({ 
         variant: 'destructive', 
@@ -435,19 +453,6 @@ export default function Home() {
     setActiveTab('dashboard');
   };
 
-  const handleHighlightSelection = () => {
-    const selection = window.getSelection();
-    const text = selection?.toString().trim();
-    if (text && text.length > 2) {
-      if (!activeHighlights.includes(text)) {
-        setActiveHighlights([...activeHighlights, text]);
-        toast({ title: "Insight Highlighted" });
-      } else {
-        setActiveHighlights(activeHighlights.filter(h => h !== text));
-      }
-    }
-  };
-
   const submitWikiEntry = async () => {
     if (!user || !wikiDraft.title || !wikiDraft.content) return;
     setIsLoading(true);
@@ -515,6 +520,26 @@ export default function Home() {
     }
   };
 
+  const handlePostComment = async () => {
+    if (!user || !selectedBlogPost || !commentInput.trim()) return;
+    
+    try {
+      const commentsRef = collection(db, 'blog_posts', selectedBlogPost.id, 'comments');
+      await addDoc(commentsRef, {
+        postId: selectedBlogPost.id,
+        authorUid: user.uid,
+        authorName: userProfile?.displayName || user.displayName || 'Scholar',
+        authorCredentials: userProfile?.credentials || '',
+        content: commentInput.trim(),
+        createdAt: new Date().toISOString()
+      });
+      setCommentInput('');
+      toast({ title: "Comment Posted", description: "Your contribution has been added to the dialogue." });
+    } catch (e) {
+      toast({ variant: 'destructive', title: "Comment failed" });
+    }
+  };
+
   const moderateContent = async (id: string, collectionName: string, status: 'approved' | 'rejected') => {
     try {
       await updateDoc(doc(db, collectionName, id), { status });
@@ -563,7 +588,6 @@ export default function Home() {
             </div>
           </SidebarHeader>
           <SidebarContent>
-            {/* Main Navigation */}
             <SidebarGroup>
               <SidebarGroupLabel>General</SidebarGroupLabel>
               <SidebarMenu>
@@ -585,7 +609,6 @@ export default function Home() {
               </SidebarMenu>
             </SidebarGroup>
 
-            {/* AI Research Hub */}
             <SidebarGroup>
               <SidebarGroupLabel className="flex items-center justify-between">
                 AI Research Hub
@@ -593,7 +616,7 @@ export default function Home() {
               </SidebarGroupLabel>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive={activeTab === 'ai-assistant'} onClick={() => handleSearch(assistantTerm, 'ai-assistant')} tooltip="Study Assistant" disabled={!effectiveApiKey && aiPrefs.modelProvider === 'google'}>
+                  <SidebarMenuButton isActive={activeTab === 'ai-assistant'} onClick={() => setActiveTab('ai-assistant')} tooltip="Study Assistant" disabled={!effectiveApiKey && aiPrefs.modelProvider === 'google'}>
                     <Sparkles className="h-5 w-5" /> <span>Study Assistant</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -615,7 +638,6 @@ export default function Home() {
               </SidebarMenu>
             </SidebarGroup>
 
-            {/* Linguistic Tools */}
             <SidebarGroup>
               <SidebarGroupLabel>Linguistic Analysis</SidebarGroupLabel>
               <SidebarMenu>
@@ -632,7 +654,6 @@ export default function Home() {
               </SidebarMenu>
             </SidebarGroup>
 
-            {/* Scholarly Synthesis */}
             <SidebarGroup>
               <SidebarGroupLabel>Synthesis & Library</SidebarGroupLabel>
               <SidebarMenu>
@@ -661,7 +682,6 @@ export default function Home() {
               </SidebarMenu>
             </SidebarGroup>
 
-            {/* Moderation */}
             {userProfile?.isModerator && (
               <SidebarGroup>
                 <SidebarGroupLabel>Administration</SidebarGroupLabel>
@@ -728,17 +748,6 @@ export default function Home() {
           <main id="main-content" className="container max-w-5xl mx-auto py-10 px-6 min-h-screen">
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               
-              {!effectiveApiKey && aiPrefs.modelProvider === 'google' && activeTab === 'dashboard' && (
-                <Alert className="mb-8 border-destructive/20 bg-destructive/5 text-destructive">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>Action Required: Configure Research Engine</AlertTitle>
-                  <AlertDescription className="text-sm">
-                    AI-powered research tools are currently limited. To ensure consistent access, please **provide your own Gemini API Key** in your profile settings. This prevents global usage limits from affecting your scholarship.
-                    <Button variant="link" className="p-0 h-auto font-bold text-destructive underline ml-2" onClick={() => setActiveTab('profile')}>Configure Profile</Button>
-                  </AlertDescription>
-                </Alert>
-              )}
-
               {activeTab === 'dashboard' && (
                 <div className="space-y-8">
                   <header>
@@ -766,11 +775,6 @@ export default function Home() {
                             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                           </Button>
                         </div>
-                        {!effectiveApiKey && aiPrefs.modelProvider === 'google' && (
-                          <p className="text-[10px] text-muted-foreground italic flex items-center gap-1">
-                            <Info className="h-3 w-3" /> To enable research, please add a Gemini API Key in your <Button variant="link" className="p-0 h-auto text-[10px]" onClick={() => setActiveTab('profile')}>profile</Button>.
-                          </p>
-                        )}
                       </CardContent>
                     </Card>
 
@@ -788,11 +792,6 @@ export default function Home() {
                               <p className="text-[10px] text-muted-foreground uppercase">{h.type.replace('-', ' ')}</p>
                             </div>
                           ))}
-                          {history.length === 0 && (
-                            <div className="p-8 text-center text-[10px] text-muted-foreground italic">
-                              No history logged yet.
-                            </div>
-                          )}
                         </ScrollArea>
                       </CardContent>
                     </Card>
@@ -800,6 +799,184 @@ export default function Home() {
                 </div>
               )}
 
+              {activeTab === 'blog' && (
+                <div className="space-y-8">
+                  <header className="flex justify-between items-center border-b pb-6">
+                    <div>
+                      <h1 className="text-3xl font-bold font-headline">Scholar's Journal</h1>
+                      <p className="text-muted-foreground">Peer-reviewed reflections and academic discoveries.</p>
+                    </div>
+                    {hasDesignerAccess && (
+                      <Button variant="outline" onClick={() => setActiveTab('blog-designer')}>
+                        <PenTool className="h-4 w-4 mr-2" /> Write for Journal
+                      </Button>
+                    )}
+                  </header>
+
+                  <div className="grid gap-8 md:grid-cols-4">
+                    <aside className="space-y-6">
+                      <div className="space-y-4">
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
+                          <Filter className="h-4 w-4" /> Categories
+                        </h3>
+                        <div className="flex flex-col gap-1">
+                          <Button 
+                            variant={blogFilter.category === 'All' ? 'secondary' : 'ghost'} 
+                            size="sm" 
+                            className="justify-start" 
+                            onClick={() => setBlogFilter({...blogFilter, category: 'All'})}
+                          >
+                            All Categories
+                          </Button>
+                          {BLOG_CATEGORIES.map(cat => (
+                            <Button 
+                              key={cat}
+                              variant={blogFilter.category === cat ? 'secondary' : 'ghost'} 
+                              size="sm" 
+                              className="justify-start" 
+                              onClick={() => setBlogFilter({...blogFilter, category: cat})}
+                            >
+                              {cat}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h3 className="text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2">
+                          <Tags className="h-4 w-4" /> Popular Tags
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                          {allAvailableTags.map(tag => (
+                            <Badge 
+                              key={tag} 
+                              variant={blogFilter.tag === tag ? 'default' : 'outline'} 
+                              className="cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                              onClick={() => setBlogFilter({...blogFilter, tag: blogFilter.tag === tag ? '' : tag})}
+                            >
+                              #{tag}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </aside>
+
+                    <div className="md:col-span-3 space-y-6">
+                      {selectedBlogPost ? (
+                        <div className="space-y-8 animate-in fade-in duration-500">
+                          <Button variant="ghost" size="sm" onClick={() => setSelectedBlogPost(null)} className="mb-4">
+                            <X className="h-4 w-4 mr-2" /> Back to Journal
+                          </Button>
+                          <article className="prose prose-stone dark:prose-invert max-w-none">
+                            <Badge className="mb-4">{selectedBlogPost.category}</Badge>
+                            <h1 className="text-4xl font-bold font-headline mb-4">{selectedBlogPost.title}</h1>
+                            <div className="flex items-center gap-4 mb-8 text-muted-foreground text-sm border-b pb-4">
+                              <span>By {selectedBlogPost.authorName}</span>
+                              <span>•</span>
+                              <span>{new Date(selectedBlogPost.createdAt).toLocaleDateString()}</span>
+                            </div>
+                            <div className="whitespace-pre-wrap leading-relaxed text-lg mb-8">
+                              {selectedBlogPost.content}
+                            </div>
+                          </article>
+
+                          <Separator />
+
+                          <section className="space-y-6 pt-8">
+                            <h3 className="text-2xl font-bold font-headline flex items-center gap-2">
+                              <MessageSquare className="h-6 w-6 text-primary" /> 
+                              Academic Dialogue ({activeComments?.length || 0})
+                            </h3>
+
+                            {user ? (
+                              <Card className="border-primary/20 bg-muted/30">
+                                <CardContent className="p-4 space-y-4">
+                                  <Textarea 
+                                    placeholder="Add to the scholarly discussion..." 
+                                    value={commentInput}
+                                    onChange={e => setCommentInput(e.target.value)}
+                                    className="bg-background min-h-[100px]"
+                                  />
+                                  <div className="flex justify-end">
+                                    <Button onClick={handlePostComment} disabled={!commentInput.trim()}>
+                                      <Send className="h-4 w-4 mr-2" /> Post Contribution
+                                    </Button>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ) : (
+                              <Alert>
+                                <Info className="h-4 w-4" />
+                                <AlertDescription>Please log in to participate in academic dialogue.</AlertDescription>
+                              </Alert>
+                            )}
+
+                            <div className="space-y-4 mt-8">
+                              {activeComments?.map(comment => (
+                                <div key={comment.id} className="flex gap-4 p-4 rounded-lg bg-card border animate-in slide-in-from-left-4 duration-300">
+                                  <Avatar className="h-10 w-10 shrink-0">
+                                    <AvatarImage src={getGravatarUrl(comment.authorUid)} />
+                                    <AvatarFallback><UserIcon /></AvatarFallback>
+                                  </Avatar>
+                                  <div className="space-y-1 flex-1">
+                                    <div className="flex justify-between items-center">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-bold text-sm">{comment.authorName}</span>
+                                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{comment.authorCredentials}</span>
+                                      </div>
+                                      <span className="text-[10px] text-muted-foreground">{new Date(comment.createdAt).toLocaleString()}</span>
+                                    </div>
+                                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{comment.content}</p>
+                                  </div>
+                                </div>
+                              ))}
+                              {activeComments?.length === 0 && (
+                                <p className="text-center text-muted-foreground italic text-sm py-12">No scholarly reflections yet. Be the first to contribute.</p>
+                              )}
+                            </div>
+                          </section>
+                        </div>
+                      ) : (
+                        <div className="grid gap-6">
+                          {filteredBlogPosts.map(post => (
+                            <Card key={post.id} className="hover:shadow-lg transition-all border-primary/5 cursor-pointer group" onClick={() => setSelectedBlogPost(post)}>
+                              <CardHeader>
+                                <div className="flex justify-between items-start mb-2">
+                                  <Badge variant="secondary">{post.category}</Badge>
+                                  <span className="text-xs text-muted-foreground">{new Date(post.createdAt).toLocaleDateString()}</span>
+                                </div>
+                                <CardTitle className="font-headline text-2xl group-hover:text-primary transition-colors">{post.title}</CardTitle>
+                                <CardDescription className="text-sm line-clamp-2 mt-2">{post.excerpt}</CardDescription>
+                              </CardHeader>
+                              <CardFooter className="flex justify-between items-center border-t pt-4">
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <Avatar className="h-6 w-6">
+                                    <AvatarImage src={getGravatarUrl(post.authorUid)} />
+                                    <AvatarFallback><UserIcon /></AvatarFallback>
+                                  </Avatar>
+                                  <span>{post.authorName}</span>
+                                </div>
+                                <Button variant="link" size="sm" className="p-0 h-auto font-bold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                                  Read Full Article <Eye className="h-3 w-3" />
+                                </Button>
+                              </CardFooter>
+                            </Card>
+                          ))}
+                          {filteredBlogPosts.length === 0 && (
+                            <div className="text-center py-20 border-2 border-dashed rounded-xl space-y-4">
+                              <Newspaper className="h-12 w-12 text-muted-foreground mx-auto opacity-20" />
+                              <h3 className="font-bold font-headline text-xl">No Journal Entries Found</h3>
+                              <p className="text-muted-foreground">Try adjusting your taxonomy filters.</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ... Other Tabs stay the same ... */}
               {activeTab === 'profile' && userProfile && (
                 <div className="space-y-8">
                   <header>
@@ -891,7 +1068,7 @@ export default function Home() {
                                onChange={e => saveAiPreferences({ customApiKey: e.target.value })}
                              />
                              <p className="text-[10px] text-muted-foreground italic">
-                               Supplying your own key prevents shared system limits from affecting your research. This key is stored securely in your private scholarly record.
+                               Supplying your own key prevents shared system limits from affecting your research.
                              </p>
                            </div>
 
@@ -942,8 +1119,6 @@ export default function Home() {
                   </div>
                 </div>
               )}
-
-              {/* ... Rest of the tabs (Wiki, Blog, etc.) stay the same ... */}
             </div>
           </main>
         </SidebarInset>

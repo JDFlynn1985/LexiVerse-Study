@@ -86,6 +86,21 @@
       },
       "required": ["title", "content", "status", "authorUid", "category"]
     },
+    "BlogComment": {
+      "title": "Blog Comment",
+      "description": "A scholar's comment on a blog post.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "postId": { "type": "string" },
+        "authorUid": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorCredentials": { "type": "string" },
+        "content": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["postId", "authorUid", "content", "createdAt"]
+    },
     "SystemSettings": {
       "title": "System Settings",
       "description": "Global application configuration stored in Firestore.",
@@ -120,6 +135,10 @@
     "/blog_posts/{postId}": {
       "schema": "#/backend/entities/BlogPost",
       "description": "Scholarly blog posts."
+    },
+    "/blog_posts/{postId}/comments/{commentId}": {
+      "schema": "#/backend/entities/BlogComment",
+      "description": "Comments on a blog post."
     }
   }
 }
