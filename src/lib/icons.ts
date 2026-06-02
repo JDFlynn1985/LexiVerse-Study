@@ -1,4 +1,3 @@
-
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
@@ -16,6 +15,7 @@
 import { 
   LayoutDashboard, 
   MessageSquare, 
+  MessageCircle,
   GraduationCap, 
   Sparkles, 
   History, 
@@ -36,12 +36,17 @@ import {
   Layers,
   NotebookPen,
   Activity,
-  UserCheck
+  UserCheck,
+  Archive,
+  Clock,
+  ArrowLeftRight,
+  Landmark
 } from 'lucide-react';
 
 export const ICON_MAP: Record<string, any> = {
   'layout-dashboard': LayoutDashboard,
   'message-square': MessageSquare,
+  'message-circle': MessageCircle,
   'graduation-cap': GraduationCap,
   'sparkles': Sparkles,
   'history': History,
@@ -62,7 +67,11 @@ export const ICON_MAP: Record<string, any> = {
   'layers': Layers,
   'notebook-pen': NotebookPen,
   'activity': Activity,
-  'user-check': UserCheck
+  'user-check': UserCheck,
+  'archive': Archive,
+  'clock': Clock,
+  'arrow-left-right': ArrowLeftRight,
+  'landmark': Landmark
 };
 
 export function getIconByName(name: string) {

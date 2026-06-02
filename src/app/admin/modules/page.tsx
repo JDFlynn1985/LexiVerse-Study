@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -48,7 +47,7 @@ export default function ModuleManagement() {
     labelKey: '',
     iconName: 'puzzle',
     group: 'ai_hub',
-    enabled: true, // New modules enabled by default
+    enabled: true,
     adminOnly: false
   });
 
@@ -87,7 +86,7 @@ export default function ModuleManagement() {
         ...newModule,
         createdAt: new Date().toISOString()
       });
-      setModules([...modules, { docId, ...newModule }].sort((a, b) => a.id.compareLocale(b.id)));
+      setModules([...modules, { docId, ...newModule }].sort((a, b) => a.id.localeCompare(b.id)));
       setNewModule({ id: '', labelKey: '', iconName: 'puzzle', group: 'ai_hub', enabled: true, adminOnly: false });
       toast({ title: "Module Registered", description: "Successfully added to the scholarly registry." });
     } catch (e: any) {

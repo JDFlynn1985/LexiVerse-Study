@@ -1,4 +1,3 @@
-
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
@@ -9,8 +8,7 @@
 
 /**
  * @fileOverview Primary Research Dashboard Orchestrator.
- * Updated with real-time research momentum fetching and Google Auth integration.
- * Finalized Archive Hub and DM User discovery.
+ * Updated with intelligent search routing for Strong's numbers.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -298,35 +296,41 @@ export default function Home() {
     const sanitizedTerm = sanitizeHtml(term);
     if (!sanitizedTerm.trim()) return;
 
+    // Heuristic: Auto-detect Lexicon lookup for Strong's numbers from dashboard
+    let activeType = type;
+    if (type === 'ai-assistant' && /^[GH]\d+$/i.test(sanitizedTerm)) {
+      activeType = 'lexicon';
+    }
+
     const effectiveKey = getEffectiveKey();
     const isLocal = aiPrefs.modelProvider === 'local';
     
-    if (type !== 'chat' && type !== 'direct-messages' && type !== 'verse-explorer' && type !== 'archive' && !effectiveKey && !isLocal) {
+    if (activeType !== 'chat' && activeType !== 'direct-messages' && activeType !== 'verse-explorer' && activeType !== 'archive' && !effectiveKey && !isLocal) {
       toast({ variant: "destructive", title: "AI Hub Configuration Required", description: "Please supply an API key for the selected provider in your profile." });
       return;
     }
     
     setIsLoading(true);
-    setActiveTab(type);
+    setActiveTab(activeType);
     
-    if (type !== 'chat' && type !== 'direct-messages' && type !== 'archive') logSearch(db, sanitizedTerm, type, user?.uid);
+    if (activeType !== 'chat' && activeType !== 'direct-messages' && activeType !== 'archive') logSearch(db, sanitizedTerm, activeType, user?.uid);
     
     try {
       const modelString = aiPrefs.selectedModel;
-      if (type === 'lexicon') setLexiconResult(await defineAndAnalyzeTerm({ strongsNumber: sanitizedTerm, model: modelString, apiKey: effectiveKey }));
-      else if (type === 'ai-assistant') {
+      if (activeType === 'lexicon') setLexiconResult(await defineAndAnalyzeTerm({ strongsNumber: sanitizedTerm, model: modelString, apiKey: effectiveKey }));
+      else if (activeType === 'ai-assistant') {
         const allChunks = localDocuments.flatMap(d => chunkText(d.content, d.name));
         const relevantChunks = selectRelevantChunks(sanitizedTerm, allChunks, 8);
         const contextExcerpts = relevantChunks.map(c => `[From Paper: ${c.sourceName}]: ${c.text}`);
         setAssistantResult(await aiStudyAssistant({ term: sanitizedTerm, researchContext: contextExcerpts, model: modelString, apiKey: effectiveKey }));
       }
-      else if (type === 'theology') setTheologyResult(await analyzeTheologicalConcept({ concept: sanitizedTerm }));
-      else if (type === 'archaeology') setArchaeologyResult(await runArchaeologyAnalysis({ query: sanitizedTerm }));
-      else if (type === 'geography') setGeographyResult(await runGeographyAnalysis({ query: sanitizedTerm }));
-      else if (type === 'timeline') setTimelineResult(await generateHistoricalTimeline({ topic: sanitizedTerm }));
+      else if (activeType === 'theology') setTheologyResult(await analyzeTheologicalConcept({ concept: sanitizedTerm }));
+      else if (activeType === 'archaeology') setArchaeologyResult(await runArchaeologyAnalysis({ query: sanitizedTerm }));
+      else if (activeType === 'geography') setGeographyResult(await runGeographyAnalysis({ query: sanitizedTerm }));
+      else if (activeType === 'timeline') setTimelineResult(await generateHistoricalTimeline({ topic: sanitizedTerm }));
       
-      if (type !== 'chat' && type !== 'direct-messages' && type !== 'archive') {
-        const newHistory = [{id: Date.now().toString(), type, term: sanitizedTerm, date: new Date().toLocaleString()}, ...historyItems];
+      if (activeType !== 'chat' && activeType !== 'direct-messages' && activeType !== 'archive') {
+        const newHistory = [{id: Date.now().toString(), type: activeType, term: sanitizedTerm, date: new Date().toLocaleString()}, ...historyItems];
         setHistoryItems(newHistory.slice(0, 10));
         localStorage.setItem('lexiverse_history', JSON.stringify(newHistory.slice(0, 10)));
       }

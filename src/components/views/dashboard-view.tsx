@@ -13,8 +13,6 @@ import { ViewMode, AIProvider } from '@/types/scholarly';
 import { useToast } from '@/hooks/use-toast';
 import { transcribeAudio } from '@/ai/flows/transcribe-flow';
 import { 
-  LineChart, 
-  Line, 
   XAxis, 
   YAxis, 
   CartesianGrid, 
