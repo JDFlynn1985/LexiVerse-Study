@@ -1,4 +1,3 @@
-
 /*
  * Title: LexiVerse
  * Copyright © 2026 Joshua Flynn <joshuaflynn040@gmail.com>
@@ -43,7 +42,8 @@ import {
   SidebarMenuButton, 
   SidebarProvider, 
   SidebarInset, 
-  SidebarFooter 
+  SidebarFooter,
+  SidebarTrigger 
 } from '@/components/ui/sidebar';
 import { 
   Globe, 
@@ -384,11 +384,37 @@ export default function Home() {
         </Sidebar>
         <SidebarInset>
           <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-2 bg-background/80 backdrop-blur-md px-4 border-b">
-             <div className="flex items-center gap-4 w-full">
-                <NotificationCenter />
-                <div className="h-4 w-[1px] bg-border mx-2" />
-                <div className="flex-1 flex items-center gap-2">
+             <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-2">
+                   <SidebarTrigger className="-ml-1" />
+                   <div className="h-4 w-[1px] bg-border mx-2" />
+                   <NotificationCenter />
+                   <div className="h-4 w-[1px] bg-border mx-2 hidden sm:block" />
                    <Badge variant="secondary" className="bg-primary/5 text-primary text-[10px] uppercase font-bold tracking-tighter">Scholarly Beta</Badge>
+                </div>
+                
+                <div className="flex items-center gap-4">
+                   {!user ? (
+                     <div className="flex items-center gap-2">
+                       <Button variant="ghost" size="sm" className="text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-primary" onClick={() => handleLogin('google')} disabled={isAuthLoading}>
+                         Sign In
+                       </Button>
+                       <Button size="sm" className="text-xs font-bold uppercase tracking-widest shadow-lg" onClick={() => handleLogin('google')} disabled={isAuthLoading}>
+                         Sign Up
+                       </Button>
+                     </div>
+                   ) : (
+                     <div className="flex items-center gap-3 animate-in fade-in slide-in-from-right-2">
+                       <div className="hidden md:flex flex-col items-end leading-none">
+                         <span className="text-[10px] font-bold text-primary uppercase tracking-tighter">Scholar Verified</span>
+                         <span className="text-[9px] text-muted-foreground truncate max-w-[150px]">{user.email}</span>
+                       </div>
+                       <Avatar className="h-8 w-8 border-2 border-background shadow-sm">
+                         <AvatarImage src={user.photoURL || getGravatarUrl(user.email || '')} />
+                         <AvatarFallback>{user.displayName?.[0]}</AvatarFallback>
+                       </Avatar>
+                     </div>
+                   )}
                 </div>
              </div>
           </header>
