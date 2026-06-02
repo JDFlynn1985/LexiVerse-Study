@@ -2,12 +2,13 @@
 # LexiVerse Explorer: Technical Roadmap
 
 ## ✅ Completed (Production Foundation)
-- [x] **Institutional SSO (SAML/OIDC)**: Enabled enterprise-grade single sign-on for seminary-wide deployments with custom provider support.
+- [x] **Firestore Vector Search**: Finalized the migration from browser-side keyword ranking to server-side vector embeddings for semantic precision and "Deep RAG" capabilities.
+- [x] **Ollama Local Network Integration**: Finalized support for on-premise model selection and local-only AI research.
 - [x] **Zotero Bidirectional Sync**: Full API integration for collections, moving beyond one-way BibTeX export.
+- [x] **Institutional SSO (SAML/OIDC)**: Enabled enterprise-grade single sign-on for seminary-wide deployments with custom provider support.
 - [x] **Structured Lexicon Fetching**: Transitioned from AI-simulated Strong's data to a tool-grounded retrieval system with a dedicated API connector.
 - [x] **Verified Commentary Aggregator**: Integrated a structured aggregator for primary historical scholarly works (JFB, Henry, Calvin).
 - [x] **Bible Version Licensing Hub**: Implemented a secure flow for accessing modern copyrighted translations (NIV, ESV, etc.).
-- [x] **Ollama Local Network Integration**: Finalized support for on-premise model selection and local-only AI research.
 - [x] **Attributed Multi-Document RAG**: Citing specific papers in AI synthesis using filename references.
 - [x] **Notification Engine**: Real-time peer-review alerts and discourse notifications.
 - [x] **Voice Research Hub**: Multimodal voice transcription for dictated theological queries.
@@ -18,8 +19,5 @@
 - [x] **Governance Audit Dashboard**: Live institutional research trends and stability monitoring.
 - [x] **BibTeX / Zotero Export**: Pro-grade citation manager integration for synthesized results.
 
-## 📄 Document Management (Advanced RAG)
-- [ ] **Firestore Vector Search**: Migrate from browser-side keyword ranking to server-side vector embeddings for semantic precision.
-
 ---
-*Last Audit: February 2024. Only 1 primary architectural feature remains.*
+*Last Audit: February 2024. All primary architectural milestones completed.*

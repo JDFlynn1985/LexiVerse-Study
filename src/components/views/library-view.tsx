@@ -1,13 +1,14 @@
+
 'use client';
 
 /**
  * @fileOverview Library Hub View.
- * Manage network-isolated research papers for local RAG context.
- * Enhanced with automated metadata and content sanitization.
+ * Manage network-isolated research papers and cloud-indexed Vector Search.
+ * Enhanced with automated metadata and semantic indexing capabilities.
  */
 
 import React, { memo, useState } from 'react';
-import { Library, Upload, Trash2, FileText, Loader2, Info, Search, BookOpen, CheckCircle2, Languages } from 'lucide-react';
+import { Library, Upload, Trash2, FileText, Loader2, Info, Search, BookOpen, CheckCircle2, Languages, CloudUpload, ShieldCheck } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,8 +16,11 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { parseDocument } from '@/lib/document-parser';
-import { saveLocalDocument, deleteLocalDocument, type IDBDocument } from '@/lib/idb';
+import { saveLocalDocument, deleteLocalDocument, updateLocalDocument, type IDBDocument } from '@/lib/idb';
 import { sanitizeHtml, sanitizeFilename } from '@/lib/sanitization';
+import { indexLibraryDocument } from '@/ai/flows/vector-search-flow';
+import { useFirestore, useUser } from '@/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 
 interface LibraryViewProps {
@@ -27,7 +31,10 @@ interface LibraryViewProps {
 
 export const LibraryView = memo(({ documents, onRefresh, isLoading }: LibraryViewProps) => {
   const { toast } = useToast();
+  const db = useFirestore();
+  const { user } = useUser();
   const [isParsing, setIsParsing] = useState(false);
+  const [isIndexing, setIsIndexing] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -36,10 +43,7 @@ export const LibraryView = memo(({ documents, onRefresh, isLoading }: LibraryVie
 
     setIsParsing(true);
     try {
-      // 1. Extract raw content
       const rawContent = await parseDocument(file);
-      
-      // 2. Apply metadata and content sanitization
       const cleanName = sanitizeFilename(file.name);
       const cleanContent = sanitizeHtml(rawContent);
 
@@ -52,11 +56,10 @@ export const LibraryView = memo(({ documents, onRefresh, isLoading }: LibraryVie
         synced: false
       };
 
-      // 3. Persist to local IndexedDB
       await saveLocalDocument(newDoc);
       toast({ 
-        title: "Paper Indexed", 
-        description: `${cleanName} successfully sanitized and added to library.` 
+        title: "Paper Indexed Locally", 
+        description: `${cleanName} added to research library.` 
       });
       onRefresh();
     } catch (e: any) {
@@ -64,6 +67,40 @@ export const LibraryView = memo(({ documents, onRefresh, isLoading }: LibraryVie
     } finally {
       setIsParsing(false);
       e.target.value = '';
+    }
+  };
+
+  const handleCloudSync = async (docObj: IDBDocument) => {
+    if (!user || !db) return;
+    setIsIndexing(docObj.id);
+    try {
+      // 1. Generate Embeddings server-side
+      const chunksWithEmbeds = await indexLibraryDocument({
+        docId: docObj.id,
+        docName: docObj.name,
+        content: docObj.content,
+        userId: user.uid
+      });
+
+      // 2. Persist Chunks to Firestore for Vector Search
+      const chunksRef = collection(db, 'users', user.uid, 'chunks');
+      await Promise.all(chunksWithEmbeds.map(chunk => 
+        addDoc(chunksRef, {
+          ...chunk,
+          userId: user.uid,
+          docId: docObj.id,
+          createdAt: serverTimestamp()
+        })
+      ));
+
+      // 3. Mark document as synced
+      await updateLocalDocument(docObj.id, { synced: true });
+      onRefresh();
+      toast({ title: "Semantic Indexing Complete", description: "Deep RAG context enabled for this document." });
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: "Cloud Indexing Failed", description: e.message });
+    } finally {
+      setIsIndexing(null);
     }
   };
 
@@ -86,7 +123,7 @@ export const LibraryView = memo(({ documents, onRefresh, isLoading }: LibraryVie
           <h1 className="text-3xl font-bold font-headline flex items-center gap-3">
             <Library className="h-8 w-8 text-primary" /> Digital Library
           </h1>
-          <p className="text-muted-foreground">Manage network-isolated research papers for AI context.</p>
+          <p className="text-muted-foreground">Manage network-isolated research papers and semantic vector indices.</p>
         </div>
         <div className="relative">
           <Button disabled={isParsing} className="shadow-lg relative overflow-hidden">
@@ -108,7 +145,7 @@ export const LibraryView = memo(({ documents, onRefresh, isLoading }: LibraryVie
           <Card className="shadow-sm border-primary/10">
             <CardHeader className="pb-3 border-b bg-muted/20">
               <div className="flex justify-between items-center">
-                <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Indexed Papers</CardTitle>
+                <CardTitle className="text-sm font-bold uppercase tracking-widest text-muted-foreground">Research Inventory</CardTitle>
                 <div className="relative w-64">
                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                    <Input 
@@ -134,14 +171,27 @@ export const LibraryView = memo(({ documents, onRefresh, isLoading }: LibraryVie
                           <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                             <span>{new Date(doc.uploadDate).toLocaleDateString()}</span>
                             <span>•</span>
-                            <span>{Math.round(doc.content.length / 5).toLocaleString()} words</span>
+                            <span>{doc.synced ? 'Semantic Index Active' : 'Local Only'}</span>
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-[9px] gap-1 border-green-500/30 text-green-600">
-                          <CheckCircle2 className="h-2 w-2" /> Context Active
-                        </Badge>
+                        {!doc.synced ? (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-7 text-[10px] gap-1.5" 
+                            onClick={() => handleCloudSync(doc)}
+                            disabled={isIndexing === doc.id}
+                          >
+                            {isIndexing === doc.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CloudUpload className="h-3 w-3" />}
+                            Sync to Cloud RAG
+                          </Button>
+                        ) : (
+                          <Badge variant="outline" className="text-[9px] gap-1 border-green-500/30 text-green-600 bg-green-50/50">
+                            <ShieldCheck className="h-2 w-2" /> Vector Search Ready
+                          </Badge>
+                        )}
                         <Button 
                           variant="ghost" 
                           size="icon" 
@@ -164,7 +214,7 @@ export const LibraryView = memo(({ documents, onRefresh, isLoading }: LibraryVie
             </CardContent>
             <CardFooter className="bg-muted/10 p-3 border-t">
                <p className="text-[10px] text-muted-foreground italic">
-                 <strong>Privacy & Security:</strong> Documents are sanitized and stored locally in your browser's IndexedDB. They never touch LexiVerse or Google servers.
+                 <strong>Vector Search:</strong> Cloud-synced papers use high-dimensional embeddings for superior semantic retrieval precision.
                </p>
             </CardFooter>
           </Card>
@@ -174,45 +224,28 @@ export const LibraryView = memo(({ documents, onRefresh, isLoading }: LibraryVie
           <Card className="border-accent/20 bg-accent/5">
             <CardHeader>
               <CardTitle className="text-lg font-headline flex items-center gap-2">
-                <Info className="h-5 w-5 text-accent" /> RAG Attribution
+                <Languages className="h-5 w-5 text-accent" /> Semantic Precision
               </CardTitle>
-              <CardDescription>How cited context works.</CardDescription>
+              <CardDescription>Deep RAG Infrastructure.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 text-sm leading-relaxed">
               <p>
-                The <strong>AI Study Assistant</strong> now uses multi-document grounding. Insights derived from your papers are cited using their filename.
+                By indexing your papers for <strong>Vector Search</strong>, the AI engine can understand the *meaning* of your query rather than just keyword overlap.
               </p>
-              <div className="p-3 bg-background rounded-lg border text-xs italic">
-                "According to recent research, the linguistic root 'logos' conveys specific ontological weight [Ref: TheologyPaper.pdf]."
+              <div className="p-3 bg-background rounded-lg border text-xs">
+                <span className="font-bold text-accent">Intent Matching:</span> Search for "Divine Sovereignty" to find fragments about "Supreme Authority" or "Providence".
               </div>
               <ul className="space-y-2 text-xs">
                  <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-3 w-3 text-accent mt-0.5" />
-                    <span>Automatic source identification.</span>
+                    <span>Gemini Embedding Models (004).</span>
                  </li>
                  <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-3 w-3 text-accent mt-0.5" />
-                    <span>Cross-document synthesis logic.</span>
-                 </li>
-                 <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-3 w-3 text-accent mt-0.5" />
-                    <span>Instant character indexing.</span>
+                    <span>Theological context awareness.</span>
                  </li>
               </ul>
             </CardContent>
-          </Card>
-          
-          <Card className="bg-primary text-primary-foreground">
-             <CardHeader>
-               <CardTitle className="text-sm font-bold uppercase flex items-center gap-2">
-                 <Languages className="h-4 w-4" /> Global Research
-               </CardTitle>
-             </CardHeader>
-             <CardContent>
-                <p className="text-[11px] opacity-80 leading-relaxed italic">
-                  Upload multiple synoptic papers to perform comparative cross-document analysis. The AI engine ranks chunks by semantic relevance across your entire indexed library.
-                </p>
-             </CardContent>
           </Card>
         </div>
       </div>
