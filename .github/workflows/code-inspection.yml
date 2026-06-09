@@ -19,7 +19,7 @@ jobs:
       # Step 2: Extract the list of modified/changed files
       - name: Get Changed Files
         id: changed-files
-        uses: tj-actions/changed-files@v45 # Use the latest stable version
+        uses: tj-actions/changed-files@v47 # Use the latest stable version
         with:
           # Filter files by extensions if needed (e.g., only inspect JavaScript/Python files)
           files: |
